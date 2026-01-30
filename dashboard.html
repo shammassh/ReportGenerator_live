@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Safety Audit Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 25px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15), 0 5px 15px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(20px);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .dashboard-header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255, 255, 255, 0.05) 10px,
+                rgba(255, 255, 255, 0.05) 20px
+            );
+            animation: move 20s linear infinite;
+        }
+
+        .dashboard-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #f093fb, #f5576c, #feca57, #43e97b, #4facfe, #f093fb);
+            background-size: 200% 100%;
+            animation: gradientMove 3s linear infinite;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+
+        @keyframes move {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .dashboard-header h1 {
+            font-size: 2.8em;
+            margin-bottom: 12px;
+            position: relative;
+            z-index: 1;
+            font-weight: 800;
+            letter-spacing: -1px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .dashboard-header p {
+            font-size: 1.3em;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+            font-weight: 300;
+        }
+
+        .controls-bar {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-container {
+            flex: 1;
+            position: relative;
+            min-width: 300px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 45px 14px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 30px;
+            font-size: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: white;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            font-size: 18px;
+        }
+
+        .filter-select {
+            padding: 12px 20px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(56, 239, 125, 0.4);
+            background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%);
+        }
+
+        .notification-history-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .notification-history-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(118, 75, 162, 0.4);
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+
+        .admin-panel-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);
+        }
+
+        .admin-panel-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(245, 87, 108, 0.4);
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+        }
+
+        .template-builder-btn {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(67, 233, 123, 0.3);
+        }
+
+        .template-builder-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(56, 249, 215, 0.4);
+            background: linear-gradient(135deg, #38f9d7 0%, #43e97b 100%);
+        }
+
+        .start-audit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .start-audit-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(118, 75, 162, 0.4);
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+
+        .store-management-btn {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+        }
+
+        .store-management-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(234, 88, 12, 0.4);
+            background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+        }
+
+        .view-audits-btn {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+        }
+
+        .view-audits-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(8, 145, 178, 0.4);
+            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+        }
+
+        .system-settings-btn {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .system-settings-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
+            background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+        }
+
+        /* My Store Audits Card for StoreManager */
+        .my-audits-card {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 2px solid #22c55e;
+            border-radius: 20px;
+            padding: 30px;
+            margin: 20px 30px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 8px 30px rgba(34, 197, 94, 0.2);
+        }
+
+        .my-audits-card .card-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+        }
+
+        .my-audits-card .card-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #166534;
+            margin-bottom: 10px;
+        }
+
+        .my-audits-card .card-description {
+            font-size: 16px;
+            color: #4b5563;
+            margin-bottom: 20px;
+            max-width: 500px;
+        }
+
+        .my-audits-card .card-stores {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+        }
+
+        .my-audits-card .card-stores strong {
+            color: #166534;
+        }
+
+        .my-audits-btn {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            border-radius: 14px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+        }
+
+        .my-audits-btn:hover {
+            transform: translateY(-4px) scale(1.03);
+            box-shadow: 0 10px 30px rgba(22, 163, 74, 0.5);
+            background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+        }
+
+        /* Inline Audits Grid */
+        .my-audits-list {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .my-audits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+            width: 100%;
+        }
+
+        .my-audit-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 1px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+
+        .my-audit-item:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            border-color: #22c55e;
+        }
+
+        .my-audit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .my-audit-doc {
+            font-weight: 700;
+            color: #1e3a5f;
+            font-size: 14px;
+        }
+
+        .my-audit-score {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .my-audit-score.pass {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .my-audit-score.fail {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .my-audit-info {
+            margin-bottom: 12px;
+        }
+
+        .my-audit-info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            padding: 4px 0;
+        }
+
+        .my-audit-info-row .label {
+            color: #6b7280;
+        }
+
+        .my-audit-info-row .value {
+            color: #374151;
+            font-weight: 500;
+        }
+
+        .my-audit-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .my-audit-btn {
+            flex: 1;
+            padding: 10px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-width: 120px;
+        }
+
+        .my-audit-btn.view-report {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            color: white;
+        }
+
+        .my-audit-btn.view-report:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
+        }
+
+        .my-audit-btn.action-plan {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .my-audit-btn.action-plan:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .my-audits-empty {
+            text-align: center;
+            padding: 30px;
+            color: #6b7280;
+        }
+
+        .my-audits-loading {
+            text-align: center;
+            padding: 30px;
+            color: #6b7280;
+        }
+
+        .stats-bar {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .stats-item {
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .stats-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+            display: block;
+        }
+
+        .stats-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .documents-container {
+            padding: 30px;
+            max-height: calc(100vh - 400px);
+            overflow-y: auto;
+        }
+
+        .document-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .document-card {
+            background: white;
+            border-radius: 12px;
+            padding: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border: 1px solid #e0e0e0;
+            overflow: hidden;
+        }
+
+        .document-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            border-color: #3498db;
+        }
+
+        .document-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #3498db;
+        }
+
+        .document-number {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: white;
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+
+        .document-status {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-active {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .status-pending {
+            background: rgba(255, 193, 7, 0.9);
+            color: #664d03;
+        }
+
+        .document-details {
+            padding: 24px;
+            background: #fafafa;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid #e8e8e8;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .detail-label {
+            color: #666;
+            font-weight: 500;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            color: #2c3e50;
+            font-weight: 700;
+            font-size: 1em;
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 1em;
+        }
+
+        .score-pass {
+            background: #10b981;
+            color: white;
+        }
+
+        .score-fail {
+            background: #ef4444;
+            color: white;
+        }
+
+        /* Legacy classes for backwards compatibility */
+        .score-excellent {
+            background: #10b981;
+            color: white;
+        }
+
+        .score-good {
+            background: #10b981;
+            color: white;
+        }
+
+        .score-poor {
+            background: #ef4444;
+            color: white;
+        }
+
+        .document-actions {
+            padding: 24px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .action-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .action-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .action-row-2col {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .action-btn {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-decoration: none;
+            text-align: center;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            min-height: 44px;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.16);
+        }
+
+        .action-btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-view {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-view:hover {
+            background: #2563eb;
+        }
+
+        .btn-generate {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-generate:hover {
+            background: #059669;
+        }
+
+        .btn-action-plan {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .btn-action-plan:hover {
+            background: #7c3aed;
+        }
+
+        /* Department Follow-up Buttons */
+        .btn-dept {
+            font-size: 11px;
+            padding: 10px 8px;
+            white-space: normal;
+            line-height: 1.3;
+            min-height: 42px;
+        }
+
+        .btn-maintenance {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-maintenance:hover {
+            background: #d97706;
+        }
+
+        .btn-procurement {
+            background: #06b6d4;
+            color: white;
+        }
+
+        .btn-procurement:hover {
+            background: #0891b2;
+        }
+
+        .btn-cleaning {
+            background: #14b8a6;
+            color: white;
+        }
+
+        .btn-cleaning:hover {
+            background: #0d9488;
+        }
+
+        /* Action row labels */
+        .action-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-pdf {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-pdf:hover {
+            background: #dc2626;
+        }
+
+        .btn-doc {
+            background: #f97316;
+            color: white;
+        }
+
+        .btn-doc:hover {
+            background: #ea580c;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-documents {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .no-documents-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #dc3545;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 10px;
+            border-left: 5px solid #28a745;
+        }
+
+        .info-message {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 10px;
+            border-left: 5px solid #17a2b8;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            .dashboard-header {
+                padding: 20px;
+            }
+
+            .dashboard-header h1 {
+                font-size: 2em;
+            }
+
+            .controls-bar {
+                padding: 15px 20px;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .search-container {
+                min-width: auto;
+            }
+
+            .stats-bar {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .document-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .document-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h1>🏪 Food Safety Audit Dashboard</h1>
+            <p>Manage and generate comprehensive audit reports for all store locations</p>
+        </div>
+
+        <div class="controls-bar">
+            <button class="view-audits-btn" id="viewAuditsBtn" onclick="window.location.href='/auditor/audit-list'" style="display: none;">
+                <span>📊</span>
+                View Audits
+            </button>
+            <button class="start-audit-btn" id="startAuditBtn" onclick="window.location.href='/auditor/start-audit'" style="display: none;">
+                <span>🚀</span>
+                Start Audit
+            </button>
+            <button class="notification-history-btn" id="notificationHistoryBtn" onclick="window.location.href='/admin/notification-history'" style="display: none;">
+                <span>📧</span>
+                Notifications
+            </button>
+            <button class="admin-panel-btn" id="adminPanelBtn" onclick="window.location.href='/admin/users'" style="display: none;">
+                <span>👤</span>
+                User Management
+            </button>
+            <button class="template-builder-btn" id="templateBuilderBtn" onclick="window.location.href='/admin/template-builder'" style="display: none;">
+                <span>📋</span>
+                Template Builder
+            </button>
+            <button class="store-management-btn" id="storeManagementBtn" onclick="window.location.href='/admin/store-management'" style="display: none;">
+                <span>🏪</span>
+                Store Management
+            </button>
+            <button class="system-settings-btn" id="systemSettingsBtn" onclick="window.location.href='/admin/system-settings'" style="display: none;">
+                <span>⚙️</span>
+                System Settings
+            </button>
+        </div>
+
+        <!-- My Store Audits Card for StoreManager -->
+        <div class="my-audits-card" id="myAuditsCard">
+            <div class="card-icon">🏪</div>
+            <div class="card-title">My Store Audits</div>
+            <div class="card-description">View completed audits, reports, and action plans for your assigned stores</div>
+            <div class="card-stores" id="assignedStoresInfo">Loading your assigned stores...</div>
+            
+            <!-- Inline Audits List -->
+            <div class="my-audits-list" id="myAuditsList">
+                <div class="my-audits-loading">Loading audits...</div>
+            </div>
+        </div>
+
+        <!-- My Region Audits Card for HeadOfOperations and AreaManager -->
+        <div class="my-audits-card" id="myRegionCard" style="display: none; border-color: #667eea; background: linear-gradient(135deg, #f0f4ff 0%, #e8ecff 100%);">
+            <div class="card-icon">🗺️</div>
+            <div class="card-title" id="regionCardTitle">My Region Audits</div>
+            <div class="card-description">View completed audits and reports for your assigned region (read-only)</div>
+            <div class="card-stores" id="assignedRegionInfo">Loading your assigned region...</div>
+            
+            <!-- Inline Audits List -->
+            <div class="my-audits-list" id="myRegionAuditsList">
+                <div class="my-audits-loading">Loading audits...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Impersonation Panel Script -->
+    <script src="/auth/scripts/impersonation-panel.js?v=20260126231838"></script>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:3001';
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Dashboard initializing...');
+            
+            // Check authentication and set up role-based UI
+            checkAuthAndSetupUI();
+            
+            // Initialize impersonation panel for admins
+            if (typeof initImpersonationPanel === 'function') {
+                initImpersonationPanel();
+            }
+        });
+
+        // Check authentication and setup UI based on role
+        async function checkAuthAndSetupUI() {
+            try {
+                console.log('🔍 Checking authentication and setting up UI...');
+                
+                // Try to use injected USER_CONTEXT first (from server-side injection)
+                if (window.USER_CONTEXT && window.USER_CONTEXT.role) {
+                    const userRole = window.USER_CONTEXT.role;
+                    console.log('👤 User Role (from USER_CONTEXT):', userRole);
+
+                    // Check if buttons exist
+                    const notificationBtn = document.getElementById('notificationHistoryBtn');
+                    const adminBtn = document.getElementById('adminPanelBtn');
+                    const templateBtn = document.getElementById('templateBuilderBtn');
+                    const startAuditBtn = document.getElementById('startAuditBtn');
+                    const storeManagementBtn = document.getElementById('storeManagementBtn');
+                    const viewAuditsBtn = document.getElementById('viewAuditsBtn');
+                    const systemSettingsBtn = document.getElementById('systemSettingsBtn');
+                    console.log('📧 Notification button exists:', notificationBtn !== null);
+                    console.log('👤 Admin button exists:', adminBtn !== null);
+                    console.log('📋 Template button exists:', templateBtn !== null);
+                    console.log('🚀 Start Audit button exists:', startAuditBtn !== null);
+                    console.log('🏪 Store Management button exists:', storeManagementBtn !== null);
+                    console.log('📊 View Audits button exists:', viewAuditsBtn !== null);
+                    console.log('⚙️ System Settings button exists:', systemSettingsBtn !== null);
+
+                    // Show Start Audit button for Admin, SuperAuditor, and Auditor
+                    if (userRole === 'Admin' || userRole === 'SuperAuditor' || userRole === 'Auditor') {
+                        console.log('✅ Showing start audit button for role:', userRole);
+                        if (startAuditBtn) {
+                            startAuditBtn.style.display = 'flex';
+                            console.log('✅ Start Audit button display set to flex');
+                        }
+                        if (viewAuditsBtn) {
+                            viewAuditsBtn.style.display = 'flex';
+                            console.log('✅ View Audits button display set to flex');
+                        }
+                    }
+
+                    // Show My Audits card for StoreManager (and Admin/SuperAuditor can see everything)
+                    if (userRole === 'StoreManager' || userRole === 'Admin' || userRole === 'SuperAuditor') {
+                        console.log('✅ Showing My Audits card for role:', userRole);
+                        const myAuditsCard = document.getElementById('myAuditsCard');
+                        if (myAuditsCard) {
+                            myAuditsCard.style.display = 'flex';
+                            console.log('✅ My Audits card display set to flex');
+                            loadAssignedStores();
+                            loadMyAudits();
+                        }
+                    }
+
+                    // Show My Region Audits card for HeadOfOperations, AreaManager (and Admin/SuperAuditor can see everything)
+                    if (userRole === 'HeadOfOperations' || userRole === 'AreaManager' || userRole === 'Admin' || userRole === 'SuperAuditor') {
+                        console.log('✅ Showing My Region card for role:', userRole);
+                        const myRegionCard = document.getElementById('myRegionCard');
+                        if (myRegionCard) {
+                            myRegionCard.style.display = 'flex';
+                            // Update title based on role
+                            const regionTitle = document.getElementById('regionCardTitle');
+                            if (regionTitle) {
+                                regionTitle.textContent = userRole === 'HeadOfOperations' ? 'My Brand Audits' : 'My Area Audits';
+                            }
+                            loadAssignedRegion();
+                            loadMyRegionAudits();
+                        }
+                    }
+
+                    // Show Store Management button for Admin and SuperAuditor
+                    if (userRole === 'Admin' || userRole === 'SuperAuditor') {
+                        console.log('✅ Showing store management button for role:', userRole);
+                        if (storeManagementBtn) {
+                            storeManagementBtn.style.display = 'flex';
+                            console.log('✅ Store Management button display set to flex');
+                        }
+                    }
+
+                    // Show notification history button for Admin and Auditor
+                    if (userRole === 'Admin' || userRole === 'Auditor') {
+                        console.log('✅ Showing notification history button for role:', userRole);
+                        if (notificationBtn) {
+                            notificationBtn.style.display = 'flex';
+                            console.log('✅ Notification button display set to flex');
+                        } else {
+                            console.error('❌ Notification button not found in DOM!');
+                        }
+                    }
+
+                    // Show admin panel button for Admin only
+                    if (userRole === 'Admin') {
+                        console.log('✅ Showing admin panel button');
+                        if (adminBtn) {
+                            adminBtn.style.display = 'flex';
+                            console.log('✅ Admin button display set to flex');
+                        }
+                    }
+
+                    // Show template builder button for Admin and SuperAuditor
+                    if (userRole === 'Admin' || userRole === 'SuperAuditor') {
+                        console.log('✅ Showing template builder button for role:', userRole);
+                        if (templateBtn) {
+                            templateBtn.style.display = 'flex';
+                            console.log('✅ Template button display set to flex');
+                        }
+                        if (systemSettingsBtn) {
+                            systemSettingsBtn.style.display = 'flex';
+                            console.log('✅ System Settings button display set to flex');
+                        }
+                    }
+
+                    return; // Exit early since we found user context
+                }
+
+                // Fallback: Try to fetch from session endpoint
+                console.log('⚠️ USER_CONTEXT not found, trying /auth/session...');
+                const response = await fetch('/auth/session');
+                const data = await response.json();
+
+                console.log('📊 Session data:', data);
+
+                if (data.isAuthenticated && data.user) {
+                    const userRole = data.user.role;
+                    console.log('👤 User Role (from session):', userRole);
+
+                    // Check if buttons exist
+                    const notificationBtn = document.getElementById('notificationHistoryBtn');
+                    const adminBtn = document.getElementById('adminPanelBtn');
+                    const templateBtn = document.getElementById('templateBuilderBtn');
+                    const startAuditBtn = document.getElementById('startAuditBtn');
+                    const storeManagementBtn = document.getElementById('storeManagementBtn');
+                    const viewAuditsBtn = document.getElementById('viewAuditsBtn');
+                    const systemSettingsBtn = document.getElementById('systemSettingsBtn');
+
+                    // Show Start Audit button for Admin, SuperAuditor, and Auditor
+                    if (userRole === 'Admin' || userRole === 'SuperAuditor' || userRole === 'Auditor') {
+                        if (startAuditBtn) {
+                            startAuditBtn.style.display = 'flex';
+                        }
+                        if (viewAuditsBtn) {
+                            viewAuditsBtn.style.display = 'flex';
+                        }
+                    }
+
+                    // Show My Audits card for StoreManager (and Admin/SuperAuditor can see everything)
+                    if (userRole === 'StoreManager' || userRole === 'Admin' || userRole === 'SuperAuditor') {
+                        const myAuditsCard = document.getElementById('myAuditsCard');
+                        if (myAuditsCard) {
+                            myAuditsCard.style.display = 'flex';
+                            loadAssignedStores();
+                            loadMyAudits();
+                        }
+                    }
+
+                    // Show My Region Audits card for HeadOfOperations, AreaManager (and Admin/SuperAuditor can see everything)
+                    if (userRole === 'HeadOfOperations' || userRole === 'AreaManager' || userRole === 'Admin' || userRole === 'SuperAuditor') {
+                        const myRegionCard = document.getElementById('myRegionCard');
+                        if (myRegionCard) {
+                            myRegionCard.style.display = 'flex';
+                            const regionTitle = document.getElementById('regionCardTitle');
+                            if (regionTitle) {
+                                regionTitle.textContent = userRole === 'HeadOfOperations' ? 'My Brand Audits' : 'My Area Audits';
+                            }
+                            loadAssignedRegion();
+                            loadMyRegionAudits();
+                        }
+                    }
+
+                    // Show Store Management button for Admin and SuperAuditor
+                    if (userRole === 'Admin' || userRole === 'SuperAuditor') {
+                        if (storeManagementBtn) {
+                            storeManagementBtn.style.display = 'flex';
+                        }
+                    }
+
+                    // Show notification history button for Admin and Auditor
+                    if (userRole === 'Admin' || userRole === 'Auditor') {
+                        if (notificationBtn) {
+                            notificationBtn.style.display = 'flex';
+                        }
+                    }
+
+                    // Show admin panel button for Admin only
+                    if (userRole === 'Admin') {
+                        if (adminBtn) {
+                            adminBtn.style.display = 'flex';
+                        }
+                    }
+
+                    // Show template builder button for Admin and SuperAuditor
+                    if (userRole === 'Admin' || userRole === 'SuperAuditor') {
+                        if (templateBtn) {
+                            templateBtn.style.display = 'flex';
+                        }
+                        if (systemSettingsBtn) {
+                            systemSettingsBtn.style.display = 'flex';
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('⚠️ Error checking authentication:', error);
+            }
+        }
+
+        // Show message to user
+        function showMessage(message, type) {
+            // Remove existing messages
+            const existingMessages = document.querySelectorAll('.success-message, .error-message, .info-message');
+            existingMessages.forEach(msg => msg.remove());
+
+            // Map type to CSS class
+            let messageClass;
+            if (type === 'success') {
+                messageClass = 'success-message';
+            } else if (type === 'info') {
+                messageClass = 'info-message';
+            } else {
+                messageClass = 'error-message';
+            }
+            
+            const messageHTML = `<div class="${messageClass}">${message}</div>`;
+            
+            document.querySelector('.dashboard-container').insertAdjacentHTML('afterbegin', messageHTML);
+            
+            // Auto-remove message after 5 seconds
+            setTimeout(() => {
+                const messageEl = document.querySelector(`.${messageClass}`);
+                if (messageEl) messageEl.remove();
+            }, 5000);
+        }
+
+        // Load assigned stores for StoreManager
+        async function loadAssignedStores() {
+            try {
+                const response = await fetch('/api/store-manager/my-stores');
+                const data = await response.json();
+                
+                const storesInfo = document.getElementById('assignedStoresInfo');
+                if (data.success && data.stores && data.stores.length > 0) {
+                    const storeNames = data.stores.map(s => s.storeName).join(', ');
+                    storesInfo.innerHTML = `<strong>Your Stores:</strong> ${storeNames}`;
+                } else {
+                    storesInfo.innerHTML = '<strong>No stores assigned yet.</strong> Please contact your administrator.';
+                }
+            } catch (error) {
+                console.error('Error loading assigned stores:', error);
+                const storesInfo = document.getElementById('assignedStoresInfo');
+                storesInfo.innerHTML = '<strong>Your assigned stores</strong>';
+            }
+        }
+
+        // Load audits for StoreManager (inline display)
+        async function loadMyAudits() {
+            const listContainer = document.getElementById('myAuditsList');
+            try {
+                const response = await fetch('/api/audits/list');
+                const data = await response.json();
+                
+                if (!data.success || !data.audits || data.audits.length === 0) {
+                    listContainer.innerHTML = `
+                        <div class="my-audits-empty">
+                            <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
+                            <div>No audits found for your stores yet.</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Filter to only completed audits
+                const completedAudits = data.audits.filter(a => a.Status === 'Completed');
+                
+                if (completedAudits.length === 0) {
+                    listContainer.innerHTML = `
+                        <div class="my-audits-empty">
+                            <div style="font-size: 48px; margin-bottom: 10px;">⏳</div>
+                            <div>No completed audits yet. Audits in progress will appear here once completed.</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Render audits grid
+                const auditsHtml = completedAudits.map(audit => {
+                    const score = audit.TotalScore !== null ? Math.round(audit.TotalScore) : null;
+                    const passingGrade = audit.PassingGrade || 83;
+                    const scoreClass = score !== null ? (score >= passingGrade ? 'pass' : 'fail') : '';
+                    const scoreText = score !== null ? `${score}%` : 'N/A';
+                    
+                    return `
+                        <div class="my-audit-item">
+                            <div class="my-audit-header">
+                                <span class="my-audit-doc">${audit.DocumentNumber || '-'}</span>
+                                <span class="my-audit-score ${scoreClass}">${scoreText}</span>
+                            </div>
+                            <div class="my-audit-info">
+                                <div class="my-audit-info-row">
+                                    <span class="label">🏪 Store</span>
+                                    <span class="value">${audit.StoreName || 'Unknown'}</span>
+                                </div>
+                                <div class="my-audit-info-row">
+                                    <span class="label">📅 Cycle</span>
+                                    <span class="value">${audit.AuditCycle || '-'} / ${audit.AuditYear || '-'}</span>
+                                </div>
+                                <div class="my-audit-info-row">
+                                    <span class="label">👤 Auditor</span>
+                                    <span class="value">${(audit.Auditors || '').split(',')[0] || 'N/A'}</span>
+                                </div>
+                            </div>
+                            <div class="my-audit-actions">
+                                <button class="my-audit-btn view-report" onclick="viewReport(${audit.AuditID})">
+                                    📄 View Report
+                                </button>
+                                <button class="my-audit-btn action-plan" onclick="viewActionPlan(${audit.AuditID})">
+                                    🎯 Action Plan
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                listContainer.innerHTML = `<div class="my-audits-grid">${auditsHtml}</div>`;
+
+            } catch (error) {
+                console.error('Error loading audits:', error);
+                listContainer.innerHTML = `
+                    <div class="my-audits-empty">
+                        <div style="font-size: 48px; margin-bottom: 10px;">⚠️</div>
+                        <div>Error loading audits. Please try again.</div>
+                    </div>
+                `;
+            }
+        }
+
+        // View Report for an audit
+        async function viewReport(auditId) {
+            try {
+                // Check if published report exists
+                const response = await fetch(`/api/audits/${auditId}/published-report`);
+                const data = await response.json();
+                
+                if (data.success && data.hasReport) {
+                    window.open(`/api/audits/reports/${data.fileName}`, '_blank');
+                } else {
+                    alert('Report not yet published. Please contact the auditor.');
+                }
+            } catch (error) {
+                console.error('Error viewing report:', error);
+                alert('Error loading report: ' + error.message);
+            }
+        }
+
+        // View Action Plan for an audit
+        function viewActionPlan(auditId) {
+            window.location.href = `/auditor/action-plan?id=${auditId}`;
+        }
+
+        // ==========================================
+        // HeadOfOperations / AreaManager Functions
+        // ==========================================
+
+        // Load assigned region info for HoO/AreaManager
+        async function loadAssignedRegion() {
+            try {
+                const response = await fetch('/api/region-manager/my-region');
+                const data = await response.json();
+                
+                const regionInfo = document.getElementById('assignedRegionInfo');
+                if (data.success) {
+                    if (data.role === 'HeadOfOperations' && data.brands) {
+                        regionInfo.innerHTML = `<strong>Your Brands:</strong> ${data.brands.join(', ')}`;
+                    } else if (data.role === 'AreaManager' && data.stores) {
+                        const storeNames = data.stores.map(s => s.storeName).join(', ');
+                        regionInfo.innerHTML = `<strong>Your Stores:</strong> ${storeNames}`;
+                    } else {
+                        regionInfo.innerHTML = '<strong>No region assigned yet.</strong> Please contact your administrator.';
+                    }
+                } else {
+                    regionInfo.innerHTML = '<strong>No region assigned yet.</strong> Please contact your administrator.';
+                }
+            } catch (error) {
+                console.error('Error loading assigned region:', error);
+                const regionInfo = document.getElementById('assignedRegionInfo');
+                regionInfo.innerHTML = '<strong>Your assigned region</strong>';
+            }
+        }
+
+        // Load audits for HeadOfOperations/AreaManager (inline display)
+        async function loadMyRegionAudits() {
+            const listContainer = document.getElementById('myRegionAuditsList');
+            try {
+                const response = await fetch('/api/audits/list');
+                const data = await response.json();
+                
+                if (!data.success || !data.audits || data.audits.length === 0) {
+                    listContainer.innerHTML = `
+                        <div class="my-audits-empty">
+                            <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
+                            <div>No audits found for your region yet.</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Filter to only completed audits
+                const completedAudits = data.audits.filter(a => a.Status === 'Completed');
+                
+                if (completedAudits.length === 0) {
+                    listContainer.innerHTML = `
+                        <div class="my-audits-empty">
+                            <div style="font-size: 48px; margin-bottom: 10px;">⏳</div>
+                            <div>No completed audits yet. Audits in progress will appear here once completed.</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Render audits grid (read-only - no action plan button)
+                const auditsHtml = completedAudits.map(audit => {
+                    const score = audit.TotalScore !== null ? Math.round(audit.TotalScore) : null;
+                    const passingGrade = audit.PassingGrade || 83;
+                    const scoreClass = score !== null ? (score >= passingGrade ? 'pass' : 'fail') : '';
+                    const scoreText = score !== null ? `${score}%` : 'N/A';
+                    
+                    return `
+                        <div class="my-audit-item">
+                            <div class="my-audit-header">
+                                <span class="my-audit-doc">${audit.DocumentNumber || '-'}</span>
+                                <span class="my-audit-score ${scoreClass}">${scoreText}</span>
+                            </div>
+                            <div class="my-audit-info">
+                                <div class="my-audit-info-row">
+                                    <span class="label">🏪 Store</span>
+                                    <span class="value">${audit.StoreName || 'Unknown'}</span>
+                                </div>
+                                <div class="my-audit-info-row">
+                                    <span class="label">📅 Cycle</span>
+                                    <span class="value">${audit.AuditCycle || '-'} / ${audit.AuditYear || '-'}</span>
+                                </div>
+                                <div class="my-audit-info-row">
+                                    <span class="label">👤 Auditor</span>
+                                    <span class="value">${(audit.Auditors || '').split(',')[0] || 'N/A'}</span>
+                                </div>
+                            </div>
+                            <div class="my-audit-actions">
+                                <button class="my-audit-btn view-report" onclick="viewReport(${audit.AuditID})">
+                                    📄 View Report
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                listContainer.innerHTML = `<div class="my-audits-grid">${auditsHtml}</div>`;
+
+            } catch (error) {
+                console.error('Error loading region audits:', error);
+                listContainer.innerHTML = `
+                    <div class="my-audits-empty">
+                        <div style="font-size: 48px; margin-bottom: 10px;">⚠️</div>
+                        <div>Error loading audits. Please try again.</div>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

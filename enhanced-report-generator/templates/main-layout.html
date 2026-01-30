@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Safety and Quality Assurance Department - {{documentNumber}}</title>
+    <link rel="stylesheet" href="{{cssPath}}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+</head>
+<body>
+    <div class="container">
+        {{header}}
+        {{performanceBanner}}
+        {{auditInfo}}
+        {{chart}}
+        {{dataTable}}
+        {{sections}}
+    </div>
+
+    <!-- Image Modal -->
+    {{imageModal}}
+
+    <script src="{{scriptPath}}"></script>
+    <script>
+        // Initialize chart with category data and scoring thresholds from SharePoint
+        initializeCategoryChart({{categoryChartData}}, {{scoringThresholds}});
+    </script>
+</body>
+</html>

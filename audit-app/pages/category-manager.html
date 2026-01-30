@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Category Management - Food Safety Audit</title>
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 16px;
+            padding: 24px 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #1e293b;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .schema-selector {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .schema-selector label {
+            font-weight: 600;
+            color: #374151;
+            margin-right: 12px;
+        }
+
+        .schema-selector select {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            font-size: 14px;
+            min-width: 300px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header h2 {
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-body {
+            padding: 24px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .category-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.2s;
+        }
+
+        .category-card:hover {
+            border-color: #667eea;
+        }
+
+        .category-card.active {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .category-header {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-radius: 10px 10px 0 0;
+        }
+
+        .category-name {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .category-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .category-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .category-actions button {
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .btn-edit {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-delete {
+            background: #ef4444;
+            color: white;
+        }
+
+        .category-sections {
+            padding: 16px 20px;
+        }
+
+        .section-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #e2e8f0;
+            cursor: grab;
+        }
+
+        .section-item:active {
+            cursor: grabbing;
+        }
+
+        .section-item.dragging {
+            opacity: 0.5;
+        }
+
+        .section-item .section-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-item .section-number {
+            background: #667eea;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .section-item .remove-btn {
+            background: #fee2e2;
+            color: #ef4444;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .section-item .remove-btn:hover {
+            background: #ef4444;
+            color: white;
+        }
+
+        .uncategorized-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #fff7ed;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px dashed #f97316;
+        }
+
+        .uncategorized-section .add-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .uncategorized-section .add-btn:hover {
+            background: #059669;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            transform: translateY(-20px);
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal h3 {
+            margin-bottom: 24px;
+            color: #1e293b;
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+        }
+
+        .toast {
+            background: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success {
+            border-left: 4px solid #10b981;
+        }
+
+        .toast.error {
+            border-left: 4px solid #ef4444;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Loading state */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Drop zone styling */
+        .drop-zone {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            color: #667eea;
+            margin-top: 12px;
+            transition: all 0.2s;
+        }
+
+        .drop-zone.drag-over {
+            background: rgba(102, 126, 234, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📂 Category Management</h1>
+            <div class="header-actions">
+                <a href="/admin/template-builder" class="btn btn-primary">📋 Template Builder</a>
+                <a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+            </div>
+        </div>
+
+        <div class="schema-selector">
+            <label for="schemaSelect">📋 Select Audit Schema:</label>
+            <select id="schemaSelect" onchange="loadCategories()">
+                <option value="">Loading schemas...</option>
+            </select>
+        </div>
+
+        <div class="main-content">
+            <!-- Categories Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>📁 Categories</h2>
+                    <button class="btn btn-primary" onclick="showAddCategoryModal()">+ Add Category</button>
+                </div>
+                <div class="panel-body" id="categoriesContainer">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Uncategorized Sections Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>📄 Uncategorized Sections</h2>
+                </div>
+                <div class="panel-body" id="uncategorizedContainer">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Category Modal -->
+    <div class="modal-overlay" id="categoryModal">
+        <div class="modal">
+            <h3 id="modalTitle">Add Category</h3>
+            <form id="categoryForm" onsubmit="saveCategory(event)">
+                <input type="hidden" id="categoryId">
+                <div class="form-group">
+                    <label for="categoryName">Category Name</label>
+                    <input type="text" id="categoryName" required placeholder="Enter category name">
+                </div>
+                <div class="form-group">
+                    <label for="displayOrder">Display Order</label>
+                    <input type="number" id="displayOrder" value="0" min="0">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assign Section Modal -->
+    <div class="modal-overlay" id="assignModal">
+        <div class="modal">
+            <h3>Add Section to Category</h3>
+            <form id="assignForm" onsubmit="assignSection(event)">
+                <input type="hidden" id="assignSectionId">
+                <div class="form-group">
+                    <label for="targetCategory">Select Category</label>
+                    <select id="targetCategory" required>
+                        <option value="">Select a category...</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeAssignModal()">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add to Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        let currentSchemaId = null;
+        let categories = [];
+        let uncategorizedSections = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadSchemas();
+        });
+
+        // Load available schemas
+        async function loadSchemas() {
+            try {
+                const response = await fetch('/api/audit/schemas');
+                const schemas = await response.json();
+                
+                const select = document.getElementById('schemaSelect');
+                select.innerHTML = schemas.map(s => 
+                    `<option value="${s.schemaId}">${s.schemaName}</option>`
+                ).join('');
+                
+                if (schemas.length > 0) {
+                    currentSchemaId = schemas[0].schemaId;
+                    loadCategories();
+                }
+            } catch (error) {
+                showToast('Failed to load schemas', 'error');
+            }
+        }
+
+        // Load categories for selected schema
+        async function loadCategories() {
+            currentSchemaId = document.getElementById('schemaSelect').value;
+            if (!currentSchemaId) return;
+
+            document.getElementById('categoriesContainer').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            document.getElementById('uncategorizedContainer').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+            try {
+                // Load categories with sections
+                const catResponse = await fetch(`/api/categories?schemaId=${currentSchemaId}`);
+                categories = await catResponse.json();
+
+                // Load uncategorized sections
+                const uncatResponse = await fetch(`/api/categories/uncategorized?schemaId=${currentSchemaId}`);
+                uncategorizedSections = await uncatResponse.json();
+
+                renderCategories();
+                renderUncategorized();
+            } catch (error) {
+                showToast('Failed to load categories', 'error');
+            }
+        }
+
+        // Render categories list
+        function renderCategories() {
+            const container = document.getElementById('categoriesContainer');
+            
+            if (categories.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📁</div>
+                        <p>No categories created yet</p>
+                        <p>Click "Add Category" to create one</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = categories.map(cat => `
+                <div class="category-card" id="category-${cat.categoryId}">
+                    <div class="category-header" onclick="toggleCategory(${cat.categoryId})">
+                        <div class="category-name">
+                            <span>📁</span>
+                            ${cat.categoryName}
+                            <span class="category-badge">${cat.sections.length} sections</span>
+                        </div>
+                        <div class="category-actions" onclick="event.stopPropagation()">
+                            <button class="btn-edit" onclick="editCategory(${cat.categoryId})">✏️ Edit</button>
+                            <button class="btn-delete" onclick="deleteCategory(${cat.categoryId})">🗑️ Delete</button>
+                        </div>
+                    </div>
+                    <div class="category-sections" id="sections-${cat.categoryId}">
+                        ${cat.sections.length > 0 ? cat.sections.map(sec => `
+                            <div class="section-item" draggable="true" 
+                                 ondragstart="dragStart(event, ${sec.sectionId})"
+                                 ondragend="dragEnd(event)">
+                                <div class="section-name">
+                                    <span class="section-number">${sec.sectionNumber}</span>
+                                    ${sec.sectionName}
+                                </div>
+                                <button class="remove-btn" onclick="removeSection(${cat.categoryId}, ${sec.sectionId})">
+                                    ✕ Remove
+                                </button>
+                            </div>
+                        `).join('') : '<p style="color: #64748b; text-align: center; padding: 16px;">No sections assigned</p>'}
+                        <div class="drop-zone" 
+                             ondragover="dragOver(event)" 
+                             ondragleave="dragLeave(event)"
+                             ondrop="dropSection(event, ${cat.categoryId})">
+                            Drop section here
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Render uncategorized sections
+        function renderUncategorized() {
+            const container = document.getElementById('uncategorizedContainer');
+            
+            if (uncategorizedSections.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">✅</div>
+                        <p>All sections are categorized!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = uncategorizedSections.map(sec => `
+                <div class="uncategorized-section" draggable="true"
+                     ondragstart="dragStart(event, ${sec.sectionId})"
+                     ondragend="dragEnd(event)">
+                    <div class="section-name">
+                        <span class="section-number" style="background: #f97316;">${sec.sectionNumber}</span>
+                        ${sec.sectionName}
+                    </div>
+                    <button class="add-btn" onclick="showAssignModal(${sec.sectionId})">
+                        + Add to Category
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Toggle category expansion
+        function toggleCategory(categoryId) {
+            const card = document.getElementById(`category-${categoryId}`);
+            card.classList.toggle('active');
+        }
+
+        // Modal functions
+        function showAddCategoryModal() {
+            document.getElementById('modalTitle').textContent = 'Add Category';
+            document.getElementById('categoryId').value = '';
+            document.getElementById('categoryName').value = '';
+            document.getElementById('displayOrder').value = categories.length;
+            document.getElementById('categoryModal').classList.add('active');
+        }
+
+        function editCategory(categoryId) {
+            const cat = categories.find(c => c.categoryId === categoryId);
+            if (!cat) return;
+
+            document.getElementById('modalTitle').textContent = 'Edit Category';
+            document.getElementById('categoryId').value = categoryId;
+            document.getElementById('categoryName').value = cat.categoryName;
+            document.getElementById('displayOrder').value = cat.displayOrder;
+            document.getElementById('categoryModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('categoryModal').classList.remove('active');
+        }
+
+        function showAssignModal(sectionId) {
+            document.getElementById('assignSectionId').value = sectionId;
+            
+            // Populate category dropdown
+            const select = document.getElementById('targetCategory');
+            select.innerHTML = '<option value="">Select a category...</option>' +
+                categories.map(c => `<option value="${c.categoryId}">${c.categoryName}</option>`).join('');
+            
+            document.getElementById('assignModal').classList.add('active');
+        }
+
+        function closeAssignModal() {
+            document.getElementById('assignModal').classList.remove('active');
+        }
+
+        // CRUD operations
+        async function saveCategory(event) {
+            event.preventDefault();
+            
+            const categoryId = document.getElementById('categoryId').value;
+            const categoryName = document.getElementById('categoryName').value;
+            const displayOrder = parseInt(document.getElementById('displayOrder').value);
+
+            try {
+                if (categoryId) {
+                    // Update existing
+                    await fetch(`/api/categories/${categoryId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ categoryName, displayOrder, isActive: true })
+                    });
+                    showToast('Category updated successfully', 'success');
+                } else {
+                    // Create new
+                    await fetch('/api/categories', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ schemaId: currentSchemaId, categoryName, displayOrder })
+                    });
+                    showToast('Category created successfully', 'success');
+                }
+
+                closeModal();
+                loadCategories();
+            } catch (error) {
+                showToast('Failed to save category', 'error');
+            }
+        }
+
+        async function deleteCategory(categoryId) {
+            if (!confirm('Are you sure you want to delete this category? Sections will become uncategorized.')) {
+                return;
+            }
+
+            try {
+                await fetch(`/api/categories/${categoryId}`, { method: 'DELETE' });
+                showToast('Category deleted', 'success');
+                loadCategories();
+            } catch (error) {
+                showToast('Failed to delete category', 'error');
+            }
+        }
+
+        async function assignSection(event) {
+            event.preventDefault();
+            
+            const sectionId = document.getElementById('assignSectionId').value;
+            const categoryId = document.getElementById('targetCategory').value;
+
+            if (!categoryId) {
+                showToast('Please select a category', 'error');
+                return;
+            }
+
+            try {
+                await fetch(`/api/categories/${categoryId}/sections`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sectionId: parseInt(sectionId) })
+                });
+                
+                showToast('Section added to category', 'success');
+                closeAssignModal();
+                loadCategories();
+            } catch (error) {
+                showToast('Failed to add section', 'error');
+            }
+        }
+
+        async function removeSection(categoryId, sectionId) {
+            try {
+                await fetch(`/api/categories/${categoryId}/sections/${sectionId}`, {
+                    method: 'DELETE'
+                });
+                
+                showToast('Section removed from category', 'success');
+                loadCategories();
+            } catch (error) {
+                showToast('Failed to remove section', 'error');
+            }
+        }
+
+        // Drag and drop
+        let draggedSectionId = null;
+
+        function dragStart(event, sectionId) {
+            draggedSectionId = sectionId;
+            event.target.classList.add('dragging');
+        }
+
+        function dragEnd(event) {
+            event.target.classList.remove('dragging');
+            draggedSectionId = null;
+        }
+
+        function dragOver(event) {
+            event.preventDefault();
+            event.target.classList.add('drag-over');
+        }
+
+        function dragLeave(event) {
+            event.target.classList.remove('drag-over');
+        }
+
+        async function dropSection(event, categoryId) {
+            event.preventDefault();
+            event.target.classList.remove('drag-over');
+
+            if (!draggedSectionId) return;
+
+            try {
+                await fetch(`/api/categories/${categoryId}/sections`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sectionId: draggedSectionId })
+                });
+                
+                showToast('Section added to category', 'success');
+                loadCategories();
+            } catch (error) {
+                showToast('Failed to add section', 'error');
+            }
+        }
+
+        // Toast notification
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span>${type === 'success' ? '✅' : '❌'}</span>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

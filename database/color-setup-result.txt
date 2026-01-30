@@ -1,0 +1,5 @@
+✅ ReportColorSettings table created successfully
+
+(8 rows affected)
+✅ Default color settings inserted
+✅ Index created on setting_key

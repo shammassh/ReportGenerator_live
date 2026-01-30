@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checklist Management - Food Safety</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .checklist-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .checklist-item {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .checklist-item:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .checklist-item.active {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .checklist-item h3 {
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .checklist-item .meta {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .checklist-item .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #667eea;
+            color: white;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .items-table th,
+        .items-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .items-table th {
+            background: #f8f9fa;
+            color: #333;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .items-table td {
+            font-size: 13px;
+        }
+
+        .items-table tbody tr:hover {
+            background: #f8f9ff;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: #666;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .item-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .item-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .item-form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                📋 Checklist Management System
+            </h1>
+            <p class="subtitle">Create and manage custom audit checklists for different store categories</p>
+        </div>
+
+        <!-- Messages -->
+        <div id="message" class="message"></div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel: Checklist List & Creation -->
+            <div class="card">
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('create')">➕ Create New</button>
+                    <button class="tab" onclick="switchTab('list')">📋 View All</button>
+                </div>
+
+                <!-- Create Checklist Tab -->
+                <div id="tab-create" class="tab-content active">
+                    <h2>Create New Checklist</h2>
+                    <form id="checklistForm">
+                        <div class="form-group">
+                            <label for="checklistName">Checklist Name *</label>
+                            <input type="text" id="checklistName" required 
+                                   placeholder="e.g., Food Storage & Dry Storage">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="storeCategory">Store Category *</label>
+                            <select id="storeCategory" required>
+                                <option value="">Select Category</option>
+                                <option value="Happy Stores">Happy Stores</option>
+                                <option value="Signature Stores">Signature Stores</option>
+                                <option value="Premium Stores">Premium Stores</option>
+                                <option value="Express Stores">Express Stores</option>
+                                <option value="All Stores">All Stores</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">Description</label>
+                            <textarea id="description" 
+                                      placeholder="Brief description of this checklist..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="createdBy">Created By *</label>
+                            <input type="text" id="createdBy" required 
+                                   placeholder="Your name">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            ✅ Create Checklist
+                        </button>
+                    </form>
+                </div>
+
+                <!-- View Checklists Tab -->
+                <div id="tab-list" class="tab-content">
+                    <h2>All Checklists</h2>
+                    <div class="checklist-list" id="checklistList">
+                        <div class="empty-state">
+                            <p>Loading checklists...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Checklist Items -->
+            <div class="card">
+                <h2 id="checklistTitle">Select a checklist to manage items</h2>
+                <div id="checklistDetails">
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                        </svg>
+                        <p>Create a checklist or select one from the list to add items</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3003/api';
+        let currentChecklistId = null;
+        let currentChecklist = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadChecklists();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('checklistForm').addEventListener('submit', createChecklist);
+        }
+
+        // Tab Switching
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`button[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            
+            if (tab === 'list') {
+                loadChecklists();
+            }
+        }
+
+        // Show Message
+        function showMessage(text, type = 'success') {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = `message ${type} show`;
+            setTimeout(() => msg.classList.remove('show'), 5000);
+        }
+
+        // Create Checklist
+        async function createChecklist(e) {
+            e.preventDefault();
+            
+            const data = {
+                checklistName: document.getElementById('checklistName').value,
+                storeCategory: document.getElementById('storeCategory').value,
+                description: document.getElementById('description').value,
+                createdBy: document.getElementById('createdBy').value
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/checklists`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage('✅ Checklist created successfully!');
+                    document.getElementById('checklistForm').reset();
+                    loadChecklists();
+                    loadChecklistDetails(result.checklistId);
+                    switchTab('list');
+                } else {
+                    showMessage('❌ ' + result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        // Load Checklists
+        async function loadChecklists() {
+            try {
+                const response = await fetch(`${API_BASE}/checklists`);
+                const result = await response.json();
+                
+                const listDiv = document.getElementById('checklistList');
+                
+                if (result.checklists && result.checklists.length > 0) {
+                    listDiv.innerHTML = result.checklists.map(cl => `
+                        <div class="checklist-item ${currentChecklistId === cl.ChecklistID ? 'active' : ''}" 
+                             onclick="loadChecklistDetails(${cl.ChecklistID})">
+                            <h3>${cl.ChecklistName}</h3>
+                            <div class="meta">
+                                🏪 ${cl.StoreCategory}
+                                <span class="badge">${cl.ItemCount || 0} items</span>
+                                <br>
+                                👤 ${cl.CreatedBy} • 📅 ${new Date(cl.CreatedDate).toLocaleDateString()}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    listDiv.innerHTML = '<div class="empty-state"><p>No checklists found. Create one to get started!</p></div>';
+                }
+            } catch (error) {
+                showMessage('❌ Error loading checklists: ' + error.message, 'error');
+            }
+        }
+
+        // Load Checklist Details
+        async function loadChecklistDetails(checklistId) {
+            currentChecklistId = checklistId;
+            
+            try {
+                const response = await fetch(`${API_BASE}/checklists/${checklistId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentChecklist = result.checklist;
+                    renderChecklistDetails(result.checklist);
+                    
+                    // Update active state
+                    document.querySelectorAll('.checklist-item').forEach(item => {
+                        item.classList.remove('active');
+                    });
+                    event.target.closest('.checklist-item')?.classList.add('active');
+                }
+            } catch (error) {
+                showMessage('❌ Error loading checklist: ' + error.message, 'error');
+            }
+        }
+
+        // Render Checklist Details
+        function renderChecklistDetails(checklist) {
+            document.getElementById('checklistTitle').textContent = checklist.ChecklistName;
+            
+            const detailsDiv = document.getElementById('checklistDetails');
+            detailsDiv.innerHTML = `
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <p><strong>Category:</strong> ${checklist.StoreCategory}</p>
+                    <p><strong>Description:</strong> ${checklist.Description || 'No description'}</p>
+                    <p><strong>Created by:</strong> ${checklist.CreatedBy} on ${new Date(checklist.CreatedDate).toLocaleDateString()}</p>
+                </div>
+
+                <div class="item-form">
+                    <h3 style="margin-bottom: 15px;">➕ Add New Item</h3>
+                    <form id="itemForm" onsubmit="addItem(event)">
+                        <div class="item-form-grid">
+                            <div class="form-group">
+                                <label>Reference Value *</label>
+                                <input type="text" id="referenceValue" required placeholder="e.g., 1.1">
+                            </div>
+                            <div class="form-group">
+                                <label>Title *</label>
+                                <input type="text" id="itemTitle" required placeholder="Control to check">
+                            </div>
+                            <div class="form-group">
+                                <label>Coefficient *</label>
+                                <input type="number" id="coeff" required min="1" placeholder="2, 4, etc.">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Allowed Answers *</label>
+                            <input type="text" id="answer" value="Yes,Partially,No,NA" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Guidance / Corrective Actions (cr)</label>
+                            <textarea id="cr" placeholder="What should be done, explanation text..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success">➕ Add Item</button>
+                    </form>
+                </div>
+
+                <h3 style="margin-top: 30px;">Checklist Items (${checklist.items.length})</h3>
+                ${checklist.items.length > 0 ? `
+                    <table class="items-table">
+                        <thead>
+                            <tr>
+                                <th>Ref</th>
+                                <th>Title</th>
+                                <th>Coeff</th>
+                                <th>Answers</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${checklist.items.map(item => `
+                                <tr>
+                                    <td><strong>${item.ReferenceValue}</strong></td>
+                                    <td>${item.Title}</td>
+                                    <td>${item.Coeff}</td>
+                                    <td><small>${item.Answer}</small></td>
+                                    <td>
+                                        <button class="btn btn-danger btn-small" onclick="deleteItem(${item.ItemID})">
+                                            🗑️ Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                                ${item.Cr ? `
+                                    <tr>
+                                        <td></td>
+                                        <td colspan="4"><small><strong>Guidance:</strong> ${item.Cr}</small></td>
+                                    </tr>
+                                ` : ''}
+                            `).join('')}
+                        </tbody>
+                    </table>
+                ` : '<div class="empty-state"><p>No items yet. Add your first item above!</p></div>'}
+            `;
+        }
+
+        // Add Item
+        async function addItem(e) {
+            e.preventDefault();
+            
+            const data = {
+                referenceValue: document.getElementById('referenceValue').value,
+                title: document.getElementById('itemTitle').value,
+                coeff: parseInt(document.getElementById('coeff').value),
+                answer: document.getElementById('answer').value,
+                cr: document.getElementById('cr').value
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/checklists/${currentChecklistId}/items`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage('✅ Item added successfully!');
+                    document.getElementById('itemForm').reset();
+                    document.getElementById('answer').value = 'Yes,Partially,No,NA';
+                    loadChecklistDetails(currentChecklistId);
+                } else {
+                    showMessage('❌ ' + result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        // Delete Item
+        async function deleteItem(itemId) {
+            if (!confirm('Are you sure you want to delete this item?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/items/${itemId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage('✅ Item deleted successfully!');
+                    loadChecklistDetails(currentChecklistId);
+                } else {
+                    showMessage('❌ ' + result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

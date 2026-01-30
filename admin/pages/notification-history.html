@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification History - Food Safety Audit System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        /* Statistics Cards */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .stat-card .icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .stat-card.total {
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-card.sent {
+            border-left: 4px solid #28a745;
+        }
+
+        .stat-card.failed {
+            border-left: 4px solid #dc3545;
+        }
+
+        .stat-card.pending {
+            border-left: 4px solid #ffc107;
+        }
+
+        /* Filter Panel */
+        .filter-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .filter-panel h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Table */
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8f9fa;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #dee2e6;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background: #e9ecef;
+        }
+
+        th.sortable::after {
+            content: ' ⇅';
+            opacity: 0.3;
+        }
+
+        th.sorted-asc::after {
+            content: ' ▲';
+            opacity: 1;
+        }
+
+        th.sorted-desc::after {
+            content: ' ▼';
+            opacity: 1;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #dee2e6;
+            color: #333;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-sent {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        /* Pagination */
+        .pagination-container {
+            background: white;
+            padding: 20px;
+            border-radius: 0 0 10px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pagination {
+            display: flex;
+            gap: 5px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.2s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .page-info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 50px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            text-align: center;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        /* Error Message */
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state .icon {
+            font-size: 64px;
+            opacity: 0.3;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        /* Tooltip for error messages */
+        .error-tooltip {
+            position: relative;
+            cursor: help;
+            color: #dc3545;
+        }
+
+        .error-tooltip:hover::after {
+            content: attr(data-error);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            white-space: nowrap;
+            font-size: 12px;
+            z-index: 1000;
+            margin-bottom: 5px;
+        }
+
+        /* Recipient Name */
+        .recipient-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .recipient-email {
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* Document Link */
+        .document-link {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .document-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 8px;
+            }
+
+            .pagination-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📧 Notification History</h1>
+            <div class="header-buttons">
+                <button class="btn btn-primary" onclick="refreshData()">🔄 Refresh</button>
+                <a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-container" id="statsContainer">
+            <div class="stat-card total">
+                <div class="icon">📊</div>
+                <div class="value" id="statTotal">-</div>
+                <div class="label">Total Notifications</div>
+            </div>
+            <div class="stat-card sent">
+                <div class="icon">✅</div>
+                <div class="value" id="statSent">-</div>
+                <div class="label">Successfully Sent</div>
+            </div>
+            <div class="stat-card failed">
+                <div class="icon">❌</div>
+                <div class="value" id="statFailed">-</div>
+                <div class="label">Failed</div>
+            </div>
+            <div class="stat-card pending">
+                <div class="icon">⏳</div>
+                <div class="value" id="statPending">-</div>
+                <div class="label">Pending</div>
+            </div>
+        </div>
+
+        <!-- Filter Panel -->
+        <div class="filter-panel">
+            <h3>🔍 Filters</h3>
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label>Status</label>
+                    <select id="filterStatus">
+                        <option value="">All Statuses</option>
+                        <option value="sent">Sent</option>
+                        <option value="failed">Failed</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Date From</label>
+                    <input type="date" id="filterDateFrom">
+                </div>
+                <div class="filter-group">
+                    <label>Date To</label>
+                    <input type="date" id="filterDateTo">
+                </div>
+                <div class="filter-group">
+                    <label>Recipient Email</label>
+                    <input type="text" id="filterRecipient" placeholder="Search by email...">
+                </div>
+                <div class="filter-group">
+                    <label>Document Number</label>
+                    <input type="text" id="filterDocument" placeholder="Search by document...">
+                </div>
+                <div class="filter-group">
+                    <label>Sent By</label>
+                    <input type="text" id="filterSentBy" placeholder="Search by sender...">
+                </div>
+            </div>
+            <div class="filter-buttons">
+                <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                <button class="btn btn-secondary" onclick="clearFilters()">Clear Filters</button>
+            </div>
+        </div>
+
+        <!-- Table Container -->
+        <div class="table-container" id="tableContainer">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading notifications...</div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-container" id="paginationContainer" style="display: none;">
+            <div class="page-info" id="pageInfo"></div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <!-- Impersonation Panel Script -->
+    <script src="/auth/scripts/impersonation-panel.js?v=9"></script>
+
+    <script>
+        // State Management
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentSort = { column: 'sent_at', order: 'DESC' };
+        let notifications = [];
+        let statistics = {};
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            await loadStatistics();
+            await loadNotifications();
+            // Initialize impersonation panel for admins
+            if (typeof initImpersonationPanel === 'function') {
+                initImpersonationPanel();
+            }
+        });
+
+        // Check authentication and role
+        async function checkAuth() {
+            try {
+                const response = await fetch('/auth/session');
+                
+                // If response is not OK (e.g., 401, 403), we're not authenticated
+                if (!response.ok) {
+                    console.error('Not authenticated, redirecting to login');
+                    window.location.href = '/auth/login';
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('Session data:', data);
+
+                // Check if user data exists and has a role
+                if (!data.user || !data.user.role) {
+                    console.error('No user data or role found');
+                    window.location.href = '/auth/login';
+                    return;
+                }
+
+                // Check if user has Admin or Auditor role
+                if (data.user.role !== 'Admin' && data.user.role !== 'Auditor') {
+                    alert('Access denied. This page is only accessible to Admin and Auditor roles.');
+                    window.location.href = '/dashboard';
+                    return;
+                }
+
+                console.log('✅ Authentication successful, role:', data.user.role);
+
+            } catch (error) {
+                console.error('Authentication error:', error);
+                window.location.href = '/auth/login';
+            }
+        }
+
+        // Load Statistics
+        async function loadStatistics() {
+            try {
+                const response = await fetch('/api/notifications/statistics');
+                const data = await response.json();
+
+                if (data.success) {
+                    statistics = data.data;
+                    document.getElementById('statTotal').textContent = statistics.total || 0;
+                    document.getElementById('statSent').textContent = statistics.sent || 0;
+                    document.getElementById('statFailed').textContent = statistics.failed || 0;
+                    document.getElementById('statPending').textContent = statistics.pending || 0;
+                }
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+
+        // Load Notifications
+        async function loadNotifications() {
+            try {
+                const params = new URLSearchParams({
+                    page: currentPage,
+                    pageSize: 50,
+                    sortBy: currentSort.column,
+                    sortOrder: currentSort.order
+                });
+
+                // Add filters
+                const filters = getFilters();
+                Object.entries(filters).forEach(([key, value]) => {
+                    if (value) params.append(key, value);
+                });
+
+                const response = await fetch(`/api/notifications?${params}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    notifications = data.data;
+                    renderTable(notifications);
+                    renderPagination(data.pagination);
+                } else {
+                    showError('Failed to load notifications');
+                }
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+                showError('Error loading notifications: ' + error.message);
+            }
+        }
+
+        // Get Filters
+        function getFilters() {
+            return {
+                status: document.getElementById('filterStatus').value,
+                dateFrom: document.getElementById('filterDateFrom').value,
+                dateTo: document.getElementById('filterDateTo').value,
+                recipient: document.getElementById('filterRecipient').value,
+                documentNumber: document.getElementById('filterDocument').value,
+                sentBy: document.getElementById('filterSentBy').value
+            };
+        }
+
+        // Apply Filters
+        async function applyFilters() {
+            currentPage = 1; // Reset to first page
+            await loadNotifications();
+        }
+
+        // Clear Filters
+        async function clearFilters() {
+            document.getElementById('filterStatus').value = '';
+            document.getElementById('filterDateFrom').value = '';
+            document.getElementById('filterDateTo').value = '';
+            document.getElementById('filterRecipient').value = '';
+            document.getElementById('filterDocument').value = '';
+            document.getElementById('filterSentBy').value = '';
+            currentPage = 1;
+            await loadNotifications();
+        }
+
+        // Refresh Data
+        async function refreshData() {
+            await loadStatistics();
+            await loadNotifications();
+        }
+
+        // Render Table
+        function renderTable(data) {
+            const container = document.getElementById('tableContainer');
+
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <h3>No Notifications Found</h3>
+                        <p>Try adjusting your filters or check back later.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="sortable ${currentSort.column === 'sent_at' ? 'sorted-' + currentSort.order.toLowerCase() : ''}" onclick="sortTable('sent_at')">Date/Time</th>
+                            <th class="sortable ${currentSort.column === 'document_number' ? 'sorted-' + currentSort.order.toLowerCase() : ''}" onclick="sortTable('document_number')">Document</th>
+                            <th>Recipient</th>
+                            <th class="sortable ${currentSort.column === 'status' ? 'sorted-' + currentSort.order.toLowerCase() : ''}" onclick="sortTable('status')">Status</th>
+                            <th>Sent By</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(n => `
+                            <tr>
+                                <td>${formatDate(n.sent_at)}</td>
+                                <td>
+                                    <a href="#" class="document-link" onclick="viewDocument('${n.document_number}')">${n.document_number}</a>
+                                </td>
+                                <td>
+                                    <div class="recipient-name">${n.recipient_name || 'Unknown'}</div>
+                                    <div class="recipient-email">${n.recipient_email}</div>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-${n.status}">${n.status.toUpperCase()}</span>
+                                </td>
+                                <td>${n.sent_by || 'System'}</td>
+                                <td>
+                                    ${n.error_message ? `<span class="error-tooltip" data-error="${escapeHtml(n.error_message)}">⚠️ Error</span>` : '-'}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // Render Pagination
+        function renderPagination(pagination) {
+            const container = document.getElementById('paginationContainer');
+            const pageInfo = document.getElementById('pageInfo');
+            const paginationDiv = document.getElementById('pagination');
+
+            totalPages = pagination.totalPages;
+            
+            if (totalPages <= 1) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'flex';
+
+            // Page info
+            const start = (pagination.page - 1) * pagination.pageSize + 1;
+            const end = Math.min(pagination.page * pagination.pageSize, pagination.total);
+            pageInfo.textContent = `Showing ${start}-${end} of ${pagination.total} notifications`;
+
+            // Pagination buttons
+            let buttons = '';
+
+            // Previous button
+            buttons += `<button onclick="goToPage(${pagination.page - 1})" ${pagination.page === 1 ? 'disabled' : ''}>Previous</button>`;
+
+            // Page numbers
+            const maxButtons = 5;
+            let startPage = Math.max(1, pagination.page - Math.floor(maxButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+            if (endPage - startPage < maxButtons - 1) {
+                startPage = Math.max(1, endPage - maxButtons + 1);
+            }
+
+            if (startPage > 1) {
+                buttons += `<button onclick="goToPage(1)">1</button>`;
+                if (startPage > 2) buttons += `<button disabled>...</button>`;
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                buttons += `<button onclick="goToPage(${i})" ${i === pagination.page ? 'class="active"' : ''}>${i}</button>`;
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) buttons += `<button disabled>...</button>`;
+                buttons += `<button onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+
+            // Next button
+            buttons += `<button onclick="goToPage(${pagination.page + 1})" ${pagination.page === totalPages ? 'disabled' : ''}>Next</button>`;
+
+            paginationDiv.innerHTML = buttons;
+        }
+
+        // Sort Table
+        async function sortTable(column) {
+            if (currentSort.column === column) {
+                currentSort.order = currentSort.order === 'ASC' ? 'DESC' : 'ASC';
+            } else {
+                currentSort.column = column;
+                currentSort.order = 'DESC';
+            }
+            await loadNotifications();
+        }
+
+        // Go To Page
+        async function goToPage(page) {
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            await loadNotifications();
+        }
+
+        // View Document (placeholder)
+        function viewDocument(documentNumber) {
+            // TODO: Implement document view functionality
+            alert(`View document: ${documentNumber}\n\n(Document viewer not yet implemented)`);
+        }
+
+        // Format Date
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleString('en-GB', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Show Error
+        function showError(message) {
+            const container = document.getElementById('tableContainer');
+            container.innerHTML = `
+                <div class="error-message">
+                    <strong>⚠️ Error:</strong> ${message}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

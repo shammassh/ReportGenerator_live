@@ -1,0 +1,60 @@
+{
+  "name": "sharepoint-report-generator",
+  "version": "1.0.0",
+  "description": "Production-ready Node.js SharePoint Online report generator using PnP PowerShell for survey compliance analysis",
+  "main": "index-pnp.js",
+  "scripts": {
+    "start": "node index-pnp.js",
+    "dev": "powershell -ExecutionPolicy Bypass -File start-servers.ps1",
+    "dashboard": "node dashboard-server.js",
+    "action-plan-api": "node action-plan-api.js",
+    "checklist-api": "node checklist-api.js",
+    "checklist-template-api": "node checklist-template-api.js",
+    "generate-survey-report": "node generate-survey-report.js",
+    "generate-html-report": "node generate-html-report.js",
+    "generate-enhanced-html": "node generate-enhanced-html-report.js",
+    "generate-action-plan": "node generate-action-plan-report.js",
+    "batch-reports": "node batch-report-generator.js",
+    "batch-all": "node batch-report-generator.js --all",
+    "batch-recent": "node batch-report-generator.js --recent",
+    "list-documents": "node list-document-numbers.js",
+    "flexible-generate": "node flexible-report-generator.js generate",
+    "flexible-list": "node flexible-report-generator.js list",
+    "test-checklist": "node test-checklist-system.js",
+    "test-checklist-template": "node test-checklist-template-system.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "sharepoint",
+    "pnp-powershell",
+    "compliance-reports",
+    "survey-analysis",
+    "nodejs",
+    "operational-data"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "@pnp/nodejs": "^3.19.0",
+    "@pnp/sp": "^3.19.0",
+    "axios": "^1.5.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "docx": "^8.5.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-session": "^1.18.2",
+    "html-docx-js": "^0.3.1",
+    "htmlparser2": "^10.0.0",
+    "mssql": "^12.1.0",
+    "node-fetch": "^3.3.2",
+    "node-sp-auth": "^3.0.7",
+    "node-windows": "^1.0.0-beta.8",
+    "puppeteer": "^21.11.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.1"
+  }
+}

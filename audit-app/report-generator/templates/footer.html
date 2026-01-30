@@ -1,0 +1,35 @@
+<div class="report-footer">
+    <p>Generated on {{generatedAt}}</p>
+    <p>Document: {{documentNumber}} | Food Safety Audit Management System</p>
+</div>
+
+<script>
+// Print Summary Only - hides detailed sections
+function printSummaryOnly() {
+    document.body.classList.add('summary-mode');
+    
+    // Give browser time to apply styles
+    setTimeout(() => {
+        window.print();
+        
+        // Remove summary mode after print dialog closes
+        setTimeout(() => {
+            document.body.classList.remove('summary-mode');
+        }, 500);
+    }, 100);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    // Ctrl+P for full print
+    if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        window.print();
+    }
+    // Ctrl+Shift+P for summary print
+    if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        printSummaryOnly();
+    }
+});
+</script>

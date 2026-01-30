@@ -1,0 +1,34 @@
+<service>
+	<id>fsauditlive.exe</id>
+	<name>FSAudit Live</name>
+	<description>FSAudit Live Application</description>
+	<executable>C:\Program Files\nodejs\node.exe</executable>
+	<argument>--harmony</argument>
+	<argument>F:\ReportGenerator-Live\node_modules\node-windows\lib\wrapper.js</argument>
+	<argument>--file</argument>
+	<argument>F:\ReportGenerator-Live\auth-app.js</argument>
+	<argument>--scriptoptions=</argument>
+	<argument>--log</argument>
+	<argument>FSAudit Live wrapper</argument>
+	<argument>--grow</argument>
+	<argument>0.25</argument>
+	<argument>--wait</argument>
+	<argument>1</argument>
+	<argument>--maxrestarts</argument>
+	<argument>3</argument>
+	<argument>--abortonerror</argument>
+	<argument>n</argument>
+	<argument>--stopparentfirst</argument>
+	<argument>undefined</argument>
+	<logmode>rotate</logmode>
+	<stoptimeout>30sec</stoptimeout>
+	<env name="NODE_ENV" value="production"/>
+	<env name="APP_URL" value="https://fsaudit.gmrlapps.com"/>
+	<env name="REDIRECT_URI" value="https://fsaudit.gmrlapps.com/auth/callback"/>
+	<serviceaccount>
+		<domain>PAPPS</domain>
+		<user>LocalSystem</user>
+		<password></password>
+	</serviceaccount>
+	<workingdirectory>F:\ReportGenerator-Live</workingdirectory>
+</service>

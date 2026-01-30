@@ -1,0 +1,293 @@
+/**
+ * Dashboard Styles
+ * User context header, role badges, and permission-based UI
+ */
+
+/* User Info Header */
+.user-info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.user-details {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 18px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.user-text {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.user-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+}
+
+.user-role {
+    font-size: 13px;
+}
+
+/* Role Badges */
+.role-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.role-badge.role-admin {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);
+}
+
+.role-badge.role-auditor {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(79, 172, 254, 0.3);
+}
+
+.role-badge.role-storemanager {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(67, 233, 123, 0.3);
+}
+
+.role-badge.role-cleaninghead {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(250, 112, 154, 0.3);
+}
+
+.role-badge.role-procurementhead {
+    background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(48, 207, 208, 0.3);
+}
+
+.role-badge.role-maintenancehead {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    color: #333;
+    box-shadow: 0 2px 8px rgba(168, 237, 234, 0.3);
+}
+
+/* User Actions */
+.user-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.nav-links {
+    display: flex;
+    gap: 10px;
+}
+
+.nav-link {
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: white;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.nav-link.active {
+    background: rgba(255, 255, 255, 0.4);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.logout-btn {
+    padding: 8px 20px;
+    background: rgba(255, 59, 48, 0.9);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(255, 59, 48, 0.3);
+}
+
+.logout-btn:hover {
+    background: rgba(255, 59, 48, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 59, 48, 0.4);
+}
+
+/* Store Assignment Info (for Store Managers) */
+.store-assignment-info {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 15px 20px;
+    border-radius: 12px;
+    margin: 20px 0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.info-label {
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.store-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.store-tag {
+    display: inline-block;
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #764ba2;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Department Info (for Department Heads) */
+.department-info {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    padding: 15px 20px;
+    border-radius: 12px;
+    margin: 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.dept-badge {
+    display: inline-block;
+    padding: 8px 20px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.dept-badge.dept-cleaning {
+    color: #fa709a;
+}
+
+.dept-badge.dept-procurement {
+    color: #30cfd0;
+}
+
+.dept-badge.dept-maintenance {
+    color: #667eea;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .user-info-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+
+    .user-details {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .user-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .nav-links {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .nav-link {
+        width: 100%;
+        text-align: center;
+    }
+
+    .store-list {
+        justify-content: center;
+    }
+
+    .department-info {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+
+/* Animation for user info header */
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.user-info-header {
+    animation: fadeInDown 0.5s ease-out;
+}
+
+/* Accessibility */
+.nav-link:focus,
+.logout-btn:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+    .user-info-header,
+    .store-assignment-info,
+    .department-info {
+        display: none;
+    }
+}

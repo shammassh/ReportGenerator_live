@@ -1,0 +1,2266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Template Builder - Food Safety System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 25px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Navigation Tabs */
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .nav-tab {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-tab:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .nav-tab.active {
+            background: white;
+            color: #667eea;
+        }
+
+        /* Main Content */
+        .main-content {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .content-section {
+            display: none;
+            padding: 30px;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        /* Cards */
+        .card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .card-badge {
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Form Styles */
+        .form-section {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 2px dashed #667eea;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .form-section h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .form-group label .required {
+            color: #ef4444;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #667eea;
+            color: #667eea;
+        }
+
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .btn-warning:hover {
+            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+            transform: translateY(-1px);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal.modal-large {
+            max-width: 1000px;
+        }
+
+        .template-view-section {
+            margin-bottom: 25px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .template-view-section-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .template-view-section-header h4 {
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .template-view-items {
+            padding: 0;
+        }
+
+        .template-view-item {
+            padding: 12px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: grid;
+            grid-template-columns: 60px 1fr 60px 120px;
+            gap: 15px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .template-view-item:last-child {
+            border-bottom: none;
+        }
+
+        .template-view-item:hover {
+            background: #f8f9fa;
+        }
+
+        .template-view-item .ref {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-weight: 600;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .template-view-item .coeff {
+            background: #fbbf24;
+            color: #333;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-weight: 600;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .template-view-item .answer {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .template-view-no-items {
+            padding: 20px;
+            text-align: center;
+            color: #999;
+            font-style: italic;
+        }
+
+        .template-summary {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .template-summary-item {
+            text-align: center;
+        }
+
+        .template-summary-item .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .template-summary-item .label {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .btn-view {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        }
+
+        .btn-view:hover {
+            background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .modal-header h3 {
+            font-size: 22px;
+            color: #333;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        /* Schema List */
+        .schema-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .schema-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .schema-card.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        }
+
+        .schema-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .schema-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .schema-meta {
+            color: #666;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        /* Section List */
+        .section-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .section-icon {
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            background: #f0f9ff;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .section-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .section-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .section-count {
+            color: #666;
+            font-size: 13px;
+        }
+
+        /* Items Table */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .items-table th,
+        .items-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .items-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+
+        .items-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .ref-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .coeff-badge {
+            background: #fbbf24;
+            color: #333;
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 20px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            animation: slideIn 0.3s;
+        }
+
+        .toast.show {
+            display: flex;
+        }
+
+        .toast.success {
+            border-left: 4px solid #10b981;
+        }
+
+        .toast.error {
+            border-left: 4px solid #ef4444;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        /* Back button */
+        .back-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        .btn-download {
+            background: #06b6d4;
+            color: white;
+        }
+
+        .btn-download:hover {
+            background: #0891b2;
+        }
+
+        .schema-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .confirm-delete {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .confirm-delete p {
+            color: #991b1b;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <span id="toastMessage"></span>
+    </div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📋 Audit Template Builder</h1>
+            <div class="header-actions">
+                <a href="/admin/category-management" class="back-btn" style="background: #10b981;">📂 Manage Categories</a>
+                <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('schemas')">
+                🗂️ Schemas
+            </button>
+            <button class="nav-tab" onclick="switchTab('builder')" id="builderTab" style="display: none;">
+                🔧 Build Template
+            </button>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Schemas Section -->
+            <div class="content-section active" id="schemasSection">
+                <!-- Create Schema Form -->
+                <div class="form-section">
+                    <h3>➕ Create New Schema</h3>
+                    <form id="createSchemaForm" onsubmit="createSchema(event)">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Schema Name <span class="required">*</span></label>
+                                <input type="text" id="schemaName" placeholder="e.g., Food Safety Audit" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Description</label>
+                                <input type="text" id="schemaDescription" placeholder="Brief description...">
+                            </div>
+                            <div class="form-group" style="justify-content: flex-end;">
+                                <button type="submit" class="btn btn-primary">➕ Create Schema</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Schema List -->
+                <h3 style="margin-bottom: 20px;">📁 Available Schemas</h3>
+                
+                <div id="schemasList">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading schemas...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Builder Section -->
+            <div class="content-section" id="builderSection">
+                <!-- Breadcrumb -->
+                <div class="breadcrumb" id="breadcrumb">
+                    <a href="#" onclick="switchTab('schemas'); return false;">Schemas</a>
+                    <span>→</span>
+                    <span id="currentSchemaName">Schema Name</span>
+                </div>
+
+                <!-- Section Form -->
+                <div class="form-section">
+                    <h3>➕ Add Section</h3>
+                    <form id="createSectionForm" onsubmit="createSection(event)">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Section Number <span class="required">*</span></label>
+                                <input type="number" id="sectionNumber" placeholder="e.g., 1" min="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Section Name <span class="required">*</span></label>
+                                <input type="text" id="sectionName" placeholder="e.g., Food Storage" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Icon</label>
+                                <select id="sectionIcon">
+                                    <option value="📋">📋 Default</option>
+                                    <option value="🥫">🥫 Food Storage</option>
+                                    <option value="❄️">❄️ Fridges/Freezers</option>
+                                    <option value="🍽️">🍽️ Utensils</option>
+                                    <option value="👨‍🍳">👨‍🍳 Food Handling</option>
+                                    <option value="🧹">🧹 Cleaning</option>
+                                    <option value="🧼">🧼 Hygiene</option>
+                                    <option value="🚻">🚻 Restrooms</option>
+                                    <option value="🗑️">🗑️ Garbage</option>
+                                    <option value="🛠️">🛠️ Maintenance</option>
+                                    <option value="🧪">🧪 Chemicals</option>
+                                    <option value="📊">📊 Monitoring</option>
+                                    <option value="🏛️">🏛️ Culture</option>
+                                    <option value="📜">📜 Policies</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="justify-content: flex-end;">
+                                <button type="submit" class="btn btn-primary">➕ Add Section</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Sections List -->
+                <h3 style="margin-bottom: 20px;">📑 Sections</h3>
+                <div id="sectionsList">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📑</div>
+                        <h3>No sections yet</h3>
+                        <p>Add your first section above</p>
+                    </div>
+                </div>
+
+                <!-- Items Section (shown when a section is selected) -->
+                <div id="itemsSection" style="display: none; margin-top: 30px;">
+                    <hr style="margin: 30px 0; border: none; border-top: 2px solid #e0e0e0;">
+                    
+                    <!-- Item Form -->
+                    <div class="form-section">
+                        <h3>➕ Add Item to <span id="currentSectionName"></span></h3>
+                        <form id="createItemForm" onsubmit="createItem(event)">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Reference Value <span class="required">*</span></label>
+                                    <input type="text" id="itemRefValue" placeholder="e.g., 1.1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Coefficient <span class="required">*</span></label>
+                                    <input type="number" id="itemCoeff" placeholder="e.g., 2" min="1" value="2" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Answer Options</label>
+                                    <input type="text" id="itemAnswer" value="Yes,Partially,No,NA">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group" style="flex: 2;">
+                                    <label>Title (Question) <span class="required">*</span></label>
+                                    <textarea id="itemTitle" placeholder="Enter the question..." required></textarea>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group" style="flex: 2;">
+                                    <label>CR (Criterion)</label>
+                                    <textarea id="itemCR" placeholder="Enter the criterion/requirement..."></textarea>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success">➕ Add Item</button>
+                        </form>
+                    </div>
+
+                    <!-- Bulk Upload Section -->
+                    <div class="form-section" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 2px dashed #0ea5e9;">
+                        <h3 style="color: #0369a1;">📤 Bulk Upload Items</h3>
+                        <p style="color: #0369a1; margin-bottom: 15px; font-size: 14px;">
+                            Download the template, fill it with your items, then upload to add multiple items at once.
+                        </p>
+                        <div style="background: #fef3c7; padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #fcd34d;">
+                            <strong style="color: #92400e;">⚠️ Excel Tip:</strong>
+                            <span style="color: #92400e; font-size: 13px;">
+                                Before typing reference values like 1.10, 1.11 - select the ReferenceValue column, right-click → Format Cells → Text. Otherwise Excel converts 1.10 to 1.1
+                            </span>
+                        </div>
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                            <button class="btn btn-outline" onclick="downloadItemTemplate()" style="border-color: #0ea5e9; color: #0ea5e9;">
+                                📥 Download Template (CSV)
+                            </button>
+                            <div style="position: relative;">
+                                <input type="file" id="bulkUploadInput" accept=".csv" onchange="handleBulkUpload(event)" style="display: none;">
+                                <button class="btn btn-primary" onclick="document.getElementById('bulkUploadInput').click()" style="background: #0ea5e9;">
+                                    📤 Upload CSV File
+                                </button>
+                            </div>
+                            <select id="duplicateAction" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #d1d5db;">
+                                <option value="skip">Skip duplicates</option>
+                                <option value="update">Update duplicates</option>
+                            </select>
+                            <span style="color: #64748b; font-size: 13px;">CSV format</span>
+                        </div>
+                        <div id="bulkUploadStatus" style="margin-top: 15px; display: none;"></div>
+                    </div>
+
+                    <!-- Items Table -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0;">📝 Items</h3>
+                        <button class="btn btn-danger btn-sm" onclick="deleteAllItems()" id="deleteAllItemsBtn" style="display: none;">
+                            🗑️ Delete All Items
+                        </button>
+                    </div>
+                    <div id="itemsList">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📝</div>
+                            <h3>No items yet</h3>
+                            <p>Add your first item above</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let currentSchemaId = null;
+        let currentSectionId = null;
+        let schemas = [];
+        let sections = [];
+        let items = [];
+
+        // API Base URL
+        const API_BASE = '/api/audit-templates';
+
+        // Sort items by reference value (handles numeric parts like 2.1, 2.2, 2.10)
+        function sortByReferenceValue(items) {
+            return [...items].sort((a, b) => {
+                const refA = (a.referenceValue || '').toString();
+                const refB = (b.referenceValue || '').toString();
+                
+                // Split by dots and compare each part numerically
+                const partsA = refA.split('.');
+                const partsB = refB.split('.');
+                
+                for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+                    const numA = parseFloat(partsA[i]) || 0;
+                    const numB = parseFloat(partsB[i]) || 0;
+                    
+                    if (numA !== numB) {
+                        return numA - numB;
+                    }
+                }
+                return 0;
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSchemas();
+        });
+
+        // Tab switching
+        function switchTab(tab) {
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+
+            if (tab === 'schemas') {
+                document.querySelector('.nav-tab').classList.add('active');
+                document.getElementById('schemasSection').classList.add('active');
+                document.getElementById('builderTab').style.display = 'none';
+                currentSchemaId = null;
+                currentSectionId = null;
+            } else if (tab === 'builder') {
+                document.getElementById('builderTab').classList.add('active');
+                document.getElementById('builderSection').classList.add('active');
+            }
+        }
+
+        // Toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toastMessage.textContent = message;
+            toast.className = `toast ${type} show`;
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // API Call helper
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'API request failed');
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+
+        // ==========================================
+        // SCHEMA OPERATIONS
+        // ==========================================
+
+        async function loadSchemas() {
+            const container = document.getElementById('schemasList');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading schemas...</div>';
+
+            try {
+                const result = await apiCall('/schemas');
+                schemas = result.data;
+
+                if (schemas.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🗂️</div>
+                            <h3>No schemas yet</h3>
+                            <p>Create your first audit schema above</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = schemas.map(schema => `
+                    <div class="schema-card" id="schema-card-${schema.schemaId}">
+                        <div class="schema-header" onclick="selectSchema(${schema.schemaId})">
+                            <span class="schema-name">📋 ${schema.schemaName}</span>
+                            <span class="card-badge">${schema.sectionCount} sections</span>
+                        </div>
+                        <div class="schema-meta" onclick="selectSchema(${schema.schemaId})">
+                            ${schema.description || 'No description'} • Created by ${schema.createdBy || 'Unknown'}
+                        </div>
+                        <div class="schema-actions">
+                            <button class="btn btn-view btn-sm" onclick="event.stopPropagation(); viewFullTemplate(${schema.schemaId});">👁️ View</button>
+                            <button class="btn btn-download btn-sm" onclick="event.stopPropagation(); downloadSchema(${schema.schemaId});">📥 Backup</button>
+                            <button class="btn btn-success btn-sm" onclick="event.stopPropagation(); openRestoreModal(${schema.schemaId}, '${schema.schemaName.replace(/'/g, "\\'")}');">📤 Restore</button>
+                            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); selectSchema(${schema.schemaId});">📝 Edit</button>
+                            <button class="btn btn-warning btn-sm" onclick="event.stopPropagation(); openEditSchemaModal(${schema.schemaId});">✏️ Rename</button>
+                            <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); confirmDeleteSchema(${schema.schemaId});">🗑️ Delete</button>
+                        </div>
+                        <div id="delete-confirm-${schema.schemaId}" class="confirm-delete" style="display: none;">
+                            <p>⚠️ Are you sure you want to delete "${schema.schemaName}"? This will remove all sections and items.</p>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteSchema(${schema.schemaId});">Yes, Delete</button>
+                                <button class="btn btn-sm" onclick="event.stopPropagation(); cancelDeleteSchema(${schema.schemaId});" style="background: #6b7280; color: white;">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = `<div class="empty-state"><p>Error loading schemas: ${error.message}</p></div>`;
+            }
+        }
+
+        // ==========================================
+        // IMPORT SCHEMA FROM BACKUP
+        // ==========================================
+        
+        let pendingImportData = null;
+
+        function handleImportFile(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                document.getElementById('importPreview').style.display = 'none';
+                document.getElementById('importBtn').disabled = true;
+                pendingImportData = null;
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    // Validate structure
+                    if (!data.schema || !data.schema.schemaName) {
+                        throw new Error('Invalid backup file format');
+                    }
+
+                    pendingImportData = data;
+                    
+                    // Show preview
+                    const schema = data.schema;
+                    const totalItems = schema.sections ? schema.sections.reduce((sum, s) => sum + (s.items?.length || 0), 0) : 0;
+                    
+                    document.getElementById('importPreviewContent').innerHTML = `
+                        <table style="width: 100%; font-size: 14px;">
+                            <tr><td><strong>Schema Name:</strong></td><td>${schema.schemaName}</td></tr>
+                            <tr><td><strong>Description:</strong></td><td>${schema.description || 'None'}</td></tr>
+                            <tr><td><strong>Sections:</strong></td><td>${schema.sections?.length || 0}</td></tr>
+                            <tr><td><strong>Total Items:</strong></td><td>${totalItems}</td></tr>
+                            <tr><td><strong>Export Date:</strong></td><td>${data.exportDate ? new Date(data.exportDate).toLocaleString() : 'Unknown'}</td></tr>
+                        </table>
+                        <div style="margin-top: 10px; max-height: 150px; overflow-y: auto;">
+                            <strong>Sections:</strong>
+                            <ul style="margin: 5px 0; padding-left: 20px;">
+                                ${schema.sections?.map(s => `<li>${s.sectionIcon || '📋'} ${s.sectionName} (${s.items?.length || 0} items)</li>`).join('') || '<li>No sections</li>'}
+                            </ul>
+                        </div>
+                    `;
+                    document.getElementById('importPreview').style.display = 'block';
+                    document.getElementById('importBtn').disabled = false;
+                    
+                    showToast('File loaded! Click Import to restore.', 'success');
+                } catch (error) {
+                    showToast('Error reading file: ' + error.message, 'error');
+                    document.getElementById('importPreview').style.display = 'none';
+                    document.getElementById('importBtn').disabled = true;
+                    pendingImportData = null;
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function importSchema() {
+            if (!pendingImportData || !pendingImportData.schema) {
+                showToast('No valid backup file selected', 'error');
+                return;
+            }
+
+            const schema = pendingImportData.schema;
+            const importBtn = document.getElementById('importBtn');
+            importBtn.disabled = true;
+            importBtn.textContent = '⏳ Importing...';
+
+            try {
+                // 1. Create the schema
+                const schemaResult = await apiCall('/schemas', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        schemaName: schema.schemaName + ' (Imported)', 
+                        description: schema.description || '' 
+                    })
+                });
+                
+                const newSchemaId = schemaResult.data.schemaId;
+                let sectionsCreated = 0;
+                let itemsCreated = 0;
+
+                // 2. Create sections and items
+                if (schema.sections && schema.sections.length > 0) {
+                    for (const section of schema.sections) {
+                        // Create section
+                        const sectionResult = await apiCall(`/schemas/${newSchemaId}/sections`, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                sectionNumber: section.sectionNumber,
+                                sectionName: section.sectionName,
+                                sectionIcon: section.sectionIcon || '📋'
+                            })
+                        });
+                        sectionsCreated++;
+                        
+                        const newSectionId = sectionResult.data.sectionId;
+
+                        // Create items in bulk if available
+                        if (section.items && section.items.length > 0) {
+                            await apiCall(`/sections/${newSectionId}/items/bulk`, {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    items: section.items,
+                                    duplicateAction: 'skip'
+                                })
+                            });
+                            itemsCreated += section.items.length;
+                        }
+                    }
+                }
+
+                showToast(`Imported successfully! ${sectionsCreated} sections, ${itemsCreated} items`, 'success');
+                
+                // Reset form
+                document.getElementById('importSchemaFile').value = '';
+                document.getElementById('importPreview').style.display = 'none';
+                pendingImportData = null;
+                
+                // Reload schemas
+                loadSchemas();
+
+            } catch (error) {
+                showToast('Error importing schema: ' + error.message, 'error');
+            } finally {
+                importBtn.disabled = false;
+                importBtn.textContent = '📥 Import Schema';
+            }
+        }
+
+        async function createSchema(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('schemaName').value;
+            const description = document.getElementById('schemaDescription').value;
+
+            try {
+                await apiCall('/schemas', {
+                    method: 'POST',
+                    body: JSON.stringify({ schemaName: name, description })
+                });
+
+                showToast('Schema created successfully!', 'success');
+                document.getElementById('createSchemaForm').reset();
+                loadSchemas();
+            } catch (error) {
+                showToast('Error creating schema: ' + error.message, 'error');
+            }
+        }
+
+        async function selectSchema(schemaId) {
+            currentSchemaId = schemaId;
+            const schema = schemas.find(s => s.schemaId === schemaId);
+            
+            document.getElementById('currentSchemaName').textContent = schema.schemaName;
+            document.getElementById('builderTab').style.display = 'flex';
+            
+            switchTab('builder');
+            loadSections();
+        }
+
+        // Open Edit Schema Modal
+        function openEditSchemaModal(schemaId) {
+            const schema = schemas.find(s => s.schemaId === schemaId);
+            if (!schema) {
+                showToast('Schema not found', 'error');
+                return;
+            }
+
+            document.getElementById('editSchemaId').value = schemaId;
+            document.getElementById('editSchemaName').value = schema.schemaName;
+            document.getElementById('editSchemaDescription').value = schema.description || '';
+            document.getElementById('editSchemaModal').classList.add('active');
+        }
+
+        function closeEditSchemaModal() {
+            document.getElementById('editSchemaModal').classList.remove('active');
+        }
+
+        // Download schema as JSON backup
+        async function downloadSchema(schemaId) {
+            try {
+                showToast('Preparing download...', 'success');
+                
+                // Fetch full schema with all sections and items
+                const result = await apiCall(`/schemas/${schemaId}`);
+                const schema = result.data;
+                
+                if (!schema) {
+                    showToast('Schema not found', 'error');
+                    return;
+                }
+
+                // Create backup object with metadata
+                const backup = {
+                    exportDate: new Date().toISOString(),
+                    exportedBy: 'Audit Template Builder',
+                    version: '1.0',
+                    schema: {
+                        schemaName: schema.schemaName,
+                        description: schema.description,
+                        sections: schema.sections.map(section => ({
+                            sectionNumber: section.sectionNumber,
+                            sectionName: section.sectionName,
+                            sectionIcon: section.sectionIcon,
+                            items: section.items.map(item => ({
+                                referenceValue: item.referenceValue,
+                                title: item.title,
+                                coeff: item.coeff,
+                                answer: item.answer,
+                                cr: item.cr
+                            }))
+                        }))
+                    }
+                };
+
+                // Create and download JSON file
+                const jsonContent = JSON.stringify(backup, null, 2);
+                const blob = new Blob([jsonContent], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                
+                // Create filename with schema name and date
+                const safeName = schema.schemaName.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
+                const date = new Date().toISOString().split('T')[0];
+                link.download = `${safeName}_backup_${date}.json`;
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                const totalItems = schema.sections.reduce((sum, s) => sum + s.items.length, 0);
+                showToast(`Downloaded: ${schema.sections.length} sections, ${totalItems} items`, 'success');
+            } catch (error) {
+                console.error('Download error:', error);
+                showToast('Error downloading schema: ' + error.message, 'error');
+            }
+        }
+
+        async function saveSchemaEdit(e) {
+            e.preventDefault();
+            
+            const schemaId = document.getElementById('editSchemaId').value;
+            const schemaName = document.getElementById('editSchemaName').value.trim();
+            const description = document.getElementById('editSchemaDescription').value.trim();
+
+            if (!schemaName) {
+                showToast('Schema name is required', 'error');
+                return;
+            }
+
+            try {
+                await apiCall(`/schemas/${schemaId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ schemaName, description })
+                });
+
+                showToast('Schema updated successfully!', 'success');
+                closeEditSchemaModal();
+                loadSchemas();
+            } catch (error) {
+                showToast('Error updating schema: ' + error.message, 'error');
+            }
+        }
+
+        // Show delete confirmation
+        function confirmDeleteSchema(schemaId) {
+            // Hide all other confirmations first
+            document.querySelectorAll('.confirm-delete').forEach(el => el.style.display = 'none');
+            document.getElementById(`delete-confirm-${schemaId}`).style.display = 'block';
+        }
+
+        function cancelDeleteSchema(schemaId) {
+            document.getElementById(`delete-confirm-${schemaId}`).style.display = 'none';
+        }
+
+        async function deleteSchema(schemaId) {
+            try {
+                await apiCall(`/schemas/${schemaId}`, {
+                    method: 'DELETE'
+                });
+
+                showToast('Schema deleted successfully!', 'success');
+                loadSchemas();
+            } catch (error) {
+                showToast('Error deleting schema: ' + error.message, 'error');
+            }
+        }
+
+        // ==========================================
+        // SECTION OPERATIONS
+        // ==========================================
+
+        async function loadSections() {
+            const container = document.getElementById('sectionsList');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading sections...</div>';
+
+            try {
+                const result = await apiCall(`/schemas/${currentSchemaId}/sections`);
+                sections = result.data;
+
+                if (sections.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📑</div>
+                            <h3>No sections yet</h3>
+                            <p>Add your first section above</p>
+                        </div>
+                    `;
+                    document.getElementById('itemsSection').style.display = 'none';
+                    return;
+                }
+
+                container.innerHTML = sections.map(section => `
+                    <div class="section-item ${currentSectionId === section.sectionId ? 'selected' : ''}" 
+                         onclick="selectSection(${section.sectionId})"
+                         style="cursor: pointer; ${currentSectionId === section.sectionId ? 'border-color: #667eea; background: #f0f9ff;' : ''}">
+                        <div class="section-info">
+                            <div class="section-number">${section.sectionNumber}</div>
+                            <div class="section-icon">${section.sectionIcon || '📋'}</div>
+                            <div>
+                                <div class="section-name">${section.sectionName}</div>
+                                <div class="section-count">${section.itemCount} items</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); selectSection(${section.sectionId})">
+                            📝 Manage Items
+                        </button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = `<div class="empty-state"><p>Error loading sections: ${error.message}</p></div>`;
+            }
+        }
+
+        async function createSection(e) {
+            e.preventDefault();
+
+            const sectionNumber = parseInt(document.getElementById('sectionNumber').value);
+            const sectionName = document.getElementById('sectionName').value;
+            const sectionIcon = document.getElementById('sectionIcon').value;
+
+            try {
+                await apiCall(`/schemas/${currentSchemaId}/sections`, {
+                    method: 'POST',
+                    body: JSON.stringify({ sectionNumber, sectionName, sectionIcon })
+                });
+
+                showToast('Section created successfully!', 'success');
+                document.getElementById('createSectionForm').reset();
+                loadSections();
+            } catch (error) {
+                showToast('Error creating section: ' + error.message, 'error');
+            }
+        }
+
+        async function selectSection(sectionId) {
+            currentSectionId = sectionId;
+            const section = sections.find(s => s.sectionId === sectionId);
+            
+            document.getElementById('currentSectionName').textContent = section.sectionName;
+            document.getElementById('itemsSection').style.display = 'block';
+            
+            // Update section styling
+            document.querySelectorAll('.section-item').forEach(el => {
+                el.style.borderColor = '';
+                el.style.background = '';
+            });
+            event.currentTarget.style.borderColor = '#667eea';
+            event.currentTarget.style.background = '#f0f9ff';
+            
+            loadItems();
+        }
+
+        // ==========================================
+        // ITEM OPERATIONS
+        // ==========================================
+
+        async function loadItems() {
+            const container = document.getElementById('itemsList');
+            const deleteAllBtn = document.getElementById('deleteAllItemsBtn');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading items...</div>';
+
+            try {
+                const result = await apiCall(`/sections/${currentSectionId}/items`);
+                items = result.data;
+
+                if (items.length === 0) {
+                    deleteAllBtn.style.display = 'none';
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📝</div>
+                            <h3>No items yet</h3>
+                            <p>Add your first item above</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Show delete all button when there are items
+                deleteAllBtn.style.display = 'inline-flex';
+
+                // Sort items by reference value
+                const sortedItems = sortByReferenceValue(items);
+
+                container.innerHTML = `
+                    <table class="items-table">
+                        <thead>
+                            <tr>
+                                <th>Ref</th>
+                                <th>Title</th>
+                                <th>Coeff</th>
+                                <th>Answer</th>
+                                <th>CR</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sortedItems.map(item => `
+                                <tr>
+                                    <td><span class="ref-badge">${item.referenceValue}</span></td>
+                                    <td>${item.title}</td>
+                                    <td><span class="coeff-badge">${item.coeff}</span></td>
+                                    <td>${item.answer}</td>
+                                    <td>${item.cr || '-'}</td>
+                                    <td style="display: flex; gap: 5px;">
+                                        <button class="btn btn-warning btn-sm" onclick="editItem(${item.itemId})" title="Edit">✏️</button>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteItem(${item.itemId})" title="Delete">🗑️</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                container.innerHTML = `<div class="empty-state"><p>Error loading items: ${error.message}</p></div>`;
+            }
+        }
+
+        async function createItem(e) {
+            e.preventDefault();
+
+            const itemData = {
+                referenceValue: document.getElementById('itemRefValue').value,
+                title: document.getElementById('itemTitle').value,
+                coeff: parseInt(document.getElementById('itemCoeff').value),
+                answer: document.getElementById('itemAnswer').value,
+                cr: document.getElementById('itemCR').value
+            };
+
+            try {
+                await apiCall(`/sections/${currentSectionId}/items`, {
+                    method: 'POST',
+                    body: JSON.stringify(itemData)
+                });
+
+                showToast('Item created successfully!', 'success');
+                document.getElementById('createItemForm').reset();
+                document.getElementById('itemCoeff').value = '2';
+                document.getElementById('itemAnswer').value = 'Yes,Partially,No,NA';
+                loadItems();
+                loadSections(); // Refresh section counts
+            } catch (error) {
+                showToast('Error creating item: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteItem(itemId) {
+            if (!confirm('Are you sure you want to delete this item?')) return;
+
+            try {
+                await apiCall(`/items/${itemId}`, { method: 'DELETE' });
+                showToast('Item deleted successfully!', 'success');
+                loadItems();
+                loadSections(); // Refresh section counts
+            } catch (error) {
+                showToast('Error deleting item: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteAllItems() {
+            const itemCount = items.length;
+            if (itemCount === 0) {
+                showToast('No items to delete', 'warning');
+                return;
+            }
+
+            const confirmMsg = `⚠️ Are you sure you want to delete ALL ${itemCount} items in this section?\n\nThis action cannot be undone!`;
+            if (!confirm(confirmMsg)) return;
+
+            // Double confirm for safety
+            const doubleConfirm = prompt(`Type "DELETE" to confirm deletion of ${itemCount} items:`);
+            if (doubleConfirm !== 'DELETE') {
+                showToast('Deletion cancelled', 'info');
+                return;
+            }
+
+            try {
+                const response = await apiCall(`/sections/${currentSectionId}/items/all`, { 
+                    method: 'DELETE' 
+                });
+                showToast(`Successfully deleted ${response.data.deleted} items!`, 'success');
+                loadItems();
+                loadSections(); // Refresh section counts
+            } catch (error) {
+                showToast('Error deleting items: ' + error.message, 'error');
+            }
+        }
+
+        // Edit Item Functions
+        let editingItemId = null;
+
+        function editItem(itemId) {
+            const item = items.find(i => i.itemId === itemId);
+            if (!item) {
+                showToast('Item not found', 'error');
+                return;
+            }
+
+            editingItemId = itemId;
+
+            // Populate modal form
+            document.getElementById('editItemRefValue').value = item.referenceValue || '';
+            document.getElementById('editItemTitle').value = item.title || '';
+            document.getElementById('editItemCoeff').value = item.coeff || 2;
+            document.getElementById('editItemAnswer').value = item.answer || 'Yes,Partially,No,NA';
+            document.getElementById('editItemCR').value = item.cr || '';
+
+            // Show modal
+            document.getElementById('editItemModal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editItemModal').classList.remove('active');
+            editingItemId = null;
+        }
+
+        async function saveItemEdit(e) {
+            e.preventDefault();
+
+            if (!editingItemId) return;
+
+            const itemData = {
+                referenceValue: document.getElementById('editItemRefValue').value,
+                title: document.getElementById('editItemTitle').value,
+                coeff: parseInt(document.getElementById('editItemCoeff').value),
+                answer: document.getElementById('editItemAnswer').value,
+                cr: document.getElementById('editItemCR').value
+            };
+
+            try {
+                await apiCall(`/items/${editingItemId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(itemData)
+                });
+
+                showToast('Item updated successfully!', 'success');
+                closeEditModal();
+                loadItems();
+            } catch (error) {
+                showToast('Error updating item: ' + error.message, 'error');
+            }
+        }
+
+        // Close modal on outside click
+        document.getElementById('editItemModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+
+        // View Full Template Functions
+        async function viewFullTemplate(schemaId) {
+            const modal = document.getElementById('viewTemplateModal');
+            const content = document.getElementById('templateViewContent');
+            
+            modal.classList.add('active');
+            content.innerHTML = '<div class="loading"><div class="spinner"></div>Loading template...</div>';
+
+            try {
+                const result = await apiCall(`/schemas/${schemaId}`);
+                const template = result.data;
+
+                if (!template) {
+                    content.innerHTML = '<div class="empty-state"><p>Template not found</p></div>';
+                    return;
+                }
+
+                // Calculate totals
+                const totalSections = template.sections?.length || 0;
+                const totalItems = template.sections?.reduce((sum, s) => sum + (s.items?.length || 0), 0) || 0;
+                const totalCoeff = template.sections?.reduce((sum, s) => 
+                    sum + (s.items?.reduce((itemSum, item) => itemSum + (item.coeff || 0), 0) || 0), 0) || 0;
+
+                let html = `
+                    <div class="template-summary">
+                        <div class="template-summary-item">
+                            <div class="value">${totalSections}</div>
+                            <div class="label">Sections</div>
+                        </div>
+                        <div class="template-summary-item">
+                            <div class="value">${totalItems}</div>
+                            <div class="label">Total Items</div>
+                        </div>
+                        <div class="template-summary-item">
+                            <div class="value">${totalCoeff}</div>
+                            <div class="label">Total Coefficient</div>
+                        </div>
+                    </div>
+                `;
+
+                if (totalSections === 0) {
+                    html += '<div class="empty-state"><div class="empty-state-icon">📑</div><h3>No sections defined</h3><p>Add sections to this schema first</p></div>';
+                } else {
+                    template.sections.forEach((section, idx) => {
+                        const itemCount = section.items?.length || 0;
+                        const sectionCoeff = section.items?.reduce((sum, item) => sum + (item.coeff || 0), 0) || 0;
+
+                        html += `
+                            <div class="template-view-section">
+                                <div class="template-view-section-header">
+                                    <h4>${section.icon || '📋'} ${section.sectionNumber}. ${section.sectionName}</h4>
+                                    <span>${itemCount} items • Coeff: ${sectionCoeff}</span>
+                                </div>
+                                <div class="template-view-items">
+                        `;
+
+                        if (itemCount === 0) {
+                            html += '<div class="template-view-no-items">No items in this section</div>';
+                        } else {
+                            // Sort items by reference value
+                            const sortedSectionItems = sortByReferenceValue(section.items);
+                            sortedSectionItems.forEach(item => {
+                                html += `
+                                    <div class="template-view-item">
+                                        <span class="ref">${item.referenceValue || '-'}</span>
+                                        <span class="title">${item.title}</span>
+                                        <span class="coeff">${item.coeff}</span>
+                                        <span class="answer">${item.answer || 'Yes,Partially,No,NA'}</span>
+                                    </div>
+                                `;
+                            });
+                        }
+
+                        html += '</div></div>';
+                    });
+                }
+
+                document.getElementById('templateViewTitle').textContent = template.schemaName;
+                content.innerHTML = html;
+            } catch (error) {
+                content.innerHTML = `<div class="empty-state"><p>Error loading template: ${error.message}</p></div>`;
+            }
+        }
+
+        function closeViewModal() {
+            document.getElementById('viewTemplateModal').classList.remove('active');
+        }
+
+        // Close view modal on outside click
+        document.getElementById('viewTemplateModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeViewModal();
+            }
+        });
+
+        // ==========================================
+        // BULK UPLOAD FUNCTIONS
+        // ==========================================
+
+        function downloadItemTemplate() {
+            // Create CSV template with headers and example rows showing reference pattern
+            const headers = ['ReferenceValue', 'Title', 'Coeff', 'Answer', 'CR'];
+            const exampleRows = [
+                ['1.1', 'Example question 1 - replace with your question', '2', 'Yes,Partially,No,NA', 'Criterion for question 1'],
+                ['1.2', 'Example question 2 - replace with your question', '2', 'Yes,Partially,No,NA', 'Criterion for question 2'],
+                ['1.3', 'Example question 3 - replace with your question', '2', 'Yes,Partially,No,NA', 'Criterion for question 3'],
+                ['1.4', 'Example question 4 - replace with your question', '2', 'Yes,Partially,No,NA', 'Criterion for question 4'],
+                ['1.5', 'Example question 5 - replace with your question', '2', 'Yes,Partially,No,NA', 'Criterion for question 5'],
+                ['1.6', 'Example question 6 - replace with your question', '2', 'Yes,Partially,No,NA', 'Criterion for question 6'],
+                ['1.7', 'Example question 7 - replace with your question', '2', 'Yes,Partially,No,NA', 'Criterion for question 7'],
+                ['1.8', 'Example question 8 - replace with your question', '2', 'Yes,Partially,No,NA', 'Criterion for question 8'],
+                ['1.9', 'Example question 9 - replace with your question', '2', 'Yes,Partially,No,NA', 'Criterion for question 9'],
+                ['1.10', 'Example question 10 - replace with your question', '2', 'Yes,Partially,No,NA', 'Criterion for question 10'],
+                ['1.11', 'Example question 11 - replace with your question', '2', 'Yes,Partially,No,NA', 'Criterion for question 11'],
+                ['1.12', 'Example question 12 - replace with your question', '2', 'Yes,Partially,No,NA', 'Criterion for question 12']
+            ];
+            
+            const csvContent = [
+                headers.join(','),
+                ...exampleRows.map(row => row.map(field => `"${field}"`).join(','))
+            ].join('\n');
+
+            // Create and download file
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'items_template.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast('Template downloaded! Fill it and upload.', 'success');
+        }
+
+        async function handleBulkUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!currentSectionId) {
+                showToast('Please select a section first', 'error');
+                event.target.value = '';
+                return;
+            }
+
+            const statusDiv = document.getElementById('bulkUploadStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Processing file...</div>';
+
+            try {
+                const text = await file.text();
+                const items = parseCSV(text);
+
+                if (items.length === 0) {
+                    statusDiv.innerHTML = '<div style="color: #ef4444; padding: 10px; background: #fef2f2; border-radius: 8px;">❌ No valid items found in file. Make sure the CSV has the correct format.</div>';
+                    event.target.value = '';
+                    return;
+                }
+
+                // Show preview
+                statusDiv.innerHTML = `
+                    <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; border: 1px solid #bae6fd;">
+                        <h4 style="color: #0369a1; margin-bottom: 10px;">📋 Preview: ${items.length} items found</h4>
+                        <div style="max-height: 200px; overflow-y: auto; margin-bottom: 15px;">
+                            <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #e0f2fe;">
+                                        <th style="padding: 8px; text-align: left;">Ref</th>
+                                        <th style="padding: 8px; text-align: left;">Title</th>
+                                        <th style="padding: 8px; text-align: left;">Coeff</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${items.slice(0, 10).map(item => `
+                                        <tr style="border-bottom: 1px solid #e0e0e0;">
+                                            <td style="padding: 6px;">${item.referenceValue}</td>
+                                            <td style="padding: 6px;">${item.title.substring(0, 50)}${item.title.length > 50 ? '...' : ''}</td>
+                                            <td style="padding: 6px;">${item.coeff}</td>
+                                        </tr>
+                                    `).join('')}
+                                    ${items.length > 10 ? `<tr><td colspan="3" style="padding: 6px; color: #666;">... and ${items.length - 10} more items</td></tr>` : ''}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-success" onclick="confirmBulkUpload()">✅ Confirm Upload</button>
+                            <button class="btn btn-outline" onclick="cancelBulkUpload()" style="border-color: #6b7280; color: #6b7280;">❌ Cancel</button>
+                        </div>
+                    </div>
+                `;
+
+                // Store parsed items for confirmation
+                window.pendingBulkItems = items;
+
+            } catch (error) {
+                statusDiv.innerHTML = `<div style="color: #ef4444; padding: 10px; background: #fef2f2; border-radius: 8px;">❌ Error parsing file: ${error.message}</div>`;
+            }
+
+            event.target.value = '';
+        }
+
+        function parseCSV(text) {
+            const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+            if (lines.length < 2) return []; // Need header + at least one data row
+
+            const items = [];
+            const warnings = [];
+            
+            // Skip header row
+            for (let i = 1; i < lines.length; i++) {
+                const values = parseCSVLine(lines[i]);
+                
+                if (values.length >= 2) { // At minimum need ReferenceValue and Title
+                    const refValue = values[0]?.trim() || '';
+                    const title = values[1]?.trim() || '';
+                    
+                    // Validate reference value length
+                    if (refValue.length > 20) {
+                        warnings.push(`Row ${i + 1}: ReferenceValue "${refValue.substring(0, 30)}..." is too long (max 20 chars). Did you swap columns?`);
+                        continue; // Skip this row
+                    }
+                    
+                    // Check if RefValue looks like title text (contains spaces)
+                    if (refValue.includes(' ') && refValue.length > 10) {
+                        warnings.push(`Row ${i + 1}: ReferenceValue "${refValue.substring(0, 30)}..." looks like title text. Check column order.`);
+                    }
+                    
+                    const item = {
+                        referenceValue: refValue,
+                        title: title,
+                        coeff: parseInt(values[2]?.trim()) || 2,
+                        answer: values[3]?.trim() || 'Yes,Partially,No,NA',
+                        cr: values[4]?.trim() || ''
+                    };
+
+                    // Only add if has required fields
+                    if (item.referenceValue && item.title) {
+                        items.push(item);
+                    }
+                }
+            }
+            
+            // Show warnings if any
+            if (warnings.length > 0) {
+                console.warn('CSV Parse Warnings:', warnings);
+                alert('⚠️ CSV Parsing Warnings:\n\n' + warnings.join('\n'));
+            }
+
+            return items;
+        }
+
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    if (inQuotes && line[i + 1] === '"') {
+                        current += '"';
+                        i++; // Skip next quote
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current); // Add last field
+
+            return result;
+        }
+
+        async function confirmBulkUpload() {
+            const items = window.pendingBulkItems;
+            if (!items || items.length === 0) {
+                showToast('No items to upload', 'error');
+                return;
+            }
+
+            const duplicateAction = document.getElementById('duplicateAction').value;
+            const statusDiv = document.getElementById('bulkUploadStatus');
+            statusDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Uploading items...</div>';
+
+            try {
+                const response = await fetch(`/api/audit-templates/sections/${currentSectionId}/items/bulk`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items, duplicateAction })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'Upload failed');
+                }
+
+                let statusHtml = '';
+                const { created = 0, updated = 0, reactivated = 0, skipped = 0, errors = 0, errorDetails } = result.data;
+                
+                // Build summary message
+                const summaryParts = [];
+                if (created > 0) summaryParts.push(`✅ ${created} created`);
+                if (updated > 0) summaryParts.push(`📝 ${updated} updated`);
+                if (reactivated > 0) summaryParts.push(`♻️ ${reactivated} reactivated`);
+                if (skipped > 0) summaryParts.push(`⏭️ ${skipped} skipped (duplicates)`);
+                if (errors > 0) summaryParts.push(`❌ ${errors} failed`);
+
+                if (summaryParts.length > 0) {
+                    const successCount = created + updated + reactivated;
+                    const bgColor = successCount > 0 ? '#ecfdf5' : (skipped > 0 ? '#fffbeb' : '#fef2f2');
+                    const textColor = successCount > 0 ? '#059669' : (skipped > 0 ? '#d97706' : '#dc2626');
+                    
+                    statusHtml += `<div style="color: ${textColor}; padding: 10px; background: ${bgColor}; border-radius: 8px; margin-bottom: 10px;">
+                        <strong>Upload Results:</strong> ${summaryParts.join(' | ')}
+                    </div>`;
+                }
+                
+                if (errors > 0 && errorDetails) {
+                    statusHtml += `<div style="color: #dc2626; padding: 10px; background: #fef2f2; border-radius: 8px;">
+                        <details>
+                            <summary style="cursor: pointer; font-weight: 600;">Show error details (${errors})</summary>
+                            <ul style="margin-top: 10px; font-size: 12px;">
+                                ${errorDetails.map(e => `<li><strong>${e.referenceValue}:</strong> ${e.error}</li>`).join('')}
+                            </ul>
+                        </details>
+                    </div>`;
+                }
+
+                if (created === 0 && updated === 0 && reactivated === 0 && skipped === 0 && errors === 0) {
+                    statusHtml = `<div style="color: #d97706; padding: 10px; background: #fffbeb; border-radius: 8px;">
+                        ⚠️ No items were processed. Check your CSV format.
+                    </div>`;
+                }
+
+                statusDiv.innerHTML = statusHtml;
+
+                window.pendingBulkItems = null;
+                loadItems();
+                loadSections(); // Refresh section counts
+
+                // Hide status after 5 seconds
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 5000);
+
+            } catch (error) {
+                statusDiv.innerHTML = `<div style="color: #ef4444; padding: 10px; background: #fef2f2; border-radius: 8px;">❌ Error uploading items: ${error.message}</div>`;
+            }
+        }
+
+        function cancelBulkUpload() {
+            window.pendingBulkItems = null;
+            const statusDiv = document.getElementById('bulkUploadStatus');
+            statusDiv.style.display = 'none';
+            showToast('Upload cancelled', 'success');
+        }
+
+        // ==========================================
+        // RESTORE SCHEMA FROM BACKUP
+        // ==========================================
+        
+        let restoreTargetSchemaId = null;
+        let restoreTargetSchemaName = '';
+        let pendingRestoreData = null;
+
+        function openRestoreModal(schemaId, schemaName) {
+            restoreTargetSchemaId = schemaId;
+            restoreTargetSchemaName = schemaName;
+            pendingRestoreData = null;
+            
+            document.getElementById('restoreSchemaName').textContent = schemaName;
+            document.getElementById('restoreFile').value = '';
+            document.getElementById('restorePreview').style.display = 'none';
+            document.getElementById('restoreBtn').disabled = true;
+            document.getElementById('restoreModal').classList.add('active');
+        }
+
+        function closeRestoreModal() {
+            document.getElementById('restoreModal').classList.remove('active');
+            restoreTargetSchemaId = null;
+            restoreTargetSchemaName = '';
+            pendingRestoreData = null;
+        }
+
+        function handleRestoreFile(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                document.getElementById('restorePreview').style.display = 'none';
+                document.getElementById('restoreBtn').disabled = true;
+                pendingRestoreData = null;
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (!data.schema || !data.schema.sections) {
+                        throw new Error('Invalid backup file format');
+                    }
+
+                    pendingRestoreData = data;
+                    
+                    const schema = data.schema;
+                    const totalItems = schema.sections.reduce((sum, s) => sum + (s.items?.length || 0), 0);
+                    
+                    document.getElementById('restorePreviewContent').innerHTML = `
+                        <p><strong>From backup:</strong> ${schema.schemaName}</p>
+                        <p><strong>Sections:</strong> ${schema.sections.length}</p>
+                        <p><strong>Items:</strong> ${totalItems}</p>
+                        <p style="margin-top: 10px; color: #f59e0b;"><strong>⚠️ This will ADD sections and items to "${restoreTargetSchemaName}"</strong></p>
+                    `;
+                    document.getElementById('restorePreview').style.display = 'block';
+                    document.getElementById('restoreBtn').disabled = false;
+                    
+                } catch (error) {
+                    showToast('Error reading file: ' + error.message, 'error');
+                    document.getElementById('restorePreview').style.display = 'none';
+                    document.getElementById('restoreBtn').disabled = true;
+                    pendingRestoreData = null;
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function restoreToSchema() {
+            if (!pendingRestoreData || !restoreTargetSchemaId) {
+                showToast('No valid backup selected', 'error');
+                return;
+            }
+
+            const restoreBtn = document.getElementById('restoreBtn');
+            restoreBtn.disabled = true;
+            restoreBtn.textContent = '⏳ Restoring...';
+
+            try {
+                const schema = pendingRestoreData.schema;
+                let sectionsCreated = 0;
+                let itemsCreated = 0;
+
+                for (const section of schema.sections) {
+                    // Create section
+                    const sectionResult = await apiCall(`/schemas/${restoreTargetSchemaId}/sections`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            sectionNumber: section.sectionNumber,
+                            sectionName: section.sectionName,
+                            sectionIcon: section.sectionIcon || '📋'
+                        })
+                    });
+                    sectionsCreated++;
+                    
+                    const newSectionId = sectionResult.data.sectionId;
+
+                    // Create items
+                    if (section.items && section.items.length > 0) {
+                        await apiCall(`/sections/${newSectionId}/items/bulk`, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                items: section.items,
+                                duplicateAction: 'skip'
+                            })
+                        });
+                        itemsCreated += section.items.length;
+                    }
+                }
+
+                showToast(`Restored ${sectionsCreated} sections, ${itemsCreated} items to "${restoreTargetSchemaName}"`, 'success');
+                closeRestoreModal();
+                loadSchemas();
+
+            } catch (error) {
+                showToast('Error restoring: ' + error.message, 'error');
+            } finally {
+                restoreBtn.disabled = false;
+                restoreBtn.textContent = '📤 Restore';
+            }
+        }
+    </script>
+
+    <!-- Restore Schema Modal -->
+    <div id="restoreModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>📤 Restore Backup to Schema</h3>
+                <button class="modal-close" onclick="closeRestoreModal()">&times;</button>
+            </div>
+            <div style="padding: 20px;">
+                <p style="margin-bottom: 15px;">Restore backup to: <strong id="restoreSchemaName"></strong></p>
+                
+                <div class="form-group">
+                    <label>Select JSON Backup File</label>
+                    <input type="file" id="restoreFile" accept=".json" onchange="handleRestoreFile(event)" style="width: 100%; padding: 10px; border: 2px dashed #10b981; border-radius: 8px;">
+                </div>
+                
+                <div id="restorePreview" style="display: none; margin-top: 15px; padding: 15px; background: #f0fdf4; border-radius: 8px; border: 1px solid #10b981;">
+                    <div id="restorePreviewContent"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeRestoreModal()" style="background: #6b7280;">Cancel</button>
+                <button type="button" class="btn btn-success" id="restoreBtn" onclick="restoreToSchema()" disabled>📤 Restore</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Schema Modal -->
+    <div id="editSchemaModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>✏️ Rename Schema</h3>
+                <button class="modal-close" onclick="closeEditSchemaModal()">&times;</button>
+            </div>
+            <form id="editSchemaForm" onsubmit="saveSchemaEdit(event)">
+                <input type="hidden" id="editSchemaId">
+                <div class="form-group">
+                    <label>Schema Name <span class="required">*</span></label>
+                    <input type="text" id="editSchemaName" placeholder="e.g., Food Safety Audit" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="editSchemaDescription" rows="3" placeholder="Brief description of this audit schema..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeEditSchemaModal()" style="background: #6b7280;">Cancel</button>
+                    <button type="submit" class="btn btn-success">💾 Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Full Template Modal -->
+    <div id="viewTemplateModal" class="modal-overlay">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3>👁️ <span id="templateViewTitle">Template Name</span></h3>
+                <button class="modal-close" onclick="closeViewModal()">&times;</button>
+            </div>
+            <div id="templateViewContent">
+                <div class="loading"><div class="spinner"></div>Loading...</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeViewModal()" style="background: #6b7280;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Item Modal -->
+    <div id="editItemModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>✏️ Edit Item</h3>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="editItemForm" onsubmit="saveItemEdit(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Reference Value *</label>
+                        <input type="text" id="editItemRefValue" required placeholder="e.g., 1.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Coefficient *</label>
+                        <select id="editItemCoeff" required>
+                            <option value="1">1 - Low</option>
+                            <option value="2" selected>2 - Normal</option>
+                            <option value="4">4 - High</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Title / Question *</label>
+                    <input type="text" id="editItemTitle" required placeholder="Enter the checklist question">
+                </div>
+                <div class="form-group">
+                    <label>Answer Options</label>
+                    <input type="text" id="editItemAnswer" value="Yes,Partially,No,NA" placeholder="Comma-separated options">
+                </div>
+                <div class="form-group">
+                    <label>Criterion (CR)</label>
+                    <textarea id="editItemCR" rows="3" placeholder="Enter the criterion or requirement"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeEditModal()" style="background: #6b7280;">Cancel</button>
+                    <button type="submit" class="btn btn-success">💾 Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

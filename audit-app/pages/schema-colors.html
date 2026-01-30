@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schema Colors Management - Food Safety Audit System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            color: #1e3a5f;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 15px;
+        }
+        .nav-links a {
+            color: #3b82f6;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            background: #eff6ff;
+            transition: all 0.2s;
+        }
+        .nav-links a:hover {
+            background: #3b82f6;
+            color: white;
+        }
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .schema-selector {
+            margin-bottom: 25px;
+        }
+        .schema-selector label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+        .schema-selector select {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        .color-groups {
+            display: grid;
+            gap: 25px;
+        }
+        .color-group {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+        .color-group h3 {
+            color: #1e3a5f;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .color-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+        }
+        .color-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        .color-item label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #4b5563;
+            font-size: 14px;
+        }
+        .color-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .color-input-wrapper input[type="color"] {
+            width: 50px;
+            height: 40px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .color-input-wrapper input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .preview-section {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        .preview-section h3 {
+            margin-bottom: 20px;
+            color: #1e3a5f;
+        }
+        .preview-container {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .preview-header {
+            padding: 20px;
+            text-align: center;
+        }
+        .preview-header h2 {
+            margin: 0;
+        }
+        .preview-banner {
+            padding: 15px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .preview-scores {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            justify-content: center;
+        }
+        .preview-score-item {
+            padding: 15px 25px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .preview-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 15px;
+            padding: 20px;
+            justify-content: center;
+            height: 180px;
+        }
+        .preview-bar {
+            width: 60px;
+            border-radius: 4px 4px 0 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            padding-bottom: 5px;
+        }
+        .actions {
+            margin-top: 25px;
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+        .btn-warning:hover {
+            background: #d97706;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+        .success-message {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 Schema Colors Management</h1>
+            <div class="nav-links">
+                <a href="/admin/system-settings">⚙️ System Settings</a>
+                <a href="/admin/category-management">📂 Categories</a>
+                <a href="/admin/checklist-templates">📝 Templates</a>
+                <a href="/dashboard">📊 Dashboard</a>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div id="successMessage" class="success-message"></div>
+            <div id="errorMessage" class="error-message"></div>
+
+            <div class="schema-selector">
+                <label for="schemaSelect">Select Schema / Audit Type:</label>
+                <select id="schemaSelect" onchange="loadSchemaColors()">
+                    <option value="">-- Select a Schema --</option>
+                </select>
+            </div>
+
+            <div id="colorEditor" style="display: none;">
+                <div class="color-groups">
+                    <!-- Pass/Fail Colors -->
+                    <div class="color-group">
+                        <h3>✅ Pass/Fail Colors</h3>
+                        <div class="color-row">
+                            <div class="color-item">
+                                <label>Pass Color (Sections)</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="passColor" onchange="syncColorInput(this, 'passColorText'); updatePreview()">
+                                    <input type="text" id="passColorText" onchange="syncColorPicker(this, 'passColor'); updatePreview()">
+                                </div>
+                            </div>
+                            <div class="color-item">
+                                <label>Fail Color (Sections)</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="failColor" onchange="syncColorInput(this, 'failColorText'); updatePreview()">
+                                    <input type="text" id="failColorText" onchange="syncColorPicker(this, 'failColor'); updatePreview()">
+                                </div>
+                            </div>
+                            <div class="color-item">
+                                <label>Category Pass Color</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="categoryPassColor" onchange="syncColorInput(this, 'categoryPassColorText'); updatePreview()">
+                                    <input type="text" id="categoryPassColorText" onchange="syncColorPicker(this, 'categoryPassColor'); updatePreview()">
+                                </div>
+                            </div>
+                            <div class="color-item">
+                                <label>Category Fail Color</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="categoryFailColor" onchange="syncColorInput(this, 'categoryFailColorText'); updatePreview()">
+                                    <input type="text" id="categoryFailColorText" onchange="syncColorPicker(this, 'categoryFailColor'); updatePreview()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Header Colors -->
+                    <div class="color-group">
+                        <h3>📋 Header Colors</h3>
+                        <div class="color-row">
+                            <div class="color-item">
+                                <label>Header Background</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="headerBackgroundColor" onchange="syncColorInput(this, 'headerBackgroundColorText'); updatePreview()">
+                                    <input type="text" id="headerBackgroundColorText" onchange="syncColorPicker(this, 'headerBackgroundColor'); updatePreview()">
+                                </div>
+                            </div>
+                            <div class="color-item">
+                                <label>Header Text</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="headerTextColor" onchange="syncColorInput(this, 'headerTextColorText'); updatePreview()">
+                                    <input type="text" id="headerTextColorText" onchange="syncColorPicker(this, 'headerTextColor'); updatePreview()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Banner Colors -->
+                    <div class="color-group">
+                        <h3>🏆 Performance Banner Colors</h3>
+                        <div class="color-row">
+                            <div class="color-item">
+                                <label>Pass Banner Background</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="bannerPassBackground" onchange="syncColorInput(this, 'bannerPassBackgroundText'); updatePreview()">
+                                    <input type="text" id="bannerPassBackgroundText" onchange="syncColorPicker(this, 'bannerPassBackground'); updatePreview()">
+                                </div>
+                            </div>
+                            <div class="color-item">
+                                <label>Pass Banner Text</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="bannerPassText" onchange="syncColorInput(this, 'bannerPassTextText'); updatePreview()">
+                                    <input type="text" id="bannerPassTextText" onchange="syncColorPicker(this, 'bannerPassText'); updatePreview()">
+                                </div>
+                            </div>
+                            <div class="color-item">
+                                <label>Fail Banner Background</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="bannerFailBackground" onchange="syncColorInput(this, 'bannerFailBackgroundText'); updatePreview()">
+                                    <input type="text" id="bannerFailBackgroundText" onchange="syncColorPicker(this, 'bannerFailBackground'); updatePreview()">
+                                </div>
+                            </div>
+                            <div class="color-item">
+                                <label>Fail Banner Text</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="bannerFailText" onchange="syncColorInput(this, 'bannerFailTextText'); updatePreview()">
+                                    <input type="text" id="bannerFailTextText" onchange="syncColorPicker(this, 'bannerFailText'); updatePreview()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section Colors -->
+                    <div class="color-group">
+                        <h3>📄 Section Colors</h3>
+                        <div class="color-row">
+                            <div class="color-item">
+                                <label>Section Header Background</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="sectionHeaderBackground" onchange="syncColorInput(this, 'sectionHeaderBackgroundText'); updatePreview()">
+                                    <input type="text" id="sectionHeaderBackgroundText" onchange="syncColorPicker(this, 'sectionHeaderBackground'); updatePreview()">
+                                </div>
+                            </div>
+                            <div class="color-item">
+                                <label>Section Border Color</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="sectionBorderColor" onchange="syncColorInput(this, 'sectionBorderColorText'); updatePreview()">
+                                    <input type="text" id="sectionBorderColorText" onchange="syncColorPicker(this, 'sectionBorderColor'); updatePreview()">
+                                </div>
+                            </div>
+                            <div class="color-item">
+                                <label>Accent Color</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="accentColor" onchange="syncColorInput(this, 'accentColorText'); updatePreview()">
+                                    <input type="text" id="accentColorText" onchange="syncColorPicker(this, 'accentColor'); updatePreview()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Preview -->
+                <div class="preview-section">
+                    <h3>👁️ Live Preview</h3>
+                    <div class="preview-container">
+                        <div class="preview-header" id="previewHeader">
+                            <h2>🍽️ Food Safety Audit Report</h2>
+                        </div>
+                        <div class="preview-banner" id="previewBannerPass">
+                            <span>✅ PASS - Score: 85%</span>
+                        </div>
+                        <div class="preview-banner" id="previewBannerFail" style="display: none;">
+                            <span>❌ FAIL - Score: 65%</span>
+                        </div>
+                        <div class="preview-scores">
+                            <div class="preview-score-item" id="previewScorePass">85%</div>
+                            <div class="preview-score-item" id="previewScoreFail">65%</div>
+                        </div>
+                        <div class="preview-chart">
+                            <div class="preview-bar" id="previewBarCatPass" style="height: 120px;">Cat 1<br>90%</div>
+                            <div class="preview-bar" id="previewBarPass" style="height: 100px;">Sec 1<br>85%</div>
+                            <div class="preview-bar" id="previewBarCatFail" style="height: 80px;">Cat 2<br>70%</div>
+                            <div class="preview-bar" id="previewBarFail" style="height: 60px;">Sec 2<br>60%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-warning" onclick="resetToDefaults()">🔄 Reset to Defaults</button>
+                    <button class="btn btn-secondary" onclick="loadSchemaColors()">↩️ Discard Changes</button>
+                    <button class="btn btn-primary" onclick="saveColors()">💾 Save Colors</button>
+                </div>
+            </div>
+
+            <div id="loadingIndicator" class="loading" style="display: none;">
+                Loading...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSchemaId = null;
+        let currentColors = {};
+
+        // Color field mappings
+        const colorFields = [
+            'passColor', 'failColor', 'categoryPassColor', 'categoryFailColor',
+            'headerBackgroundColor', 'headerTextColor',
+            'bannerPassBackground', 'bannerPassText', 'bannerFailBackground', 'bannerFailText',
+            'sectionHeaderBackground', 'sectionBorderColor',
+            'chartPassColor', 'chartFailColor', 'chartCategoryPassColor', 'chartCategoryFailColor',
+            'accentColor'
+        ];
+
+        // Load schemas on page load
+        document.addEventListener('DOMContentLoaded', loadSchemas);
+
+        async function loadSchemas() {
+            try {
+                const response = await fetch('/api/system-settings/schemas');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const select = document.getElementById('schemaSelect');
+                    select.innerHTML = '<option value="">-- Select a Schema --</option>';
+                    
+                    data.schemas.forEach(schema => {
+                        const option = document.createElement('option');
+                        option.value = schema.schemaId;
+                        option.textContent = schema.schemaName;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                showError('Failed to load schemas: ' + error.message);
+            }
+        }
+
+        async function loadSchemaColors() {
+            const schemaId = document.getElementById('schemaSelect').value;
+            if (!schemaId) {
+                document.getElementById('colorEditor').style.display = 'none';
+                return;
+            }
+
+            currentSchemaId = parseInt(schemaId);
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('colorEditor').style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/schema-colors/${schemaId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    currentColors = data.colors;
+                    populateColorFields(data.colors);
+                    updatePreview();
+                    document.getElementById('colorEditor').style.display = 'block';
+                } else {
+                    showError(data.error || 'Failed to load colors');
+                }
+            } catch (error) {
+                showError('Failed to load colors: ' + error.message);
+            } finally {
+                document.getElementById('loadingIndicator').style.display = 'none';
+            }
+        }
+
+        function populateColorFields(colors) {
+            // Map the colors to form fields
+            setColorField('passColor', colors.passColor);
+            setColorField('failColor', colors.failColor);
+            setColorField('categoryPassColor', colors.categoryPassColor);
+            setColorField('categoryFailColor', colors.categoryFailColor);
+            setColorField('headerBackgroundColor', colors.headerBackgroundColor);
+            setColorField('headerTextColor', colors.headerTextColor);
+            setColorField('bannerPassBackground', colors.bannerPassBackground);
+            setColorField('bannerPassText', colors.bannerPassText);
+            setColorField('bannerFailBackground', colors.bannerFailBackground);
+            setColorField('bannerFailText', colors.bannerFailText);
+            setColorField('sectionHeaderBackground', colors.sectionHeaderBackground);
+            setColorField('sectionBorderColor', colors.sectionBorderColor);
+            setColorField('accentColor', colors.accentColor);
+        }
+
+        function setColorField(fieldId, value) {
+            const colorPicker = document.getElementById(fieldId);
+            const textInput = document.getElementById(fieldId + 'Text');
+            if (colorPicker && value) {
+                colorPicker.value = value;
+            }
+            if (textInput && value) {
+                textInput.value = value;
+            }
+        }
+
+        function syncColorInput(colorPicker, textInputId) {
+            document.getElementById(textInputId).value = colorPicker.value;
+        }
+
+        function syncColorPicker(textInput, colorPickerId) {
+            const value = textInput.value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                document.getElementById(colorPickerId).value = value;
+            }
+        }
+
+        function getColorValues() {
+            return {
+                passColor: document.getElementById('passColor').value,
+                failColor: document.getElementById('failColor').value,
+                categoryPassColor: document.getElementById('categoryPassColor').value,
+                categoryFailColor: document.getElementById('categoryFailColor').value,
+                headerBackgroundColor: document.getElementById('headerBackgroundColor').value,
+                headerTextColor: document.getElementById('headerTextColor').value,
+                bannerPassBackground: document.getElementById('bannerPassBackground').value,
+                bannerPassText: document.getElementById('bannerPassText').value,
+                bannerFailBackground: document.getElementById('bannerFailBackground').value,
+                bannerFailText: document.getElementById('bannerFailText').value,
+                sectionHeaderBackground: document.getElementById('sectionHeaderBackground').value,
+                sectionBorderColor: document.getElementById('sectionBorderColor').value,
+                chartPassColor: document.getElementById('passColor').value,
+                chartFailColor: document.getElementById('failColor').value,
+                chartCategoryPassColor: document.getElementById('categoryPassColor').value,
+                chartCategoryFailColor: document.getElementById('categoryFailColor').value,
+                accentColor: document.getElementById('accentColor').value
+            };
+        }
+
+        function updatePreview() {
+            const colors = getColorValues();
+
+            // Update header
+            const header = document.getElementById('previewHeader');
+            header.style.backgroundColor = colors.headerBackgroundColor;
+            header.style.color = colors.headerTextColor;
+
+            // Update pass banner
+            const bannerPass = document.getElementById('previewBannerPass');
+            bannerPass.style.backgroundColor = colors.bannerPassBackground;
+            bannerPass.style.color = colors.bannerPassText;
+
+            // Update fail banner
+            const bannerFail = document.getElementById('previewBannerFail');
+            bannerFail.style.backgroundColor = colors.bannerFailBackground;
+            bannerFail.style.color = colors.bannerFailText;
+
+            // Update score items
+            document.getElementById('previewScorePass').style.backgroundColor = colors.passColor;
+            document.getElementById('previewScorePass').style.color = 'white';
+            document.getElementById('previewScoreFail').style.backgroundColor = colors.failColor;
+            document.getElementById('previewScoreFail').style.color = 'white';
+
+            // Update chart bars
+            document.getElementById('previewBarCatPass').style.backgroundColor = colors.categoryPassColor;
+            document.getElementById('previewBarPass').style.backgroundColor = colors.passColor;
+            document.getElementById('previewBarCatFail').style.backgroundColor = colors.categoryFailColor;
+            document.getElementById('previewBarFail').style.backgroundColor = colors.failColor;
+        }
+
+        async function saveColors() {
+            if (!currentSchemaId) {
+                showError('Please select a schema first');
+                return;
+            }
+
+            const colors = getColorValues();
+
+            try {
+                const response = await fetch(`/api/schema-colors/${currentSchemaId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(colors)
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showSuccess('Colors saved successfully!');
+                    currentColors = data.colors;
+                } else {
+                    showError(data.error || 'Failed to save colors');
+                }
+            } catch (error) {
+                showError('Failed to save colors: ' + error.message);
+            }
+        }
+
+        async function resetToDefaults() {
+            if (!currentSchemaId) {
+                showError('Please select a schema first');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to reset colors to defaults?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/schema-colors/${currentSchemaId}/reset`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    populateColorFields(data.colors);
+                    updatePreview();
+                    showSuccess('Colors reset to defaults!');
+                } else {
+                    showError(data.error || 'Failed to reset colors');
+                }
+            } catch (error) {
+                showError('Failed to reset colors: ' + error.message);
+            }
+        }
+
+        function showSuccess(message) {
+            const el = document.getElementById('successMessage');
+            el.textContent = message;
+            el.style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+            setTimeout(() => el.style.display = 'none', 5000);
+        }
+
+        function showError(message) {
+            const el = document.getElementById('errorMessage');
+            el.textContent = message;
+            el.style.display = 'block';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

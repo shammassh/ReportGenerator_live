@@ -1,0 +1,22 @@
+﻿# Environment files with secrets
+.env
+.env.*
+*.env
+
+# Temp files with credentials
+temp/
+
+# Config files with credentials
+config/default.js
+
+# Certificates
+certs/
+
+# Node modules
+node_modules/
+
+# Reports output
+reports/
+
+# Logs
+*.log
