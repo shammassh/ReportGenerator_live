@@ -10,34 +10,37 @@ const dbConfig = require('../../config/default');
 
 class RoleAssignmentService {
     /**
-     * Get all users from database
+     * Get all users from database with brand/area assignments
      */
     static async getAllUsers() {
         try {
             const pool = await sql.connect(dbConfig.database);
             
+            // Get all users
             const result = await pool.request().query(`
                 SELECT 
-                    id,
-                    azure_user_id,
-                    email,
-                    display_name,
-                    department,
-                    role,
-                    assigned_stores,
-                    assigned_department,
-                    is_active,
-                    is_approved,
-                    last_login,
-                    created_at,
-                    updated_at
-                FROM Users
+                    u.id,
+                    u.azure_user_id,
+                    u.email,
+                    u.display_name,
+                    u.department,
+                    u.role,
+                    u.assigned_stores,
+                    u.assigned_department,
+                    u.is_active,
+                    u.is_approved,
+                    u.last_login,
+                    u.created_at,
+                    u.updated_at,
+                    (SELECT STRING_AGG(uba.Brand, ', ') FROM UserBrandAssignments uba WHERE uba.UserID = u.id) as assigned_brands,
+                    (SELECT STRING_AGG(s.StoreCode, ', ') FROM UserAreaAssignments uaa JOIN Stores s ON uaa.StoreID = s.StoreID WHERE uaa.UserID = u.id) as assigned_area_stores
+                FROM Users u
                 ORDER BY 
                     CASE 
-                        WHEN role = 'Pending' THEN 0
+                        WHEN u.role = 'Pending' THEN 0
                         ELSE 1
                     END,
-                    display_name
+                    u.display_name
             `);
             
             return result.recordset;

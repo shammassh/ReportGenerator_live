@@ -108,6 +108,24 @@ body {
     font-weight: 600;
 }
 
+.badge-brands {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 500;
+}
+
+.badge-areas {
+    background: #00b894;
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 500;
+}
+
 .badge-storemanager {
     background: #27ae60;
     color: white;

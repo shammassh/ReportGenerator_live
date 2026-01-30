@@ -225,7 +225,7 @@ function renderUsersTable() {
             </td>
             <td>${escapeHtml(user.email)}</td>
             <td>${getRoleBadge(user.role)}</td>
-            <td>${formatStores(user.assigned_stores)}</td>
+            <td>${formatAssignments(user)}</td>
             <td>${escapeHtml(user.assigned_department || user.department || '-')}</td>
             <td>${getStatusBadge(user)}</td>
             <td>${formatDate(user.last_login)}</td>
@@ -382,6 +382,40 @@ function getStatusBadge(user) {
         return '<span class="badge-active">Active</span>';
     }
     return '<span class="badge-inactive">Inactive</span>';
+}
+
+/**
+ * Helper: Format assignments based on role type
+ */
+function formatAssignments(user) {
+    // HeadOfOperations - show brand assignments
+    if (user.role === 'HeadOfOperations') {
+        if (user.assigned_brands) {
+            const brands = user.assigned_brands.split(', ');
+            return `<span class="badge-brands">🏢 ${brands.join(', ')}</span>`;
+        }
+        return '<span style="color:#999;">No brands</span>';
+    }
+    
+    // AreaManager - show area store assignments
+    if (user.role === 'AreaManager') {
+        if (user.assigned_area_stores) {
+            const stores = user.assigned_area_stores.split(', ');
+            const display = stores.length > 2 
+                ? `${stores.slice(0, 2).join(', ')} +${stores.length - 2}`
+                : stores.join(', ');
+            return `<span class="badge-areas">📍 ${display}</span>`;
+        }
+        return '<span style="color:#999;">No stores</span>';
+    }
+    
+    // StoreManager - show assigned stores
+    if (user.role === 'StoreManager') {
+        return formatStores(user.assigned_stores);
+    }
+    
+    // Other roles - show dash
+    return '-';
 }
 
 /**
