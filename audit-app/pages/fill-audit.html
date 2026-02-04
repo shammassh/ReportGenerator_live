@@ -1590,7 +1590,7 @@
             </div>
             
             <div class="fridge-form-group">
-                <label class="fridge-form-label">🔬 Probe Temperature (°C)</label>
+                <label class="fridge-form-label">🌬️ Air Temperature (°C)</label>
                 <input type="text" class="fridge-form-input" id="fridgeGoodProbeTemp" placeholder="e.g., 4.2 or NA">
             </div>
             
@@ -1647,7 +1647,7 @@
             </div>
             
             <div class="fridge-form-group">
-                <label class="fridge-form-label">🔬 Probe Temperature (°C)</label>
+                <label class="fridge-form-label">🌬️ Air Temperature (°C)</label>
                 <input type="text" class="fridge-form-input" id="fridgeBadProbeTemp" placeholder="e.g., 9.2 or NA">
             </div>
             
@@ -2700,7 +2700,7 @@
                     <div class="fridge-entry-item good">
                         <div class="fridge-entry-info">
                             <div class="fridge-entry-section">✅ ${entry.section} - ${entry.unit}</div>
-                            <div class="fridge-entry-temps">Display: ${entry.displayTemp}°C | Probe: ${entry.probeTemp}°C</div>
+                            <div class="fridge-entry-temps">Display: ${entry.displayTemp}°C | Air: ${entry.probeTemp}°C</div>
                         </div>
                         <div class="fridge-entry-actions">
                             <button class="fridge-entry-edit" onclick="editFridgeEntry('good', ${responseId}, ${idx})">✏️</button>
@@ -2715,7 +2715,7 @@
                     <div class="fridge-entry-item bad">
                         <div class="fridge-entry-info">
                             <div class="fridge-entry-section">❌ ${entry.section} - ${entry.unit}</div>
-                            <div class="fridge-entry-temps">Display: ${entry.displayTemp}°C | Probe: ${entry.probeTemp}°C</div>
+                            <div class="fridge-entry-temps">Display: ${entry.displayTemp}°C | Air: ${entry.probeTemp}°C</div>
                             <div class="fridge-entry-issue">⚠️ ${entry.issue}</div>
                         </div>
                         <div class="fridge-entry-actions">
@@ -2855,7 +2855,7 @@
                 return;
             }
             if (!probeTemp) {
-                showToast('Please enter the probe temperature', 'error');
+                showToast('Please enter the air temperature', 'error');
                 return;
             }
             

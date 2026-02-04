@@ -429,8 +429,13 @@ body.summary-mode .container::after {
 }
 
 .answer-col {
-    width: 80px;
+    width: 100px;
+    min-width: 100px;
     text-align: center;
+}
+
+td.answer-col {
+    text-align: center !important;
 }
 
 .value-col {
@@ -988,6 +993,16 @@ body.summary-mode .container::after {
         font-size: 9pt !important;
         border: 1px solid #e0e0e0 !important;
         vertical-align: top;
+    }
+
+    /* Answer column centering for print */
+    .section-table td.answer-col,
+    .section-table th.answer-col,
+    td.answer-col,
+    .answer-col {
+        text-align: center !important;
+        width: 100px !important;
+        min-width: 100px !important;
     }
 
     /* Wrap long text in tables */
