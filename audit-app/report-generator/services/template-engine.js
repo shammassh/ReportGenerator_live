@@ -436,7 +436,7 @@ class TemplateEngine {
                 return type === 'good';
             });
             const picturesHtml = goodPictures.length > 0 
-                ? goodPictures.map(p => `<img src="${p.dataUrl}" class="item-picture" onclick="openImageModal(this.src)" />`).join('')
+                ? goodPictures.map(p => `<img src="${p.dataUrl}" class="item-picture" onclick="scrollToGallery('good-pictures-gallery')" title="Click to view in Good Observation Gallery" />`).join('')
                 : '';
 
             // Display value (numeric) for Yes/Partially/No, blank for NA
@@ -505,8 +505,14 @@ class TemplateEngine {
                 const type = (p.pictureType || '').toLowerCase();
                 return type === 'finding' || type === 'corrective';
             });
+            // Generate pictures with appropriate gallery links based on picture type
             const picturesHtml = findingPictures.length > 0 
-                ? findingPictures.map(p => `<img src="${p.dataUrl}" class="finding-picture" onclick="openImageModal(this.src)" />`).join('')
+                ? findingPictures.map(p => {
+                    const type = (p.pictureType || '').toLowerCase();
+                    const galleryId = type === 'corrective' ? 'corrective-pictures-gallery' : 'finding-pictures-gallery';
+                    const galleryTitle = type === 'corrective' ? 'Corrective Action Gallery' : 'Finding Picture Gallery';
+                    return `<img src="${p.dataUrl}" class="finding-picture" onclick="scrollToGallery('${galleryId}')" title="Click to view in ${galleryTitle}" />`;
+                }).join('')
                 : '-';
 
             const priorityClass = item.priority ? `priority-${item.priority.toLowerCase()}` : '';
@@ -660,7 +666,7 @@ class TemplateEngine {
         }).join('\n');
 
         return `
-            <div class="all-findings-pictures-section">
+            <div class="all-findings-pictures-section" id="finding-pictures-gallery">
                 <h2>📸 Finding Picture Gallery (${allFindingPictures.length})</h2>
                 <p class="gallery-subtitle">All finding pictures collected for easy reference. Click on any image to enlarge.</p>
                 <div class="finding-pictures-gallery">
@@ -840,7 +846,7 @@ class TemplateEngine {
         }).join('\n');
 
         return `
-            <div class="all-good-pictures-section">
+            <div class="all-good-pictures-section" id="good-pictures-gallery">
                 <h2>✅ Good Observation Gallery (${allGoodPictures.length})</h2>
                 <p class="good-gallery-subtitle">All good observation pictures collected for easy reference. Click on any image to enlarge.</p>
                 <div class="good-pictures-gallery">
@@ -1011,7 +1017,7 @@ class TemplateEngine {
         }).join('\n');
 
         return `
-            <div class="all-corrective-pictures-section">
+            <div class="all-corrective-pictures-section" id="corrective-pictures-gallery">
                 <h2>🔧 Corrective Action Gallery (${allCorrectivePictures.length})</h2>
                 <p class="corrective-gallery-subtitle">All corrective action pictures collected for easy reference. Click on any image to enlarge.</p>
                 <div class="corrective-pictures-gallery">
@@ -1723,6 +1729,19 @@ class TemplateEngine {
                         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         element.style.backgroundColor = '#fef3c7';
                         setTimeout(() => { element.style.backgroundColor = ''; }, 2000);
+                    }
+                }
+
+                function scrollToGallery(galleryId) {
+                    const gallery = document.getElementById(galleryId);
+                    if (gallery) {
+                        gallery.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        // Highlight the gallery briefly
+                        gallery.style.boxShadow = '0 0 20px 5px rgba(245, 158, 11, 0.6)';
+                        gallery.style.transition = 'box-shadow 0.3s ease';
+                        setTimeout(() => { 
+                            gallery.style.boxShadow = ''; 
+                        }, 2000);
                     }
                 }
 
