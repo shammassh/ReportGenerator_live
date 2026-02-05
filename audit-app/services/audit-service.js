@@ -586,8 +586,28 @@ class AuditService {
     async getAllAudits() {
         try {
             const pool = await this.getPool();
+            // Query includes calculated running score for in-progress audits
             const result = await pool.request().query(`
-                SELECT a.*, s.SchemaName
+                SELECT a.*, s.SchemaName,
+                    CASE 
+                        WHEN a.Status = 'Completed' THEN a.TotalScore
+                        ELSE (
+                            SELECT CASE 
+                                WHEN SUM(CASE WHEN r.SelectedChoice != 'NA' THEN r.Coeff ELSE 0 END) > 0 
+                                THEN CAST(
+                                    (SUM(CASE 
+                                        WHEN r.SelectedChoice = 'Yes' THEN r.Coeff * 1.0
+                                        WHEN r.SelectedChoice = 'Partially' THEN r.Coeff * 0.5
+                                        ELSE 0 
+                                    END) * 100.0) / 
+                                    SUM(CASE WHEN r.SelectedChoice != 'NA' THEN r.Coeff ELSE 0 END)
+                                AS DECIMAL(5,2))
+                                ELSE NULL 
+                            END
+                            FROM AuditResponses r
+                            WHERE r.AuditID = a.AuditID AND r.SelectedChoice IS NOT NULL AND r.SelectedChoice != ''
+                        )
+                    END AS CalculatedScore
                 FROM AuditInstances a
                 INNER JOIN AuditSchemas s ON a.SchemaID = s.SchemaID
                 ORDER BY a.CreatedAt DESC
@@ -604,7 +624,7 @@ class AuditService {
                 year: row.Year,
                 auditors: row.Auditors,
                 status: row.Status,
-                totalScore: row.TotalScore,
+                totalScore: row.CalculatedScore,
                 createdAt: row.CreatedAt
             }));
         } catch (error) {
@@ -763,7 +783,28 @@ class AuditService {
                     a.Year AS AuditYear,
                     a.Auditors,
                     a.Status,
-                    a.TotalScore,
+                    CASE 
+                        WHEN a.Status = 'Completed' THEN a.TotalScore
+                        ELSE (
+                            SELECT 
+                                CASE 
+                                    WHEN SUM(r.Coeff) = 0 THEN NULL
+                                    ELSE ROUND(
+                                        (SUM(CASE 
+                                            WHEN r.SelectedChoice = 'Yes' THEN r.Coeff
+                                            WHEN r.SelectedChoice = 'Partially' THEN r.Coeff * 0.5
+                                            ELSE 0
+                                        END) * 100.0) / 
+                                        NULLIF(SUM(CASE WHEN r.SelectedChoice != 'NA' AND r.SelectedChoice IS NOT NULL AND r.SelectedChoice != '' THEN r.Coeff ELSE 0 END), 0),
+                                        1
+                                    )
+                                END
+                            FROM AuditResponses r
+                            WHERE r.AuditID = a.AuditID
+                              AND r.SelectedChoice IS NOT NULL 
+                              AND r.SelectedChoice != ''
+                        )
+                    END AS TotalScore,
                     a.CreatedAt,
                     a.CompletedAt,
                     ISNULL(ss.PassingGrade, 83) AS PassingGrade,
