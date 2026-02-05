@@ -1689,6 +1689,10 @@
         let auditData = null;
         let currentSectionIndex = 0;
         let isReadOnly = false;
+        let currentUserRole = null;
+        
+        // Roles that can edit completed audits
+        const EDIT_COMPLETED_ROLES = ['Admin', 'SuperAuditor'];
         
         // Initialize impersonation panel on page load
         window.addEventListener('load', () => {
@@ -1724,6 +1728,21 @@
             return match ? parseInt(match[1]) : null;
         }
 
+        // Get current user session/role
+        async function getCurrentUserRole() {
+            try {
+                const response = await fetch('/auth/session');
+                const data = await response.json();
+                if (data.authenticated && data.user) {
+                    currentUserRole = data.user.role;
+                    return data.user.role;
+                }
+            } catch (error) {
+                console.error('Error fetching user session:', error);
+            }
+            return null;
+        }
+        
         // Initialize
         async function init() {
             const auditId = getAuditId();
@@ -1731,6 +1750,9 @@
                 showToast('Invalid audit ID', 'error');
                 return;
             }
+            
+            // Get current user role first
+            await getCurrentUserRole();
 
             await loadAuditData(auditId);
             
@@ -1743,6 +1765,16 @@
             }
             
             // Apply readonly mode if needed
+            // Check if audit is completed and user doesn't have edit permission
+            if (auditData && auditData.status === 'Completed') {
+                if (!EDIT_COMPLETED_ROLES.includes(currentUserRole)) {
+                    isReadOnly = true;
+                    console.log(`Audit is completed and user role (${currentUserRole}) cannot edit. Setting read-only mode.`);
+                } else {
+                    console.log(`Audit is completed but user role (${currentUserRole}) has edit permission.`);
+                }
+            }
+            
             if (isReadOnly) {
                 applyReadOnlyMode();
             }
