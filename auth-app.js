@@ -22,6 +22,7 @@ const ActionPlanService = require('./src/action-plan-service');
 const StoreService = require('./audit-app/services/store-service');
 const AuditService = require('./audit-app/services/audit-service');
 const AuditReportGenerator = require('./audit-app/report-generator');
+const ScoreCalculatorService = require('./audit-app/services/score-calculator-service');
 
 // Initialize Action Plan Service
 const actionPlanService = new ActionPlanService();
@@ -2295,6 +2296,88 @@ app.get('/api/audits/section-scores/:auditId', requireAuth, async (req, res) => 
         res.json({ success: true, data: scores });
     } catch (error) {
         console.error('Error getting section scores:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ==========================================
+// Score Calculator API (Admin/SuperAuditor only)
+// ==========================================
+
+// Get audits list for score calculator dropdown
+app.get('/api/score-calculator/audits', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const audits = await ScoreCalculatorService.getAuditsList();
+        res.json({ success: true, data: audits });
+    } catch (error) {
+        console.error('Error getting audits for score calculator:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get audit sections with scores and exclusion status
+app.get('/api/score-calculator/:auditId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const auditId = parseInt(req.params.auditId);
+        const data = await ScoreCalculatorService.getAuditSectionsWithScores(auditId);
+        res.json({ success: true, data: data });
+    } catch (error) {
+        console.error('Error getting score calculator data:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Save section exclusions
+app.post('/api/score-calculator/:auditId/exclusions', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const auditId = parseInt(req.params.auditId);
+        const { excludedSectionIds } = req.body;
+        const username = req.currentUser.email || req.currentUser.username;
+        
+        const data = await ScoreCalculatorService.saveExclusions(auditId, excludedSectionIds || [], username);
+        res.json({ success: true, data: data, message: 'Exclusions saved successfully' });
+    } catch (error) {
+        console.error('Error saving exclusions:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get exclusion history for an audit
+app.get('/api/score-calculator/:auditId/history', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const auditId = parseInt(req.params.auditId);
+        const history = await ScoreCalculatorService.getExclusionHistory(auditId);
+        res.json({ success: true, data: history });
+    } catch (error) {
+        console.error('Error getting exclusion history:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get all exclusion history across all audits
+app.get('/api/score-calculator/history/all', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const filters = {
+            startDate: req.query.startDate,
+            endDate: req.query.endDate,
+            changedBy: req.query.changedBy,
+            auditId: req.query.auditId ? parseInt(req.query.auditId) : null
+        };
+        const history = await ScoreCalculatorService.getAllExclusionHistory(filters);
+        res.json({ success: true, data: history });
+    } catch (error) {
+        console.error('Error getting all exclusion history:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get exclusion statistics
+app.get('/api/score-calculator/stats', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const stats = await ScoreCalculatorService.getExclusionStats();
+        res.json({ success: true, data: stats });
+    } catch (error) {
+        console.error('Error getting exclusion stats:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
