@@ -2136,7 +2136,20 @@ app.get('/api/audits', requireAuth, async (req, res) => {
 // Update audit response
 app.put('/api/audits/response/:responseId', requireAuth, requireRole('Admin', 'SuperAuditor', 'Auditor'), async (req, res) => {
     try {
-        const result = await AuditService.updateResponse(parseInt(req.params.responseId), req.body);
+        const userRole = req.currentUser.role;
+        const responseId = parseInt(req.params.responseId);
+        
+        // Check if audit is completed - only Admin and SuperAuditor can edit completed audits
+        const auditStatus = await AuditService.getAuditStatusByResponseId(responseId);
+        
+        if (auditStatus === 'Completed' && !['Admin', 'SuperAuditor'].includes(userRole)) {
+            return res.status(403).json({ 
+                success: false, 
+                error: 'Only Admin and SuperAuditor can edit completed audits' 
+            });
+        }
+        
+        const result = await AuditService.updateResponse(responseId, req.body);
         res.json({ success: true, data: result });
     } catch (error) {
         console.error('Error updating response:', error);
@@ -2158,6 +2171,21 @@ app.post('/api/audits/:auditId/complete', requireAuth, requireRole('Admin', 'Sup
 // Upload picture for a response
 app.post('/api/audits/pictures', requireAuth, requireRole('Admin', 'SuperAuditor', 'Auditor'), async (req, res) => {
     try {
+        const userRole = req.currentUser.role;
+        const responseId = req.body.responseId;
+        
+        // Check if audit is completed - only Admin and SuperAuditor can edit completed audits
+        if (responseId) {
+            const auditStatus = await AuditService.getAuditStatusByResponseId(responseId);
+            
+            if (auditStatus === 'Completed' && !['Admin', 'SuperAuditor'].includes(userRole)) {
+                return res.status(403).json({ 
+                    success: false, 
+                    error: 'Only Admin and SuperAuditor can edit completed audits' 
+                });
+            }
+        }
+        
         const result = await AuditService.uploadPicture(req.body);
         res.json({ success: true, data: result });
     } catch (error) {

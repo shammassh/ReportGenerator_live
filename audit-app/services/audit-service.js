@@ -430,6 +430,28 @@ class AuditService {
     }
 
     /**
+     * Get audit status by response ID (for permission checking)
+     */
+    async getAuditStatusByResponseId(responseId) {
+        try {
+            const pool = await this.getPool();
+            const result = await pool.request()
+                .input('ResponseID', sql.Int, responseId)
+                .query(`
+                    SELECT a.Status 
+                    FROM AuditInstances a
+                    INNER JOIN AuditResponses r ON a.AuditID = r.AuditID
+                    WHERE r.ResponseID = @ResponseID
+                `);
+            
+            return result.recordset.length > 0 ? result.recordset[0].Status : null;
+        } catch (error) {
+            console.error('Error getting audit status by response ID:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Update audit response
      */
     async updateResponse(responseId, responseData) {
