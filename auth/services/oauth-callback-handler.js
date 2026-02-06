@@ -105,8 +105,28 @@ class OAuthCallbackHandler {
         
         const response = await this.msalClient.acquireTokenByCode(tokenRequest);
         
+        // Get refresh token from MSAL token cache
+        let refreshToken = null;
+        try {
+            const tokenCache = this.msalClient.getTokenCache().serialize();
+            const cacheData = JSON.parse(tokenCache);
+            
+            // Find refresh token in cache
+            if (cacheData.RefreshToken) {
+                const refreshTokenKeys = Object.keys(cacheData.RefreshToken);
+                if (refreshTokenKeys.length > 0) {
+                    refreshToken = cacheData.RefreshToken[refreshTokenKeys[0]].secret;
+                }
+            }
+        } catch (cacheError) {
+            console.log('⚠️ [TOKEN] Could not extract refresh token from cache:', cacheError.message);
+        }
+        
         // Log if refresh token is present
-        console.log(`🔐 [TOKEN] Access token received, refresh token: ${response.refreshToken ? 'YES' : 'NO'}`);
+        console.log(`🔐 [TOKEN] Access token received, refresh token: ${refreshToken ? 'YES' : 'NO'}`);
+        
+        // Attach refresh token to response for session storage
+        response.refreshToken = refreshToken;
         
         return response;
     }
