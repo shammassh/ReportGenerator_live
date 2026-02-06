@@ -4036,12 +4036,47 @@ app.post('/api/action-plan/submit-to-auditor', requireAuth, async (req, res) => 
         if (result.success) {
             const allRecipients = [...recipientEmails, ...ccEmails];
             console.log(`✅ [API] Notification sent to ${recipientEmails.join(', ')}${ccEmails.length > 0 ? ' CC: ' + ccEmails.join(', ') : ''}`);
+            
+            // Log notification to history for each recipient
+            for (const recipientEmail of allRecipients) {
+                const isCC = ccEmails.includes(recipientEmail);
+                await emailService.logNotification({
+                    documentNumber: documentNumber,
+                    recipientEmail: recipientEmail,
+                    recipientName: recipientEmail,
+                    recipientRole: isCC ? 'SuperAuditor' : 'Auditor',
+                    notificationType: 'ActionPlanSubmitted',
+                    sentByUserId: user.id,
+                    sentByEmail: user.email,
+                    sentByName: user.displayName || user.email,
+                    status: 'Sent',
+                    emailSubject: subject,
+                    emailBody: htmlBody
+                }, pool);
+            }
+            
             res.json({
                 success: true,
                 message: 'Notification sent successfully',
                 recipients: allRecipients
             });
         } else {
+            // Log failed notification
+            await emailService.logNotification({
+                documentNumber: documentNumber,
+                recipientEmail: recipientEmails.join(', '),
+                recipientName: 'Auditor',
+                recipientRole: 'Auditor',
+                notificationType: 'ActionPlanSubmitted',
+                sentByUserId: user.id,
+                sentByEmail: user.email,
+                sentByName: user.displayName || user.email,
+                status: 'Failed',
+                errorMessage: result.error,
+                emailSubject: subject,
+                emailBody: htmlBody
+            }, pool);
+            
             throw new Error(result.error || 'Failed to send notification');
         }
         
