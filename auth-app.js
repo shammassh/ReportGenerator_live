@@ -44,6 +44,11 @@ app.use('/api', (req, res, next) => {
     next();
 });
 
+// Serve favicon
+app.get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'favicon.ico'));
+});
+
 // Serve static files from dashboard folder
 app.use('/dashboard', express.static(path.join(__dirname, 'dashboard')));
 
