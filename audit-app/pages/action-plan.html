@@ -658,6 +658,9 @@
                 <button class="save-btn" onclick="saveActionPlan()">
                     💾 Save
                 </button>
+                <button class="submit-btn" id="submitBtn" onclick="submitToAuditor()" style="background: #10b981 !important; display: none;">
+                    ✅ Submit to Auditor
+                </button>
                 <button onclick="window.print()">
                     🖨️ Print
                 </button>
@@ -781,11 +784,27 @@
         let actionItems = [];
         let filteredItems = [];
         let savedResponses = {};
+        let currentUserRole = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             // Initialize impersonation panel for admins
             if (typeof initImpersonationPanel === 'function') {
                 initImpersonationPanel();
+            }
+            
+            // Check user role and show submit button for Store Managers
+            try {
+                const sessionRes = await fetch('/auth/session');
+                const session = await sessionRes.json();
+                if (session.authenticated && session.user) {
+                    currentUserRole = session.user.role;
+                    // Show submit button for Store Managers
+                    if (currentUserRole === 'StoreManager') {
+                        document.getElementById('submitBtn').style.display = 'flex';
+                    }
+                }
+            } catch (e) {
+                console.log('Could not check user role');
             }
             
             const urlParams = new URLSearchParams(window.location.search);
@@ -1186,6 +1205,76 @@
             } catch (error) {
                 console.error('Error saving action plan:', error);
                 showToast('Failed to save action plan', 'error');
+            }
+        }
+
+        async function submitToAuditor() {
+            // First save, then submit
+            try {
+                const btn = document.getElementById('submitBtn');
+                btn.disabled = true;
+                btn.innerHTML = '⏳ Submitting...';
+                
+                // Save first
+                showToast('Saving action plan...', 'info');
+                
+                const actions = actionItems.map(item => ({
+                    referenceValue: item.referenceValue,
+                    section: item.sectionName,
+                    finding: item.finding || item.title,
+                    priority: item.priority,
+                    actionTaken: item.actionTaken,
+                    deadline: item.deadline || null,
+                    personInCharge: item.personInCharge,
+                    status: item.status,
+                    pictures: item.pictures || []
+                }));
+
+                const saveRes = await fetch('/api/action-plan/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        documentNumber: auditData.documentNumber,
+                        actions: actions,
+                        updatedBy: 'Store Manager'
+                    })
+                });
+
+                const saveResult = await saveRes.json();
+                if (!saveResult.success) {
+                    throw new Error('Failed to save: ' + (saveResult.message || saveResult.error));
+                }
+
+                // Now submit to auditor
+                showToast('Sending notification to auditor...', 'info');
+                
+                const submitRes = await fetch('/api/action-plan/submit-to-auditor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        documentNumber: auditData.documentNumber,
+                        storeName: auditData.storeName,
+                        auditDate: auditData.auditDate,
+                        score: auditData.totalScore ? Math.round(auditData.totalScore) + '%' : 'N/A'
+                    })
+                });
+
+                const submitResult = await submitRes.json();
+                
+                if (submitResult.success) {
+                    showToast('✅ Action plan submitted! Email sent to: ' + submitResult.recipients.join(', '), 'success');
+                    btn.innerHTML = '✅ Submitted';
+                    btn.style.background = '#059669 !important';
+                } else {
+                    throw new Error(submitResult.error || 'Failed to submit');
+                }
+
+            } catch (error) {
+                console.error('Error submitting action plan:', error);
+                showToast('❌ ' + error.message, 'error');
+                const btn = document.getElementById('submitBtn');
+                btn.disabled = false;
+                btn.innerHTML = '✅ Submit to Auditor';
             }
         }
 

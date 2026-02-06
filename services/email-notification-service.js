@@ -19,10 +19,10 @@ class EmailNotificationService {
      * @param {Array} to - Array of recipient emails
      * @param {String} subject - Email subject
      * @param {String} htmlBody - HTML email body
-     * @param {String} plainTextBody - Plain text version (optional)
+     * @param {Array} ccRecipients - CC recipients array (optional)
      * @param {String} userAccessToken - User's access token from session (optional)
      */
-    async sendEmail(to, subject, htmlBody, plainTextBody = null, userAccessToken = null) {
+    async sendEmail(to, subject, htmlBody, ccRecipients = null, userAccessToken = null) {
         try {
             // Use user's token if provided, otherwise use application token
             const token = userAccessToken || await this.connector.getGraphToken();
@@ -53,6 +53,14 @@ class EmailNotificationService {
                 },
                 saveToSentItems: true // Save to sent items
             };
+            
+            // Add CC recipients if provided
+            if (ccRecipients && ccRecipients.length > 0) {
+                emailPayload.message.ccRecipients = ccRecipients.map(email => ({
+                    emailAddress: { address: email }
+                }));
+                console.log(`📧 [EMAIL] CC recipients: ${ccRecipients.join(', ')}`);
+            }
 
             // Send email using the determined endpoint
             const response = await fetch(endpoint, {

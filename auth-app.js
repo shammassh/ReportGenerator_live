@@ -2731,11 +2731,16 @@ app.post('/api/audits/save-report-for-store-manager', requireAuth, requireRole('
         // ========================================
         let emailStatus = { sent: false, recipients: [] };
         
+        console.log(`📧 [EMAIL] ========== STARTING EMAIL PROCESS ==========`);
+        console.log(`📧 [EMAIL] auditId received: ${auditId}, type: ${typeof auditId}`);
+        
         try {
             // Get store code from audit
             const auditResult = await pool.request()
                 .input('auditId', sql.Int, auditId)
                 .query('SELECT StoreCode FROM AuditInstances WHERE AuditID = @auditId');
+            
+            console.log(`📧 [EMAIL] AuditInstances query result: ${JSON.stringify(auditResult.recordset)}`);
             
             const storeCode = auditResult.recordset.length > 0 ? auditResult.recordset[0].StoreCode : null;
             console.log(`📧 [EMAIL] Store code for audit ${auditId}: ${storeCode}`);
@@ -2817,7 +2822,7 @@ app.post('/api/audits/save-report-for-store-manager', requireAuth, requireRole('
             <div class="highlight">
                 <strong>📋 Store:</strong> ${storeName}<br>
                 <strong>📄 Document:</strong> ${documentNumber}<br>
-                <strong>📊 Score:</strong> ${totalScore ? totalScore.toFixed(1) + '%' : 'N/A'}
+                <strong>📊 Score:</strong> ${totalScore ? Math.round(totalScore) + '%' : 'N/A'}
             </div>
             
             <p>You can access the report via the following link:</p>
@@ -2839,20 +2844,23 @@ app.post('/api/audits/save-report-for-store-manager', requireAuth, requireRole('
 </body>
 </html>`;
                         
+                        // Always use user's access token (delegated permission)
                         const result = await emailService.sendEmail(
                             [manager.email],
                             `Food Safety Audit Report - ${storeName} (${documentNumber})`,
                             emailHtml,
                             null, // plain text body
-                            user.accessToken // Use user's token for delegated permission
+                            user.accessToken // Always use user's token
                         );
                         
                         if (result.success) {
                             emailStatus.recipients.push(manager.email);
                             console.log(`📧 Email sent to Store Manager: ${manager.email}`);
+                        } else {
+                            console.error(`❌ Email failed to ${manager.email}: ${result.error}`);
                         }
                         
-                        // Log notification
+                        // Log notification with error message if failed
                         await pool.request()
                             .input('documentNumber', sql.NVarChar(50), documentNumber)
                             .input('recipientEmail', sql.NVarChar(255), manager.email)
@@ -2862,17 +2870,18 @@ app.post('/api/audits/save-report-for-store-manager', requireAuth, requireRole('
                             .input('sentByEmail', sql.NVarChar(255), user.email)
                             .input('sentByName', sql.NVarChar(255), user.displayName || user.email)
                             .input('status', sql.NVarChar(50), result.success ? 'Sent' : 'Failed')
+                            .input('errorMessage', sql.NVarChar(sql.MAX), result.error || null)
                             .input('emailSubject', sql.NVarChar(500), `Food Safety Audit Report - ${storeName}`)
                             .query(`
                                 INSERT INTO Notifications (
                                     document_number, recipient_email, recipient_name, recipient_role,
                                     notification_type, sent_by_email, sent_by_name,
-                                    status, email_subject, sent_at
+                                    status, error_message, email_subject, sent_at
                                 )
                                 VALUES (
                                     @documentNumber, @recipientEmail, @recipientName, @recipientRole,
                                     @notificationType, @sentByEmail, @sentByName,
-                                    @status, @emailSubject, GETDATE()
+                                    @status, @errorMessage, @emailSubject, GETDATE()
                                 )
                             `);
                     }
@@ -3908,135 +3917,129 @@ app.post('/api/action-plan/submit-to-auditor', requireAuth, async (req, res) => 
         const dbConfig = require('./config/default').database;
         const pool = await sql.connect(dbConfig);
         
-        // Get the auditor who created this report from FS Survey
-        const connector = req.app.locals.sharePointConnector;
-        const surveyItems = await connector.getListItems('FS Survey', {
-            filter: `Document_x0020_Number eq '${documentNumber}'`,
-            select: 'Auditor',
-            top: 1
-        });
+        // Get the auditor who created this audit from AuditInstances table
+        const auditResult = await pool.request()
+            .input('DocumentNumber', sql.NVarChar(50), documentNumber)
+            .query(`
+                SELECT CreatedBy 
+                FROM AuditInstances 
+                WHERE DocumentNumber = @DocumentNumber
+            `);
         
         let auditorEmail = null;
-        if (surveyItems && surveyItems.length > 0 && surveyItems[0].Auditor) {
-            auditorEmail = surveyItems[0].Auditor;
+        if (auditResult.recordset.length > 0 && auditResult.recordset[0].CreatedBy) {
+            auditorEmail = auditResult.recordset[0].CreatedBy;
         }
         
-        // Get admin users as fallback
-        const adminQuery = `
+        // Get SuperAuditor users for CC
+        const superAuditorQuery = `
             SELECT email, display_name
             FROM Users
-            WHERE role = 'Admin'
+            WHERE role = 'SuperAuditor'
             AND is_active = 1
             AND email_notifications_enabled = 1
         `;
-        const adminUsers = await pool.request().query(adminQuery);
+        const superAuditorUsers = await pool.request().query(superAuditorQuery);
         
         const recipientEmails = [];
+        const ccEmails = [];
+        
         if (auditorEmail) {
             recipientEmails.push(auditorEmail);
             console.log(`📧 [API] Primary recipient (Auditor): ${auditorEmail}`);
         }
         
-        // Add admins as CC
-        adminUsers.recordset.forEach(admin => {
-            if (!recipientEmails.includes(admin.email)) {
-                recipientEmails.push(admin.email);
-                console.log(`📧 [API] CC recipient (Admin): ${admin.email}`);
+        // Add SuperAuditors as CC
+        superAuditorUsers.recordset.forEach(sa => {
+            if (sa.email && sa.email !== auditorEmail) {
+                ccEmails.push(sa.email);
+                console.log(`📧 [API] CC recipient (SuperAuditor): ${sa.email}`);
             }
         });
         
         if (recipientEmails.length === 0) {
             return res.status(404).json({
                 success: false,
-                error: 'No auditors or admins found to notify'
+                error: 'No auditor found to notify'
             });
         }
         
-        // Initialize email service
-        const emailService = new EmailNotificationService(connector);
+        // Initialize email service (pass null since we're using user's delegated token)
+        const emailService = new EmailNotificationService(null);
         
-        // Build email content
-        const reportUrl = `${process.env.APP_BASE_URL || 'https://pappreports.gmrlapps.com:3001'}/reports/Action_Plan_Report_${documentNumber}_${new Date().toISOString().split('T')[0]}.html`;
-        
-        const subject = `✅ Action Plan Completed - ${storeName} - ${documentNumber}`;
+        const subject = `Action Plan Submitted`;
         
         const htmlBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                <h1 style="color: white; margin: 0;">✅ Action Plan Completed</h1>
-            </div>
-            
-            <div style="padding: 30px; background: #f8f9fa; border-radius: 0 0 10px 10px;">
-                <h2 style="color: #2c3e50;">Dear Auditor,</h2>
-                
-                <p style="font-size: 16px; line-height: 1.6; color: #34495e;">
-                    The store manager has completed the Action Plan for the audit and submitted it for your review.
+            <div style="padding: 30px;">
+                <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                    Subject: Action Plan Submitted
                 </p>
                 
-                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <tr>
-                            <td style="padding: 10px; color: #7f8c8d; font-size: 14px;">Document Number:</td>
-                            <td style="padding: 10px; font-weight: bold; color: #2c3e50;">${documentNumber}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px; color: #7f8c8d; font-size: 14px;">Store Name:</td>
-                            <td style="padding: 10px; font-weight: bold; color: #2c3e50;">${storeName}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px; color: #7f8c8d; font-size: 14px;">Audit Date:</td>
-                            <td style="padding: 10px; font-weight: bold; color: #2c3e50;">${auditDate || 'N/A'}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px; color: #7f8c8d; font-size: 14px;">Audit Score:</td>
-                            <td style="padding: 10px; font-weight: bold; color: #2c3e50;">${score || 'N/A'}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px; color: #7f8c8d; font-size: 14px;">Submitted By:</td>
-                            <td style="padding: 10px; font-weight: bold; color: #2c3e50;">${user.displayName || user.email}</td>
-                        </tr>
-                    </table>
-                </div>
-                
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="${reportUrl}" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block; box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);">
-                        📋 Review Action Plan
-                    </a>
-                </div>
-                
-                <div style="background: #d1ecf1; border-left: 4px solid #0c5460; padding: 15px; margin: 20px 0; border-radius: 5px;">
-                    <p style="margin: 0; color: #0c5460; font-size: 14px;">
-                        <strong>ℹ️ Note:</strong> Please review the submitted action plan and verify all corrective actions have been properly documented.
-                    </p>
-                </div>
-                
-                <p style="font-size: 14px; color: #7f8c8d; margin-top: 30px;">
-                    Best regards,<br>
-                    <strong>Food Safety Audit System</strong>
+                <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                    Dear Food Safety Team,
                 </p>
-            </div>
-            
-            <div style="text-align: center; padding: 20px; color: #95a5a6; font-size: 12px;">
-                <p>This is an automated notification from the Food Safety Audit System.</p>
+                
+                <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                    The action plan related to the Food Safety Report sent has been completed and saved on the online dashboard.
+                </p>
+                
+                <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                    Thank you.
+                </p>
             </div>
         </div>
         `;
         
+        // Get valid access token (refresh if expired)
+        const TokenRefreshService = require('./auth/services/token-refresh-service');
+        const session = await require('./auth/services/session-manager').getSession(req.sessionToken);
+        
+        let accessToken = user.accessToken;
+        
+        // Check if we have a refresh token to use
+        if (session && session.azure_refresh_token) {
+            accessToken = await TokenRefreshService.getValidAccessToken(
+                req.sessionToken,
+                user.accessToken,
+                session.azure_refresh_token
+            );
+        } else {
+            // No refresh token - check if current token is still valid
+            const isValid = await TokenRefreshService.isTokenValid(user.accessToken);
+            if (!isValid) {
+                console.log('❌ [API] Token expired and no refresh token available');
+                return res.status(401).json({
+                    success: false,
+                    error: 'Your session has expired. Please log out and log in again to send emails.'
+                });
+            }
+        }
+        
+        if (!accessToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'Session expired. Please log out and log in again.'
+            });
+        }
+        
         // Send email using user's delegated token
+        // Pass CC emails as 4th parameter
         const result = await emailService.sendEmail(
             recipientEmails,
             subject,
             htmlBody,
-            null,
-            user.accessToken
+            ccEmails.length > 0 ? ccEmails : null,
+            accessToken
         );
         
         if (result.success) {
-            console.log(`✅ [API] Notification sent to ${recipientEmails.join(', ')}`);
+            const allRecipients = [...recipientEmails, ...ccEmails];
+            console.log(`✅ [API] Notification sent to ${recipientEmails.join(', ')}${ccEmails.length > 0 ? ' CC: ' + ccEmails.join(', ') : ''}`);
             res.json({
                 success: true,
                 message: 'Notification sent successfully',
-                recipients: recipientEmails
+                recipients: allRecipients
             });
         } else {
             throw new Error(result.error || 'Failed to send notification');

@@ -72,7 +72,7 @@ class LoginPage {
             clientId: process.env.AZURE_CLIENT_ID,
             tenantId: process.env.AZURE_TENANT_ID,
             redirectUri: process.env.REDIRECT_URI || 'http://localhost:3001/auth/callback',
-            scopes: ['User.Read', 'User.ReadBasic.All']
+            scopes: ['User.Read', 'User.ReadBasic.All', 'Mail.Send', 'offline_access']
         };
     }
 }
