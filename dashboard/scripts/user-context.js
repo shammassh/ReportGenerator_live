@@ -101,16 +101,8 @@
         }
 
         try {
-            const response = await fetch('/logout', {
-                method: 'POST',
-                credentials: 'include'
-            });
-
-            if (response.ok) {
-                window.location.href = '/login';
-            } else {
-                alert('Logout failed. Please try again.');
-            }
+            // Redirect to logout endpoint (GET request)
+            window.location.href = '/auth/logout';
         } catch (error) {
             console.error('❌ Logout error:', error);
             alert('Logout failed. Please try again.');
