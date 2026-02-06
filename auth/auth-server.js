@@ -38,7 +38,6 @@ class AuthServer {
     constructor(app) {
         this.app = app;
         this.oauthHandler = new OAuthCallbackHandler();
-        this.logoutHandler = new LogoutHandler();
         this.setupMiddleware();
         this.setupRoutes();
         this.setupSessionCleanup();
@@ -98,9 +97,9 @@ class AuthServer {
         // Protected Routes (authentication required)
         // ==========================================
         
-        // Logout
-        this.app.get('/auth/logout', requireAuth, async (req, res) => {
-            await this.logoutHandler.handleLogout(req, res);
+        // Logout - NO authentication required (users should always be able to logout)
+        this.app.get('/auth/logout', async (req, res) => {
+            await LogoutHandler.handleLogout(req, res);
         });
         
         // Pending approval page (for users with 'Pending' role)
