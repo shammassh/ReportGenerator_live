@@ -1661,7 +1661,12 @@ class TemplateEngine {
                         
                         if (result.success) {
                             status.className = 'save-status success';
-                            status.innerHTML = '✅ Report saved! Store Manager can now view it.';
+                            // Show email status
+                            if (result.emailSent && result.emailRecipients && result.emailRecipients.length > 0) {
+                                status.innerHTML = '✅ Report saved & email sent to: ' + result.emailRecipients.join(', ');
+                            } else {
+                                status.innerHTML = '✅ Report saved! (No store manager email configured)';
+                            }
                             btn.innerHTML = '✅ Saved';
                         } else {
                             throw new Error(result.error || 'Failed to save');
@@ -1675,7 +1680,7 @@ class TemplateEngine {
                     
                     setTimeout(() => {
                         status.style.display = 'none';
-                    }, 5000);
+                    }, 8000);
                 }
             </script>
         `;

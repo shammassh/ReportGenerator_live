@@ -2680,9 +2680,13 @@ app.post('/api/audits/save-report-for-store-manager', requireAuth, requireRole('
         const { documentNumber, auditId, fileName, storeName, totalScore } = req.body;
         const user = req.currentUser;
         
+        console.log(`🔔 [SAVE-REPORT] Starting - auditId: ${auditId}, doc: ${documentNumber}`);
+        
         const sql = require('mssql');
         const dbConfig = require('./config/default').database;
         const pool = await sql.connect(dbConfig);
+        
+        console.log(`🔔 [SAVE-REPORT] Connected to database: ${dbConfig.database}`);
         
         // Check if already saved
         const existing = await pool.request()
@@ -2721,7 +2725,171 @@ app.post('/api/audits/save-report-for-store-manager', requireAuth, requireRole('
         }
         
         console.log(`✅ Report published for Store Manager: ${documentNumber} by ${user.email}`);
-        res.json({ success: true, message: 'Report saved for Store Manager' });
+        
+        // ========================================
+        // Send Email Notification to Store Manager
+        // ========================================
+        let emailStatus = { sent: false, recipients: [] };
+        
+        try {
+            // Get store code from audit
+            const auditResult = await pool.request()
+                .input('auditId', sql.Int, auditId)
+                .query('SELECT StoreCode FROM AuditInstances WHERE AuditID = @auditId');
+            
+            const storeCode = auditResult.recordset.length > 0 ? auditResult.recordset[0].StoreCode : null;
+            console.log(`📧 [EMAIL] Store code for audit ${auditId}: ${storeCode}`);
+            
+            if (storeCode) {
+                // Find store managers assigned to this store
+                const storeManagersWithStores = await pool.request()
+                    .query(`
+                        SELECT id, email, display_name, assigned_stores
+                        FROM Users
+                        WHERE role = 'StoreManager'
+                        AND is_active = 1
+                        AND is_approved = 1
+                    `);
+                
+                console.log(`📧 [EMAIL] Found ${storeManagersWithStores.recordset.length} total store managers`);
+                
+                const managers = [];
+                for (const mgr of storeManagersWithStores.recordset) {
+                    if (mgr.assigned_stores) {
+                        try {
+                            const stores = JSON.parse(mgr.assigned_stores);
+                            // Check if store code matches exactly
+                            if (stores.includes(storeCode)) {
+                                managers.push(mgr);
+                                console.log(`📧 [EMAIL] Matched store manager: ${mgr.email} (stores: ${mgr.assigned_stores})`);
+                            }
+                        } catch (e) {
+                            // Skip if JSON parse fails
+                        }
+                    }
+                }
+                
+                console.log(`📧 [EMAIL] Matched ${managers.length} store managers for store ${storeCode}`);
+                
+                if (managers.length > 0) {
+                    // Build report URL
+                    const baseUrl = process.env.BASE_URL || 'https://fsaudit.gmrlapps.com';
+                    const reportUrl = `${baseUrl}/api/audits/reports/${fileName}`;
+                    
+                    // Create connector for email service
+                    const SimpleGraphConnector = require('./src/simple-graph-connector');
+                    const spConfig = require('./config/default').sharepoint || {};
+                    const connector = new SimpleGraphConnector(spConfig);
+                    await connector.connectToSharePoint();
+                    
+                    const emailService = new EmailNotificationService(connector);
+                    
+                    for (const manager of managers) {
+                        const recipientName = manager.display_name || manager.email.split('@')[0];
+                        
+                        // Build email HTML with your template
+                        const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 25px; border: 1px solid #e5e7eb; }
+        .button { display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 15px 0; }
+        .button:hover { background: #059669; }
+        .footer { background: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #6b7280; border-radius: 0 0 8px 8px; }
+        .highlight { background: #ecfdf5; padding: 15px; border-left: 4px solid #10b981; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍽️ Food Safety Audit Report</h1>
+        </div>
+        <div class="content">
+            <p>Dear ${recipientName},</p>
+            
+            <p>The Food Safety Report for your store has been successfully submitted and is now available on the online dashboard.</p>
+            
+            <div class="highlight">
+                <strong>📋 Store:</strong> ${storeName}<br>
+                <strong>📄 Document:</strong> ${documentNumber}<br>
+                <strong>📊 Score:</strong> ${totalScore ? totalScore.toFixed(1) + '%' : 'N/A'}
+            </div>
+            
+            <p>You can access the report via the following link:</p>
+            
+            <p style="text-align: center;">
+                <a href="${reportUrl}" class="button">📄 View Report</a>
+            </p>
+            
+            <p><strong>⚠️ Please review the report and ensure filling the action plan along with accompanying photos within one week.</strong></p>
+            
+            <p>If you have any questions, don't hesitate to contact the food safety team.</p>
+            
+            <p>Thank you.</p>
+        </div>
+        <div class="footer">
+            <p>Food Safety Audit System | GMRL Group</p>
+        </div>
+    </div>
+</body>
+</html>`;
+                        
+                        const result = await emailService.sendEmail(
+                            [manager.email],
+                            `Food Safety Audit Report - ${storeName} (${documentNumber})`,
+                            emailHtml,
+                            null, // plain text body
+                            user.accessToken // Use user's token for delegated permission
+                        );
+                        
+                        if (result.success) {
+                            emailStatus.recipients.push(manager.email);
+                            console.log(`📧 Email sent to Store Manager: ${manager.email}`);
+                        }
+                        
+                        // Log notification
+                        await pool.request()
+                            .input('documentNumber', sql.NVarChar(50), documentNumber)
+                            .input('recipientEmail', sql.NVarChar(255), manager.email)
+                            .input('recipientName', sql.NVarChar(255), recipientName)
+                            .input('recipientRole', sql.NVarChar(50), 'StoreManager')
+                            .input('notificationType', sql.NVarChar(50), 'ReportPublished')
+                            .input('sentByEmail', sql.NVarChar(255), user.email)
+                            .input('sentByName', sql.NVarChar(255), user.displayName || user.email)
+                            .input('status', sql.NVarChar(50), result.success ? 'Sent' : 'Failed')
+                            .input('emailSubject', sql.NVarChar(500), `Food Safety Audit Report - ${storeName}`)
+                            .query(`
+                                INSERT INTO Notifications (
+                                    document_number, recipient_email, recipient_name, recipient_role,
+                                    notification_type, sent_by_email, sent_by_name,
+                                    status, email_subject, sent_at
+                                )
+                                VALUES (
+                                    @documentNumber, @recipientEmail, @recipientName, @recipientRole,
+                                    @notificationType, @sentByEmail, @sentByName,
+                                    @status, @emailSubject, GETDATE()
+                                )
+                            `);
+                    }
+                    
+                    emailStatus.sent = emailStatus.recipients.length > 0;
+                }
+            }
+        } catch (emailError) {
+            console.error('⚠️ Email notification failed (report still saved):', emailError.message);
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Report saved for Store Manager',
+            emailSent: emailStatus.sent,
+            emailRecipients: emailStatus.recipients
+        });
     } catch (error) {
         console.error('Error saving report for store manager:', error);
         res.status(500).json({ success: false, error: error.message });
