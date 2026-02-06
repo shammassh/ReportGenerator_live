@@ -99,11 +99,16 @@ class OAuthCallbackHandler {
         
         const tokenRequest = {
             code,
-            scopes: ['User.Read', 'User.ReadBasic.All'],
+            scopes: ['User.Read', 'User.ReadBasic.All', 'Mail.Send', 'offline_access'],
             redirectUri
         };
         
-        return await this.msalClient.acquireTokenByCode(tokenRequest);
+        const response = await this.msalClient.acquireTokenByCode(tokenRequest);
+        
+        // Log if refresh token is present
+        console.log(`🔐 [TOKEN] Access token received, refresh token: ${response.refreshToken ? 'YES' : 'NO'}`);
+        
+        return response;
     }
     
     /**

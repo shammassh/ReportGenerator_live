@@ -792,14 +792,15 @@
                 initImpersonationPanel();
             }
             
-            // Check user role and show submit button for Store Managers
+            // Check user role and show submit button
             try {
                 const sessionRes = await fetch('/auth/session');
                 const session = await sessionRes.json();
                 if (session.authenticated && session.user) {
                     currentUserRole = session.user.role;
-                    // Show submit button for Store Managers
-                    if (currentUserRole === 'StoreManager') {
+                    // Show submit button for StoreManager, Admin, Auditor, SuperAuditor
+                    const canSubmit = ['StoreManager', 'Admin', 'Auditor', 'SuperAuditor'].includes(currentUserRole);
+                    if (canSubmit) {
                         document.getElementById('submitBtn').style.display = 'flex';
                     }
                 }

@@ -2108,6 +2108,78 @@ app.get('/api/audits/list', requireAuth, requireRole('Admin', 'SuperAuditor', 'A
     }
 });
 
+// Get notification statuses for multiple audits
+app.post('/api/audits/notification-statuses', requireAuth, requireRole('Admin', 'SuperAuditor', 'Auditor'), async (req, res) => {
+    try {
+        const { auditIds } = req.body;
+        
+        if (!auditIds || !Array.isArray(auditIds) || auditIds.length === 0) {
+            return res.status(400).json({ success: false, error: 'auditIds array is required' });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // Get document numbers for the audit IDs
+        const auditIdsParam = auditIds.join(',');
+        const auditsResult = await pool.request()
+            .query(`SELECT AuditID, DocumentNumber FROM AuditInstances WHERE AuditID IN (${auditIdsParam})`);
+        
+        const auditDocMap = {};
+        for (const row of auditsResult.recordset) {
+            auditDocMap[row.AuditID] = row.DocumentNumber;
+        }
+        
+        // Get all document numbers
+        const docNumbers = Object.values(auditDocMap).filter(d => d);
+        
+        if (docNumbers.length === 0) {
+            return res.json({ success: true, statuses: {} });
+        }
+        
+        // Query notifications for these documents
+        const docNumbersParam = docNumbers.map(d => `'${d.replace(/'/g, "''")}'`).join(',');
+        
+        const notificationsResult = await pool.request()
+            .query(`
+                SELECT document_number, notification_type, sent_at
+                FROM Notifications
+                WHERE document_number IN (${docNumbersParam})
+                  AND notification_type IN ('ReportPublished', 'FullReportGenerated', 'ActionPlanSubmitted')
+                  AND status = 'Sent'
+                ORDER BY document_number, sent_at DESC
+            `);
+        
+        // Group by document number and find the relevant dates
+        const docStatuses = {};
+        for (const row of notificationsResult.recordset) {
+            if (!docStatuses[row.document_number]) {
+                docStatuses[row.document_number] = {};
+            }
+            
+            // Only keep the first (most recent) of each type
+            if ((row.notification_type === 'ReportPublished' || row.notification_type === 'FullReportGenerated') && !docStatuses[row.document_number].reportSentDate) {
+                docStatuses[row.document_number].reportSentDate = row.sent_at;
+            }
+            if (row.notification_type === 'ActionPlanSubmitted' && !docStatuses[row.document_number].actionPlanSubmittedDate) {
+                docStatuses[row.document_number].actionPlanSubmittedDate = row.sent_at;
+            }
+        }
+        
+        // Map back to audit IDs
+        const statuses = {};
+        for (const [auditId, docNumber] of Object.entries(auditDocMap)) {
+            statuses[auditId] = docStatuses[docNumber] || {};
+        }
+        
+        res.json({ success: true, statuses });
+    } catch (error) {
+        console.error('Error getting notification statuses:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Get audit by ID
 app.get('/api/audits/:auditId', requireAuth, async (req, res) => {
     try {
@@ -2844,13 +2916,13 @@ app.post('/api/audits/save-report-for-store-manager', requireAuth, requireRole('
 </body>
 </html>`;
                         
-                        // Always use user's access token (delegated permission)
+                        // Use user's delegated token only
                         const result = await emailService.sendEmail(
                             [manager.email],
                             `Food Safety Audit Report - ${storeName} (${documentNumber})`,
                             emailHtml,
-                            null, // plain text body
-                            user.accessToken // Always use user's token
+                            null, // CC recipients
+                            user.accessToken
                         );
                         
                         if (result.success) {
@@ -3871,7 +3943,7 @@ app.post('/api/action-plan/send-email', requireAuth, async (req, res) => {
             subject,
             htmlBody,
             null,
-            user.accessToken // Use delegated token from logged-in user
+            user.accessToken
         );
         
         if (result.success) {
@@ -4024,7 +4096,6 @@ app.post('/api/action-plan/submit-to-auditor', requireAuth, async (req, res) => 
         }
         
         // Send email using user's delegated token
-        // Pass CC emails as 4th parameter
         const result = await emailService.sendEmail(
             recipientEmails,
             subject,

@@ -657,6 +657,54 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Notification Status Badges */
+        .notification-badges {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 12px 0;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .notification-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 6px 10px;
+            border-radius: 6px;
+        }
+
+        .notification-badge.sent {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+
+        .notification-badge.submitted {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        .notification-badge.pending {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+
+        .notification-badge .badge-icon {
+            font-size: 14px;
+        }
+
+        .notification-badge .badge-date {
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -876,6 +924,9 @@
             
             // Check for published reports (for StoreManager)
             checkPublishedReports();
+            
+            // Load notification statuses (for Admin, Auditor, SuperAuditor)
+            loadNotificationStatuses();
         }
 
         function renderCards() {
@@ -940,6 +991,14 @@
                                 <span class="info-label">📊 Score</span>
                                 <span class="info-value score-value score-${scoreClass}">${score !== null ? score + '%' : '—'}</span>
                             </div>
+                            ${audit.Status === 'Completed' && currentUserRole !== 'StoreManager' ? `
+                            <div class="notification-badges" id="badges-${audit.AuditID}">
+                                <div class="notification-badge pending">
+                                    <span class="badge-icon">⏳</span>
+                                    <span>Loading status...</span>
+                                </div>
+                            </div>
+                            ` : ''}
                             <div class="info-row checklist-info-row">
                                 <span class="info-label">📋 Checklist</span>
                                 <span class="info-value checklist-meta">
@@ -1084,6 +1143,93 @@
                     }
                 }
             }
+        }
+
+        // Load notification statuses for completed audits (Admin, Auditor, SuperAuditor only)
+        async function loadNotificationStatuses() {
+            if (currentUserRole === 'StoreManager') return;
+            
+            const completedAudits = filteredAudits.filter(a => a.Status === 'Completed');
+            if (completedAudits.length === 0) return;
+            
+            // Get all audit IDs
+            const auditIds = completedAudits.map(a => a.AuditID);
+            
+            try {
+                const response = await fetch('/api/audits/notification-statuses', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ auditIds })
+                });
+                
+                if (!response.ok) throw new Error('Failed to load notification statuses');
+                
+                const data = await response.json();
+                
+                // Update each card's badges
+                for (const audit of completedAudits) {
+                    const badgeContainer = document.getElementById(`badges-${audit.AuditID}`);
+                    if (!badgeContainer) continue;
+                    
+                    const status = data.statuses[audit.AuditID] || {};
+                    badgeContainer.innerHTML = renderNotificationBadges(status);
+                }
+            } catch (error) {
+                console.error('Error loading notification statuses:', error);
+                // Show error state on badges
+                for (const audit of completedAudits) {
+                    const badgeContainer = document.getElementById(`badges-${audit.AuditID}`);
+                    if (badgeContainer) {
+                        badgeContainer.innerHTML = `
+                            <div class="notification-badge pending">
+                                <span class="badge-icon">⚠️</span>
+                                <span>Status unavailable</span>
+                            </div>
+                        `;
+                    }
+                }
+            }
+        }
+
+        // Render notification badges HTML
+        function renderNotificationBadges(status) {
+            let html = '';
+            
+            // Report sent to Store Manager badge
+            if (status.reportSentDate) {
+                html += `
+                    <div class="notification-badge sent">
+                        <span class="badge-icon">📧</span>
+                        <span>Report sent to SM: <span class="badge-date">${formatDate(status.reportSentDate)}</span></span>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="notification-badge pending">
+                        <span class="badge-icon">📧</span>
+                        <span>Report not sent to SM yet</span>
+                    </div>
+                `;
+            }
+            
+            // Action Plan submitted badge
+            if (status.actionPlanSubmittedDate) {
+                html += `
+                    <div class="notification-badge submitted">
+                        <span class="badge-icon">✅</span>
+                        <span>Action Plan submitted: <span class="badge-date">${formatDate(status.actionPlanSubmittedDate)}</span></span>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="notification-badge pending">
+                        <span class="badge-icon">⏳</span>
+                        <span>Action Plan not submitted yet</span>
+                    </div>
+                `;
+            }
+            
+            return html;
         }
 
         // Generate full audit report
