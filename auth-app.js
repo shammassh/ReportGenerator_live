@@ -2148,7 +2148,7 @@ app.post('/api/audits/notification-statuses', requireAuth, requireRole('Admin', 
         
         const notificationsResult = await pool.request()
             .query(`
-                SELECT document_number, notification_type, sent_at
+                SELECT document_number, notification_type, sent_at, sent_by_name
                 FROM Notifications
                 WHERE document_number IN (${docNumbersParam})
                   AND notification_type IN ('ReportPublished', 'FullReportGenerated', 'ActionPlanSubmitted')
@@ -2166,9 +2166,11 @@ app.post('/api/audits/notification-statuses', requireAuth, requireRole('Admin', 
             // Only keep the first (most recent) of each type
             if ((row.notification_type === 'ReportPublished' || row.notification_type === 'FullReportGenerated') && !docStatuses[row.document_number].reportSentDate) {
                 docStatuses[row.document_number].reportSentDate = row.sent_at;
+                docStatuses[row.document_number].reportSentBy = row.sent_by_name || 'Unknown';
             }
             if (row.notification_type === 'ActionPlanSubmitted' && !docStatuses[row.document_number].actionPlanSubmittedDate) {
                 docStatuses[row.document_number].actionPlanSubmittedDate = row.sent_at;
+                docStatuses[row.document_number].actionPlanSubmittedBy = row.sent_by_name || 'Unknown';
             }
         }
         

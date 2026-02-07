@@ -1198,10 +1198,11 @@
             
             // Report sent to Store Manager badge
             if (status.reportSentDate) {
+                const sentBy = status.reportSentBy ? ` by ${status.reportSentBy}` : '';
                 html += `
                     <div class="notification-badge sent">
                         <span class="badge-icon">📧</span>
-                        <span>Report sent to SM: <span class="badge-date">${formatDate(status.reportSentDate)}</span></span>
+                        <span>Report sent to SM${sentBy}: <span class="badge-date">${formatDate(status.reportSentDate)}</span></span>
                     </div>
                 `;
             } else {
@@ -1215,10 +1216,11 @@
             
             // Action Plan submitted badge
             if (status.actionPlanSubmittedDate) {
+                const submittedBy = status.actionPlanSubmittedBy ? ` by ${status.actionPlanSubmittedBy}` : '';
                 html += `
                     <div class="notification-badge submitted">
                         <span class="badge-icon">✅</span>
-                        <span>Action Plan submitted: <span class="badge-date">${formatDate(status.actionPlanSubmittedDate)}</span></span>
+                        <span>Action Plan submitted${submittedBy}: <span class="badge-date">${formatDate(status.actionPlanSubmittedDate)}</span></span>
                     </div>
                 `;
             } else {
