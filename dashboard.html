@@ -40,6 +40,187 @@
             overflow: hidden;
         }
 
+        .header-top-bar {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .notification-bell-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+            font-size: 20px;
+        }
+
+        .notification-bell-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .bell-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ef4444;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            min-width: 20px;
+            height: 20px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .bell-badge.hidden {
+            display: none;
+        }
+
+        .notification-panel {
+            position: absolute;
+            top: 55px;
+            right: 0;
+            width: 360px;
+            max-height: 450px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .notification-panel.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .notification-panel-header {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .notification-panel-header h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .notification-panel-header button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .notification-panel-header button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .notification-list {
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        .notification-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .notification-item:hover {
+            background: #f9fafb;
+        }
+
+        .notification-item.unread {
+            background: #eff6ff;
+            border-left: 3px solid #3b82f6;
+        }
+
+        .notification-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .notification-item-title {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 14px;
+        }
+
+        .notification-item-time {
+            color: #9ca3af;
+            font-size: 11px;
+        }
+
+        .notification-item-message {
+            color: #6b7280;
+            font-size: 13px;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .notification-empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: #9ca3af;
+        }
+
+        .notification-empty-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 8px;
+            padding: 8px 15px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
         .dashboard-header::before {
             content: '';
             position: absolute;
@@ -190,6 +371,28 @@
             transform: translateY(-3px) scale(1.02);
             box-shadow: 0 8px 20px rgba(118, 75, 162, 0.4);
             background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+
+        .broadcast-btn {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .broadcast-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
+            background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
         }
 
         .admin-panel-btn {
@@ -1263,6 +1466,28 @@
 <body>
     <div class="dashboard-container">
         <div class="dashboard-header">
+            <!-- Top bar with notification bell -->
+            <div class="header-top-bar">
+                <div style="position: relative;">
+                    <button class="notification-bell-btn" id="notificationBell" onclick="toggleNotificationPanel()">
+                        🔔
+                        <span class="bell-badge hidden" id="bellBadge">0</span>
+                    </button>
+                    <div class="notification-panel" id="notificationPanel">
+                        <div class="notification-panel-header">
+                            <h3>🔔 Notifications</h3>
+                            <button onclick="markAllAsRead()">Mark all read</button>
+                        </div>
+                        <div class="notification-list" id="notificationList">
+                            <div class="notification-empty">
+                                <div class="notification-empty-icon">🔔</div>
+                                <p>No notifications</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <h1>🏪 Food Safety Audit Dashboard</h1>
             <p>Manage and generate comprehensive audit reports for all store locations</p>
         </div>
@@ -1279,6 +1504,10 @@
             <button class="notification-history-btn" id="notificationHistoryBtn" onclick="window.location.href='/admin/notification-history'" style="display: none;">
                 <span>📧</span>
                 Notifications
+            </button>
+            <button class="broadcast-btn" id="broadcastBtn" onclick="window.location.href='/admin/broadcast'" style="display: none;">
+                <span>📢</span>
+                Broadcast
             </button>
             <button class="admin-panel-btn" id="adminPanelBtn" onclick="window.location.href='/admin/users'" style="display: none;">
                 <span>👤</span>
@@ -1495,6 +1724,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 Dashboard initializing...');
             
+            // Load notification bell unread count
+            loadUnreadCount();
+            
             // Check authentication and set up role-based UI
             checkAuthAndSetupUI();
             
@@ -1503,6 +1735,126 @@
                 initImpersonationPanel();
             }
         });
+
+        // ==========================================
+        // Notification Bell Functions
+        // ==========================================
+        
+        let notificationPanelOpen = false;
+
+        async function loadUnreadCount() {
+            try {
+                const response = await fetch('/api/broadcast/unread-count');
+                if (response.ok) {
+                    const data = await response.json();
+                    updateBellBadge(data.count || 0);
+                }
+            } catch (error) {
+                console.error('Error loading unread count:', error);
+            }
+        }
+
+        function updateBellBadge(count) {
+            const badge = document.getElementById('bellBadge');
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+        }
+
+        function toggleNotificationPanel() {
+            const panel = document.getElementById('notificationPanel');
+            notificationPanelOpen = !notificationPanelOpen;
+            panel.classList.toggle('show', notificationPanelOpen);
+            
+            if (notificationPanelOpen) {
+                loadNotifications();
+            }
+        }
+
+        // Close panel when clicking outside
+        document.addEventListener('click', function(e) {
+            const bell = document.getElementById('notificationBell');
+            const panel = document.getElementById('notificationPanel');
+            
+            if (bell && panel && notificationPanelOpen && !bell.contains(e.target) && !panel.contains(e.target)) {
+                notificationPanelOpen = false;
+                panel.classList.remove('show');
+            }
+        });
+
+        async function loadNotifications() {
+            const list = document.getElementById('notificationList');
+            list.innerHTML = '<div class="notification-empty"><p>Loading...</p></div>';
+            
+            try {
+                const response = await fetch('/api/broadcast/my-notifications');
+                const data = await response.json();
+                
+                if (!data.success || !data.notifications || data.notifications.length === 0) {
+                    list.innerHTML = `
+                        <div class="notification-empty">
+                            <div class="notification-empty-icon">🔔</div>
+                            <p>No notifications</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                for (const n of data.notifications) {
+                    const isUnread = !n.read_at;
+                    const date = new Date(n.sent_at).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+                    const typeIcons = { Announcement: '📢', Reminder: '⚠️', Urgent: '🚨' };
+                    
+                    html += `
+                        <div class="notification-item ${isUnread ? 'unread' : ''}" onclick="openNotification(${n.broadcast_id})">
+                            <div class="notification-item-header">
+                                <span class="notification-item-title">${typeIcons[n.broadcast_type] || '📢'} ${n.title || 'Notification'}</span>
+                                <span class="notification-item-time">${date}</span>
+                            </div>
+                            <div class="notification-item-message">${n.message || ''}</div>
+                        </div>
+                    `;
+                }
+                
+                list.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+                list.innerHTML = `
+                    <div class="notification-empty">
+                        <div class="notification-empty-icon">❌</div>
+                        <p>Error loading notifications</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function openNotification(broadcastId) {
+            try {
+                await fetch(`/api/broadcast/mark-read/${broadcastId}`, { method: 'POST' });
+                loadUnreadCount();
+                loadNotifications();
+            } catch (error) {
+                console.error('Error marking notification as read:', error);
+            }
+        }
+
+        async function markAllAsRead() {
+            try {
+                await fetch('/api/broadcast/mark-all-read', { method: 'POST' });
+                loadUnreadCount();
+                loadNotifications();
+            } catch (error) {
+                console.error('Error marking all as read:', error);
+            }
+        }
 
         // Check authentication and setup UI based on role
         async function checkAuthAndSetupUI() {
@@ -1588,6 +1940,16 @@
                             console.log('✅ Notification button display set to flex');
                         } else {
                             console.error('❌ Notification button not found in DOM!');
+                        }
+                    }
+
+                    // Show broadcast button for Admin and SuperAuditor
+                    if (userRole === 'Admin' || userRole === 'SuperAuditor') {
+                        console.log('✅ Showing broadcast button for role:', userRole);
+                        const broadcastBtn = document.getElementById('broadcastBtn');
+                        if (broadcastBtn) {
+                            broadcastBtn.style.display = 'flex';
+                            console.log('✅ Broadcast button display set to flex');
                         }
                     }
 
@@ -1687,6 +2049,14 @@
                     if (userRole === 'Admin' || userRole === 'Auditor') {
                         if (notificationBtn) {
                             notificationBtn.style.display = 'flex';
+                        }
+                    }
+
+                    // Show broadcast button for Admin and SuperAuditor
+                    if (userRole === 'Admin' || userRole === 'SuperAuditor') {
+                        const broadcastBtn = document.getElementById('broadcastBtn');
+                        if (broadcastBtn) {
+                            broadcastBtn.style.display = 'flex';
                         }
                     }
 

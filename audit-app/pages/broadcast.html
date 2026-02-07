@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <title>Broadcast - Food Safety Audit System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            background: white;
+            padding: 20px 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #1f2937;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-textarea {
+            min-height: 150px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .broadcast-type-selector {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .type-option {
+            flex: 1;
+            min-width: 150px;
+            padding: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .type-option:hover {
+            border-color: #667eea;
+            background: #f8faff;
+        }
+
+        .type-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+
+        .type-option.announcement { border-left: 4px solid #3b82f6; }
+        .type-option.announcement.selected { background: rgba(59, 130, 246, 0.1); border-color: #3b82f6; }
+
+        .type-option.reminder { border-left: 4px solid #f59e0b; }
+        .type-option.reminder.selected { background: rgba(245, 158, 11, 0.1); border-color: #f59e0b; }
+
+        .type-option.urgent { border-left: 4px solid #ef4444; }
+        .type-option.urgent.selected { background: rgba(239, 68, 68, 0.1); border-color: #ef4444; }
+
+        .type-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .type-label {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .role-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .role-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .role-checkbox:hover {
+            border-color: #667eea;
+            background: #f8faff;
+        }
+
+        .role-checkbox.checked {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .role-checkbox input {
+            width: 18px;
+            height: 18px;
+            accent-color: #667eea;
+        }
+
+        .role-checkbox label {
+            font-size: 14px;
+            color: #374151;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .recipient-count {
+            background: #f3f4f6;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 12px;
+        }
+
+        .recipient-count strong {
+            color: #667eea;
+        }
+
+        .preview-section {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .preview-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .preview-type-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .preview-type-badge.announcement { background: #dbeafe; color: #1e40af; }
+        .preview-type-badge.reminder { background: #fef3c7; color: #92400e; }
+        .preview-type-badge.urgent { background: #fee2e2; color: #991b1b; }
+
+        .preview-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .preview-message {
+            color: #4b5563;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            margin-top: 20px;
+        }
+
+        .sending-status {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            color: #6b7280;
+        }
+
+        .sending-status.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e5e7eb;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .success-message {
+            display: none;
+            background: #d1fae5;
+            color: #065f46;
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .success-message.show {
+            display: flex;
+        }
+
+        .error-message {
+            display: none;
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        /* History Table */
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .history-table th,
+        .history-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .history-table th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+            font-size: 13px;
+        }
+
+        .history-table tr:hover {
+            background: #f9fafb;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-sent { background: #d1fae5; color: #065f46; }
+        .status-failed { background: #fee2e2; color: #991b1b; }
+
+        .tab-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            border: 2px solid #e5e7eb;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: transparent;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📢 Broadcast Center</h1>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="window.location.href='/auditor/audit-list'">
+                    <span>📋</span> Audit List
+                </button>
+                <button class="btn btn-secondary" onclick="window.location.href='/dashboard'">
+                    <span>🏠</span> Dashboard
+                </button>
+            </div>
+        </div>
+
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchTab('compose')">✏️ Compose</button>
+            <button class="tab-btn" onclick="switchTab('history')">📜 History</button>
+        </div>
+
+        <!-- Compose Tab -->
+        <div id="compose-tab" class="tab-content active">
+            <div class="success-message" id="successMessage">
+                <span>✅</span>
+                <span id="successText">Broadcast sent successfully!</span>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <!-- Broadcast Type -->
+            <div class="card">
+                <div class="card-title">📌 Broadcast Type</div>
+                <div class="broadcast-type-selector">
+                    <div class="type-option announcement selected" data-type="Announcement" onclick="selectType(this)">
+                        <div class="type-icon">📢</div>
+                        <div class="type-label">Announcement</div>
+                    </div>
+                    <div class="type-option reminder" data-type="Reminder" onclick="selectType(this)">
+                        <div class="type-icon">⚠️</div>
+                        <div class="type-label">Reminder</div>
+                    </div>
+                    <div class="type-option urgent" data-type="Urgent" onclick="selectType(this)">
+                        <div class="type-icon">🚨</div>
+                        <div class="type-label">Urgent</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Message Content -->
+            <div class="card">
+                <div class="card-title">✉️ Message Content</div>
+                <div class="form-group">
+                    <label class="form-label">Title *</label>
+                    <input type="text" class="form-input" id="broadcastTitle" placeholder="Enter broadcast title..." maxlength="255">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Message *</label>
+                    <textarea class="form-textarea" id="broadcastMessage" placeholder="Type your message here..."></textarea>
+                </div>
+            </div>
+
+            <!-- Recipients -->
+            <div class="card">
+                <div class="card-title">👥 Recipients</div>
+                <div class="role-checkboxes" id="roleCheckboxes">
+                    <div class="role-checkbox" onclick="toggleRole(this)">
+                        <input type="checkbox" id="role-StoreManager" value="StoreManager">
+                        <label for="role-StoreManager">🏪 Store Managers</label>
+                    </div>
+                    <div class="role-checkbox" onclick="toggleRole(this)">
+                        <input type="checkbox" id="role-Auditor" value="Auditor">
+                        <label for="role-Auditor">📋 Auditors</label>
+                    </div>
+                    <div class="role-checkbox" onclick="toggleRole(this)">
+                        <input type="checkbox" id="role-SuperAuditor" value="SuperAuditor">
+                        <label for="role-SuperAuditor">⭐ Super Auditors</label>
+                    </div>
+                    <div class="role-checkbox" onclick="toggleRole(this)">
+                        <input type="checkbox" id="role-DepartmentHead" value="DepartmentHead">
+                        <label for="role-DepartmentHead">🏢 Department Heads</label>
+                    </div>
+                    <div class="role-checkbox" onclick="toggleRole(this)">
+                        <input type="checkbox" id="role-Admin" value="Admin">
+                        <label for="role-Admin">👑 Admins</label>
+                    </div>
+                </div>
+                <div class="recipient-count" id="recipientCount">
+                    Select roles to see recipient count
+                </div>
+            </div>
+
+            <!-- Preview -->
+            <div class="card">
+                <div class="card-title">👁️ Preview</div>
+                <div class="preview-section">
+                    <div class="preview-header">
+                        <span class="preview-type-badge announcement" id="previewBadge">📢 Announcement</span>
+                    </div>
+                    <div class="preview-title" id="previewTitle">Your title will appear here...</div>
+                    <div class="preview-message" id="previewMessage">Your message will appear here...</div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="card">
+                <div class="action-bar">
+                    <div class="sending-status" id="sendingStatus">
+                        <div class="spinner"></div>
+                        <span>Sending broadcast...</span>
+                    </div>
+                    <div></div>
+                    <button class="btn btn-primary" id="sendBtn" onclick="sendBroadcast()">
+                        <span>📤</span> Send Broadcast
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div id="history-tab" class="tab-content">
+            <div class="card">
+                <div class="card-title">📜 Broadcast History</div>
+                <div id="historyContent">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <p>Loading broadcast history...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedType = 'Announcement';
+        let selectedRoles = [];
+        let recipientCounts = {};
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Live preview
+            document.getElementById('broadcastTitle').addEventListener('input', updatePreview);
+            document.getElementById('broadcastMessage').addEventListener('input', updatePreview);
+            
+            // Load recipient counts
+            loadRecipientCounts();
+        });
+
+        function selectType(element) {
+            // Remove selected from all
+            document.querySelectorAll('.type-option').forEach(el => el.classList.remove('selected'));
+            // Add selected to clicked
+            element.classList.add('selected');
+            selectedType = element.dataset.type;
+            updatePreview();
+        }
+
+        function toggleRole(element) {
+            const checkbox = element.querySelector('input');
+            checkbox.checked = !checkbox.checked;
+            element.classList.toggle('checked', checkbox.checked);
+            
+            // Update selected roles
+            selectedRoles = Array.from(document.querySelectorAll('.role-checkbox input:checked'))
+                .map(cb => cb.value);
+            
+            updateRecipientCount();
+        }
+
+        async function loadRecipientCounts() {
+            try {
+                const response = await fetch('/api/broadcast/recipient-counts');
+                if (response.ok) {
+                    const data = await response.json();
+                    recipientCounts = data.counts || {};
+                }
+            } catch (error) {
+                console.error('Error loading recipient counts:', error);
+            }
+        }
+
+        function updateRecipientCount() {
+            const countEl = document.getElementById('recipientCount');
+            if (selectedRoles.length === 0) {
+                countEl.innerHTML = 'Select roles to see recipient count';
+                return;
+            }
+            
+            let total = 0;
+            let details = [];
+            for (const role of selectedRoles) {
+                const count = recipientCounts[role] || 0;
+                total += count;
+                details.push(`${role}: ${count}`);
+            }
+            
+            countEl.innerHTML = `<strong>${total}</strong> recipient(s) will receive this broadcast (${details.join(', ')})`;
+        }
+
+        function updatePreview() {
+            const title = document.getElementById('broadcastTitle').value || 'Your title will appear here...';
+            const message = document.getElementById('broadcastMessage').value || 'Your message will appear here...';
+            
+            document.getElementById('previewTitle').textContent = title;
+            document.getElementById('previewMessage').textContent = message;
+            
+            // Update badge
+            const badge = document.getElementById('previewBadge');
+            badge.className = 'preview-type-badge ' + selectedType.toLowerCase();
+            const icons = { Announcement: '📢', Reminder: '⚠️', Urgent: '🚨' };
+            badge.textContent = `${icons[selectedType]} ${selectedType}`;
+        }
+
+        async function sendBroadcast() {
+            const title = document.getElementById('broadcastTitle').value.trim();
+            const message = document.getElementById('broadcastMessage').value.trim();
+            
+            // Validation
+            if (!title) {
+                showError('Please enter a title');
+                return;
+            }
+            if (!message) {
+                showError('Please enter a message');
+                return;
+            }
+            if (selectedRoles.length === 0) {
+                showError('Please select at least one recipient role');
+                return;
+            }
+            
+            // Show sending status
+            document.getElementById('sendingStatus').classList.add('active');
+            document.getElementById('sendBtn').disabled = true;
+            hideError();
+            
+            try {
+                const response = await fetch('/api/broadcast/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title,
+                        message,
+                        type: selectedType,
+                        targetRoles: selectedRoles
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSuccess(`Broadcast sent to ${data.recipientCount} recipient(s)! Emails sent: ${data.emailsSent}`);
+                    // Reset form
+                    document.getElementById('broadcastTitle').value = '';
+                    document.getElementById('broadcastMessage').value = '';
+                    selectedRoles = [];
+                    document.querySelectorAll('.role-checkbox').forEach(el => {
+                        el.classList.remove('checked');
+                        el.querySelector('input').checked = false;
+                    });
+                    updateRecipientCount();
+                    updatePreview();
+                } else {
+                    showError(data.error || 'Failed to send broadcast');
+                }
+            } catch (error) {
+                showError('Error sending broadcast: ' + error.message);
+            } finally {
+                document.getElementById('sendingStatus').classList.remove('active');
+                document.getElementById('sendBtn').disabled = false;
+            }
+        }
+
+        function showSuccess(text) {
+            document.getElementById('successText').textContent = text;
+            document.getElementById('successMessage').classList.add('show');
+            setTimeout(() => {
+                document.getElementById('successMessage').classList.remove('show');
+            }, 5000);
+        }
+
+        function showError(text) {
+            document.getElementById('errorMessage').textContent = text;
+            document.getElementById('errorMessage').classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('show');
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            document.querySelector(`.tab-btn[onclick*="${tab}"]`).classList.add('active');
+            document.getElementById(`${tab}-tab`).classList.add('active');
+            
+            if (tab === 'history') {
+                loadHistory();
+            }
+        }
+
+        async function loadHistory() {
+            const container = document.getElementById('historyContent');
+            container.innerHTML = '<div class="empty-state"><div class="spinner"></div><p>Loading...</p></div>';
+            
+            try {
+                const response = await fetch('/api/broadcast/history');
+                const data = await response.json();
+                
+                if (!data.success || !data.broadcasts || data.broadcasts.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <p>No broadcasts sent yet</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = `
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Title</th>
+                                <th>Recipients</th>
+                                <th>Emails Sent</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                for (const b of data.broadcasts) {
+                    const date = new Date(b.sent_at).toLocaleDateString('en-US', {
+                        year: 'numeric', month: 'short', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+                    const typeIcons = { Announcement: '📢', Reminder: '⚠️', Urgent: '🚨' };
+                    
+                    html += `
+                        <tr>
+                            <td>${date}</td>
+                            <td>${typeIcons[b.broadcast_type] || ''} ${b.broadcast_type}</td>
+                            <td>${escapeHtml(b.title)}</td>
+                            <td>${b.recipient_count}</td>
+                            <td>${b.email_sent_count}</td>
+                            <td><span class="status-badge status-${b.status.toLowerCase()}">${b.status}</span></td>
+                        </tr>
+                    `;
+                }
+                
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">❌</div>
+                        <p>Error loading history: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

@@ -2187,6 +2187,390 @@ app.post('/api/audits/notification-statuses', requireAuth, requireRole('Admin', 
     }
 });
 
+// ==========================================
+// Broadcast Feature API
+// ==========================================
+
+// Serve broadcast page
+app.get('/admin/broadcast', requireAuth, requireRole('Admin', 'SuperAuditor'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'audit-app', 'pages', 'broadcast.html'));
+});
+
+// Get recipient counts by role
+app.get('/api/broadcast/recipient-counts', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request().query(`
+            SELECT role, COUNT(*) as count 
+            FROM Users 
+            WHERE is_active = 1 AND is_approved = 1 AND email IS NOT NULL
+            GROUP BY role
+        `);
+        
+        const counts = {};
+        for (const row of result.recordset) {
+            counts[row.role] = row.count;
+        }
+        
+        res.json({ success: true, counts });
+    } catch (error) {
+        console.error('Error getting recipient counts:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Send broadcast
+app.post('/api/broadcast/send', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const { title, message, type, targetRoles } = req.body;
+        
+        if (!title || !message || !targetRoles || targetRoles.length === 0) {
+            return res.status(400).json({ success: false, error: 'Title, message, and target roles are required' });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // Get sender info from session (with safe checks)
+        const session = req.session || {};
+        const sessionUser = session.user || {};
+        const senderName = sessionUser.displayName || sessionUser.name || 'System';
+        const senderEmail = sessionUser.email || '';
+        const senderUserId = sessionUser.dbUserId || null;
+        
+        console.log('📢 Broadcast sender:', senderName, senderEmail);
+        
+        // Create broadcast record
+        const broadcastResult = await pool.request()
+            .input('title', sql.NVarChar(255), title)
+            .input('message', sql.NVarChar(sql.MAX), message)
+            .input('type', sql.NVarChar(50), type || 'Announcement')
+            .input('targetRoles', sql.NVarChar(500), targetRoles.join(','))
+            .input('sentByUserId', sql.Int, senderUserId)
+            .input('sentByName', sql.NVarChar(255), senderName)
+            .input('sentByEmail', sql.NVarChar(255), senderEmail)
+            .query(`
+                INSERT INTO Broadcasts (title, message, broadcast_type, target_roles, sent_by_user_id, sent_by_name, sent_by_email, sent_at, status)
+                OUTPUT INSERTED.id
+                VALUES (@title, @message, @type, @targetRoles, @sentByUserId, @sentByName, @sentByEmail, GETDATE(), 'Sent')
+            `);
+        
+        const broadcastId = broadcastResult.recordset[0].id;
+        
+        // Get recipients by role
+        const rolesParam = targetRoles.map(r => `'${r}'`).join(',');
+        const recipientsResult = await pool.request().query(`
+            SELECT id, email, display_name, role 
+            FROM Users 
+            WHERE role IN (${rolesParam}) 
+              AND is_active = 1 
+              AND is_approved = 1 
+              AND email IS NOT NULL
+        `);
+        
+        const recipients = recipientsResult.recordset;
+        let emailsSent = 0;
+        
+        // Insert recipients and send emails
+        for (const recipient of recipients) {
+            let emailSent = false;
+            let emailError = null;
+            
+            // Try to send email
+            try {
+                const SimpleGraphConnector = require('./src/simple-graph-connector');
+                const connector = new SimpleGraphConnector();
+                const EmailService = require('./services/email-notification-service');
+                const emailService = new EmailService(connector);
+                const typeEmojis = { Announcement: '📢', Reminder: '⚠️', Urgent: '🚨' };
+                const emailSubject = `${typeEmojis[type] || '📢'} ${title}`;
+                
+                const emailBody = `
+                    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px 10px 0 0;">
+                            <h1 style="color: white; margin: 0; font-size: 24px;">${typeEmojis[type] || '📢'} ${type}</h1>
+                        </div>
+                        <div style="background: #f8fafc; padding: 24px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 10px 10px;">
+                            <h2 style="color: #1f2937; margin-top: 0;">${title}</h2>
+                            <div style="color: #4b5563; line-height: 1.6; white-space: pre-wrap;">${message}</div>
+                            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                            <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                                Sent by ${senderName} via Food Safety Audit System
+                            </p>
+                        </div>
+                    </div>
+                `;
+                
+                // sendEmail expects: (to, subject, htmlBody, ccRecipients, userAccessToken)
+                // Use user's access token for delegated permission (sends from their mailbox)
+                const userAccessToken = req.currentUser?.accessToken || null;
+                await emailService.sendEmail(
+                    [recipient.email],  // to (array)
+                    emailSubject,       // subject
+                    emailBody,          // htmlBody
+                    null,               // ccRecipients
+                    userAccessToken     // Use logged-in user's token to send from their mailbox
+                );
+                
+                emailSent = true;
+                emailsSent++;
+            } catch (emailErr) {
+                console.error(`Failed to send email to ${recipient.email}:`, emailErr.message);
+                emailError = emailErr.message;
+            }
+            
+            // Insert recipient record
+            await pool.request()
+                .input('broadcastId', sql.Int, broadcastId)
+                .input('userId', sql.Int, recipient.id)
+                .input('userEmail', sql.NVarChar(255), recipient.email)
+                .input('userName', sql.NVarChar(255), recipient.display_name)
+                .input('userRole', sql.NVarChar(50), recipient.role)
+                .input('emailSent', sql.Bit, emailSent ? 1 : 0)
+                .input('emailError', sql.NVarChar(sql.MAX), emailError)
+                .query(`
+                    INSERT INTO BroadcastRecipients (broadcast_id, user_id, user_email, user_name, user_role, email_sent, email_sent_at, email_error)
+                    VALUES (@broadcastId, @userId, @userEmail, @userName, @userRole, @emailSent, ${emailSent ? 'GETDATE()' : 'NULL'}, @emailError)
+                `);
+        }
+        
+        // Update broadcast with counts
+        await pool.request()
+            .input('id', sql.Int, broadcastId)
+            .input('recipientCount', sql.Int, recipients.length)
+            .input('emailSentCount', sql.Int, emailsSent)
+            .query(`
+                UPDATE Broadcasts 
+                SET recipient_count = @recipientCount, email_sent_count = @emailSentCount
+                WHERE id = @id
+            `);
+        
+        console.log(`Broadcast #${broadcastId} sent: ${recipients.length} recipients, ${emailsSent} emails`);
+        
+        res.json({ 
+            success: true, 
+            broadcastId,
+            recipientCount: recipients.length,
+            emailsSent
+        });
+    } catch (error) {
+        console.error('Error sending broadcast:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get broadcast history
+app.get('/api/broadcast/history', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request().query(`
+            SELECT TOP 50 
+                id, title, message, broadcast_type, target_roles,
+                sent_by_name, recipient_count, email_sent_count, status, sent_at
+            FROM Broadcasts
+            ORDER BY sent_at DESC
+        `);
+        
+        res.json({ success: true, broadcasts: result.recordset });
+    } catch (error) {
+        console.error('Error getting broadcast history:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get unread broadcast count for current user (for notification bell)
+app.get('/api/broadcast/unread-count', requireAuth, async (req, res) => {
+    try {
+        const userId = req.currentUser?.id;
+        if (!userId) {
+            return res.json({ success: true, count: 0 });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request()
+            .input('userId', sql.Int, userId)
+            .query(`
+                SELECT COUNT(*) as count 
+                FROM BroadcastRecipients 
+                WHERE user_id = @userId 
+                  AND read_at IS NULL 
+                  AND dismissed_at IS NULL
+            `);
+        
+        res.json({ success: true, count: result.recordset[0].count });
+    } catch (error) {
+        console.error('Error getting unread count:', error);
+        res.json({ success: true, count: 0 });
+    }
+});
+
+// Get user's broadcasts (for notification panel)
+app.get('/api/broadcast/my-notifications', requireAuth, async (req, res) => {
+    try {
+        const userId = req.currentUser?.id;
+        if (!userId) {
+            return res.json({ success: true, notifications: [] });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request()
+            .input('userId', sql.Int, userId)
+            .query(`
+                SELECT TOP 20
+                    br.id as recipient_id,
+                    b.id as broadcast_id,
+                    b.title,
+                    b.message,
+                    b.broadcast_type,
+                    b.sent_by_name,
+                    b.sent_at,
+                    br.read_at,
+                    br.dismissed_at
+                FROM BroadcastRecipients br
+                INNER JOIN Broadcasts b ON br.broadcast_id = b.id
+                WHERE br.user_id = @userId
+                  AND br.dismissed_at IS NULL
+                ORDER BY b.sent_at DESC
+            `);
+        
+        res.json({ success: true, notifications: result.recordset });
+    } catch (error) {
+        console.error('Error getting notifications:', error);
+        res.json({ success: true, notifications: [] });
+    }
+});
+
+// Mark broadcast as read (by broadcast_id for current user)
+app.post('/api/broadcast/mark-read/:broadcastId', requireAuth, async (req, res) => {
+    try {
+        const broadcastId = parseInt(req.params.broadcastId);
+        const userId = req.currentUser?.id;
+        
+        if (!broadcastId || !userId) {
+            return res.status(400).json({ success: false, error: 'Invalid request' });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        await pool.request()
+            .input('broadcastId', sql.Int, broadcastId)
+            .input('userId', sql.Int, userId)
+            .query(`
+                UPDATE BroadcastRecipients 
+                SET read_at = GETDATE()
+                WHERE broadcast_id = @broadcastId AND user_id = @userId AND read_at IS NULL
+            `);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error marking as read:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Mark broadcast as read (legacy - by recipientId)
+app.post('/api/broadcast/mark-read', requireAuth, async (req, res) => {
+    try {
+        const { recipientId } = req.body;
+        const userId = req.currentUser?.id;
+        
+        if (!recipientId || !userId) {
+            return res.status(400).json({ success: false, error: 'Invalid request' });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        await pool.request()
+            .input('recipientId', sql.Int, recipientId)
+            .input('userId', sql.Int, userId)
+            .query(`
+                UPDATE BroadcastRecipients 
+                SET read_at = GETDATE()
+                WHERE id = @recipientId AND user_id = @userId
+            `);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error marking as read:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Dismiss broadcast notification
+app.post('/api/broadcast/dismiss', requireAuth, async (req, res) => {
+    try {
+        const { recipientId } = req.body;
+        const userId = req.currentUser?.id;
+        
+        if (!recipientId || !userId) {
+            return res.status(400).json({ success: false, error: 'Invalid request' });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        await pool.request()
+            .input('recipientId', sql.Int, recipientId)
+            .input('userId', sql.Int, userId)
+            .query(`
+                UPDATE BroadcastRecipients 
+                SET dismissed_at = GETDATE()
+                WHERE id = @recipientId AND user_id = @userId
+            `);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error dismissing notification:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Mark all as read
+app.post('/api/broadcast/mark-all-read', requireAuth, async (req, res) => {
+    try {
+        const userId = req.currentUser?.id;
+        
+        if (!userId) {
+            return res.status(400).json({ success: false, error: 'Invalid request' });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        await pool.request()
+            .input('userId', sql.Int, userId)
+            .query(`
+                UPDATE BroadcastRecipients 
+                SET read_at = GETDATE()
+                WHERE user_id = @userId AND read_at IS NULL
+            `);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error marking all as read:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Get audit by ID
 app.get('/api/audits/:auditId', requireAuth, async (req, res) => {
     try {
