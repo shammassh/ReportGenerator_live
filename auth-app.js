@@ -23,6 +23,67 @@ const StoreService = require('./audit-app/services/store-service');
 const AuditService = require('./audit-app/services/audit-service');
 const AuditReportGenerator = require('./audit-app/report-generator');
 const ScoreCalculatorService = require('./audit-app/services/score-calculator-service');
+const TokenRefreshService = require('./auth/services/token-refresh-service');
+const SessionManager = require('./auth/services/session-manager');
+
+/**
+ * Helper function to get a valid access token, refreshing if expired
+ * @param {object} req - Express request object with currentUser and sessionToken
+ * @returns {Promise<string|null>} Valid access token or null
+ */
+async function getValidAccessToken(req) {
+    const user = req.currentUser;
+    const sessionToken = req.sessionToken;
+    
+    console.log('🔑 [TOKEN] getValidAccessToken called');
+    console.log('🔑 [TOKEN] sessionToken exists:', !!sessionToken);
+    console.log('🔑 [TOKEN] user exists:', !!user);
+    console.log('🔑 [TOKEN] user.accessToken length:', user?.accessToken?.length || 0);
+    
+    if (!user || !sessionToken) {
+        console.log('❌ [TOKEN] No user or session token');
+        return null;
+    }
+    
+    // Try current token first
+    if (user.accessToken) {
+        console.log('🔑 [TOKEN] Checking if current token is valid...');
+        const isValid = await TokenRefreshService.isTokenValid(user.accessToken);
+        console.log('🔑 [TOKEN] Current token valid:', isValid);
+        if (isValid) {
+            return user.accessToken;
+        }
+    }
+    
+    // Token expired - try to refresh
+    console.log('⏰ [TOKEN] Access token expired, attempting refresh...');
+    
+    // Get session with refresh token
+    const session = await SessionManager.getSession(sessionToken);
+    console.log('🔑 [TOKEN] Session retrieved:', !!session);
+    console.log('🔑 [TOKEN] Refresh token exists:', !!session?.azure_refresh_token);
+    console.log('🔑 [TOKEN] Refresh token length:', session?.azure_refresh_token?.length || 0);
+    
+    if (!session || !session.azure_refresh_token) {
+        console.log('❌ [TOKEN] No refresh token available in session');
+        return null;
+    }
+    
+    // Refresh the token
+    console.log('🔑 [TOKEN] Calling TokenRefreshService.refreshAccessToken...');
+    const newTokens = await TokenRefreshService.refreshAccessToken(sessionToken, session.azure_refresh_token);
+    console.log('🔑 [TOKEN] Refresh result:', !!newTokens);
+    
+    if (newTokens) {
+        console.log('✅ [TOKEN] Token refreshed successfully');
+        // Update req.currentUser with new token for this request
+        req.currentUser.accessToken = newTokens.accessToken;
+        return newTokens.accessToken;
+    }
+    
+    console.log('❌ [TOKEN] Token refresh failed');
+    return null;
+}
 
 // Initialize Action Plan Service
 const actionPlanService = new ActionPlanService();
@@ -2235,12 +2296,11 @@ app.post('/api/broadcast/send', requireAuth, requireRole('Admin', 'SuperAuditor'
         const dbConfig = require('./config/default').database;
         const pool = await sql.connect(dbConfig);
         
-        // Get sender info from session (with safe checks)
-        const session = req.session || {};
-        const sessionUser = session.user || {};
-        const senderName = sessionUser.displayName || sessionUser.name || 'System';
-        const senderEmail = sessionUser.email || '';
-        const senderUserId = sessionUser.dbUserId || null;
+        // Get sender info from currentUser (set by requireAuth middleware)
+        const currentUser = req.currentUser || {};
+        const senderName = currentUser.displayName || currentUser.name || currentUser.email || 'System';
+        const senderEmail = currentUser.email || '';
+        const senderUserId = currentUser.id || null;
         
         console.log('📢 Broadcast sender:', senderName, senderEmail);
         
@@ -2287,33 +2347,34 @@ app.post('/api/broadcast/send', requireAuth, requireRole('Admin', 'SuperAuditor'
                 const EmailService = require('./services/email-notification-service');
                 const emailService = new EmailService(connector);
                 const typeEmojis = { Announcement: '📢', Reminder: '⚠️', Urgent: '🚨' };
-                const emailSubject = `${typeEmojis[type] || '📢'} ${title}`;
                 
-                const emailBody = `
-                    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px 10px 0 0;">
-                            <h1 style="color: white; margin: 0; font-size: 24px;">${typeEmojis[type] || '📢'} ${type}</h1>
-                        </div>
-                        <div style="background: #f8fafc; padding: 24px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 10px 10px;">
-                            <h2 style="color: #1f2937; margin-top: 0;">${title}</h2>
-                            <div style="color: #4b5563; line-height: 1.6; white-space: pre-wrap;">${message}</div>
-                            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-                            <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-                                Sent by ${senderName} via Food Safety Audit System
-                            </p>
-                        </div>
-                    </div>
-                `;
+                // Use dynamic email template
+                const emailTemplateService = require('./services/email-template-service');
+                const emailData = await emailTemplateService.buildEmail('broadcast_announcement', {
+                    broadcast_type: type,
+                    type_emoji: typeEmojis[type] || '📢',
+                    title: title,
+                    message: message,
+                    sender_name: senderName,
+                    sender_email: senderEmail,
+                    recipient_name: recipient.display_name || recipient.email
+                });
                 
-                // sendEmail expects: (to, subject, htmlBody, ccRecipients, userAccessToken)
-                // Use user's access token for delegated permission (sends from their mailbox)
-                const userAccessToken = req.currentUser?.accessToken || null;
+                const emailSubject = emailData.subject;
+                const emailBody = emailData.html;
+                
+                // Get valid access token (refresh if expired)
+                const validAccessToken = await getValidAccessToken(req);
+                if (!validAccessToken) {
+                    throw new Error('Session expired. Please log in again.');
+                }
+                
                 await emailService.sendEmail(
                     [recipient.email],  // to (array)
                     emailSubject,       // subject
                     emailBody,          // htmlBody
                     null,               // ccRecipients
-                    userAccessToken     // Use logged-in user's token to send from their mailbox
+                    validAccessToken    // Use refreshed token
                 );
                 
                 emailSent = true;
@@ -3036,6 +3097,164 @@ app.delete('/api/calendar/recurring/:id', requireAuth, requireRole('Admin', 'Sup
 // END AUDIT CALENDAR API ROUTES
 // ==========================================
 
+// ==========================================
+// EMAIL TEMPLATE MANAGEMENT API ROUTES
+// ==========================================
+
+const emailTemplateService = require('./services/email-template-service');
+
+// Serve email templates management page
+app.get('/admin/email-templates', requireAuth, requireRole('Admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'audit-app', 'pages', 'email-templates.html'));
+});
+
+// Get all email templates
+app.get('/api/admin/email-templates', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const templates = await emailTemplateService.getAllTemplates();
+        res.json({ success: true, templates });
+    } catch (error) {
+        console.error('Error fetching email templates:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Update email template
+app.put('/api/admin/email-templates/:key', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const templateKey = req.params.key;
+        const updates = req.body;
+        const userId = req.currentUser?.id;
+        const userName = req.currentUser?.displayName || req.currentUser?.email;
+        
+        const result = await emailTemplateService.updateTemplate(templateKey, updates, userId, userName);
+        
+        if (result.success) {
+            res.json({ success: true });
+        } else {
+            res.status(500).json({ success: false, error: result.error });
+        }
+    } catch (error) {
+        console.error('Error updating email template:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Initialize default templates
+app.post('/api/admin/email-templates/initialize', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const result = await emailTemplateService.insertDefaultTemplates();
+        if (result.success) {
+            res.json({ success: true, message: 'Default templates initialized' });
+        } else {
+            res.status(500).json({ success: false, error: result.error });
+        }
+    } catch (error) {
+        console.error('Error initializing templates:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Reset template to default
+app.post('/api/admin/email-templates/:key/reset', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const templateKey = req.params.key;
+        const defaults = emailTemplateService.getDefaultTemplates();
+        const defaultTemplate = defaults.find(t => t.template_key === templateKey);
+        
+        if (!defaultTemplate) {
+            return res.status(404).json({ success: false, error: 'Default template not found' });
+        }
+        
+        const updates = {
+            template_name: defaultTemplate.template_name,
+            description: defaultTemplate.description,
+            subject_template: defaultTemplate.subject_template,
+            html_body: defaultTemplate.html_body,
+            is_active: true
+        };
+        
+        const userId = req.currentUser?.id;
+        const userName = req.currentUser?.displayName || req.currentUser?.email;
+        
+        const result = await emailTemplateService.updateTemplate(templateKey, updates, userId, userName);
+        
+        if (result.success) {
+            res.json({ success: true, message: 'Template reset to default' });
+        } else {
+            res.status(500).json({ success: false, error: result.error });
+        }
+    } catch (error) {
+        console.error('Error resetting template:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Send test email
+app.post('/api/admin/email-templates/test', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const { templateKey, recipientEmail, subject, body } = req.body;
+        
+        if (!recipientEmail) {
+            return res.status(400).json({ success: false, error: 'Recipient email required' });
+        }
+        
+        // Replace placeholders with sample data
+        let testSubject = subject
+            .replace(/\{\{storeName\}\}/gi, 'Spinneys Dbayeh')
+            .replace(/\{\{documentNumber\}\}/gi, 'GMRL-FSACR-TEST')
+            .replace(/\{\{typeEmoji\}\}/gi, '📧')
+            .replace(/\{\{title\}\}/gi, 'Test Email');
+            
+        let testBody = body
+            .replace(/\{\{recipientName\}\}/gi, 'Test User')
+            .replace(/\{\{storeName\}\}/gi, 'Spinneys Dbayeh')
+            .replace(/\{\{documentNumber\}\}/gi, 'GMRL-FSACR-TEST')
+            .replace(/\{\{auditDate\}\}/gi, new Date().toLocaleDateString())
+            .replace(/\{\{score\}\}/gi, '85%')
+            .replace(/\{\{reportUrl\}\}/gi, '#')
+            .replace(/\{\{dashboardUrl\}\}/gi, '#')
+            .replace(/\{\{typeEmoji\}\}/gi, '📧')
+            .replace(/\{\{type\}\}/gi, 'Test')
+            .replace(/\{\{title\}\}/gi, 'Test Email')
+            .replace(/\{\{message\}\}/gi, 'This is a test email.')
+            .replace(/\{\{senderName\}\}/gi, req.currentUser?.displayName || 'Admin')
+            .replace(/\{\{submittedBy\}\}/gi, 'Test User')
+            .replace(/\{\{auditorName\}\}/gi, 'Test Auditor')
+            .replace(/\{\{auditTime\}\}/gi, '10:00 AM')
+            .replace(/\{\{checklistName\}\}/gi, 'Food Safety Audit')
+            .replace(/\{\{notes\}\}/gi, 'Test notes')
+            .replace(/\{\{calendarUrl\}\}/gi, '#');
+        
+        // Use email service to send
+        const SimpleGraphConnector = require('./src/simple-graph-connector');
+        const connector = new SimpleGraphConnector();
+        const EmailService = require('./services/email-notification-service');
+        const emailService = new EmailService(connector);
+        
+        const result = await emailService.sendEmail(
+            [recipientEmail],
+            `[TEST] ${testSubject}`,
+            testBody,
+            null,
+            req.currentUser?.accessToken
+        );
+        
+        if (result.success) {
+            res.json({ success: true, message: 'Test email sent' });
+        } else {
+            res.status(500).json({ success: false, error: result.error });
+        }
+    } catch (error) {
+        console.error('Error sending test email:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ==========================================
+// END EMAIL TEMPLATE MANAGEMENT API ROUTES
+// ==========================================
+
 // Get audit by ID
 app.get('/api/audits/:auditId', requireAuth, async (req, res) => {
     try {
@@ -3717,68 +3936,48 @@ app.post('/api/audits/save-report-for-store-manager', requireAuth, requireRole('
                     
                     const emailService = new EmailNotificationService(connector);
                     
+                    // Use dynamic email template from database
+                    const emailTemplateService = require('./services/email-template-service');
+                    
                     for (const manager of managers) {
                         const recipientName = manager.display_name || manager.email.split('@')[0];
+                        const scoreColor = totalScore >= 83 ? '#10b981' : '#ef4444';
                         
-                        // Build email HTML with your template
-                        const emailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-        .content { background: #f9fafb; padding: 25px; border: 1px solid #e5e7eb; }
-        .button { display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 15px 0; }
-        .button:hover { background: #059669; }
-        .footer { background: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #6b7280; border-radius: 0 0 8px 8px; }
-        .highlight { background: #ecfdf5; padding: 15px; border-left: 4px solid #10b981; margin: 15px 0; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🍽️ Food Safety Audit Report</h1>
-        </div>
-        <div class="content">
-            <p>Dear ${recipientName},</p>
-            
-            <p>The Food Safety Report for your store has been successfully submitted and is now available on the online dashboard.</p>
-            
-            <div class="highlight">
-                <strong>📋 Store:</strong> ${storeName}<br>
-                <strong>📄 Document:</strong> ${documentNumber}<br>
-                <strong>📊 Score:</strong> ${totalScore ? Math.round(totalScore) + '%' : 'N/A'}
-            </div>
-            
-            <p>You can access the report via the following link:</p>
-            
-            <p style="text-align: center;">
-                <a href="${reportUrl}" class="button">📄 View Report</a>
-            </p>
-            
-            <p><strong>⚠️ Please review the report and ensure filling the action plan along with accompanying photos within one week.</strong></p>
-            
-            <p>If you have any questions, don't hesitate to contact the food safety team.</p>
-            
-            <p>Thank you.</p>
-        </div>
-        <div class="footer">
-            <p>Food Safety Audit System | GMRL Group</p>
-        </div>
-    </div>
-</body>
-</html>`;
+                        // Build email using dynamic template
+                        const emailData = await emailTemplateService.buildEmail('report_notification', {
+                            recipientName: recipientName,
+                            storeName: storeName,
+                            documentNumber: documentNumber,
+                            auditDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                            score: totalScore ? Math.round(totalScore) + '%' : 'N/A',
+                            scoreColor: scoreColor,
+                            reportUrl: reportUrl,
+                            dashboardUrl: baseUrl + '/dashboard'
+                        });
                         
-                        // Use user's delegated token only
+                        let emailSubject, emailHtml;
+                        if (emailData) {
+                            emailSubject = emailData.subject;
+                            emailHtml = emailData.html;
+                            console.log(`📧 [EMAIL] Using dynamic template: report_notification`);
+                        } else {
+                            // Fallback to simple email if template not found
+                            emailSubject = `Food Safety Audit Report - ${storeName} (${documentNumber})`;
+                            emailHtml = `<p>Dear ${recipientName},</p><p>A new audit report is available for ${storeName}.</p><p><a href="${reportUrl}">View Report</a></p>`;
+                            console.log(`📧 [EMAIL] Template not found, using fallback`);
+                        }
+                        // Use user's delegated token only (refresh if expired)
+                        const validAccessToken = await getValidAccessToken(req);
+                        if (!validAccessToken) {
+                            throw new Error('Session expired. Please log in again.');
+                        }
+                        
                         const result = await emailService.sendEmail(
                             [manager.email],
-                            `Food Safety Audit Report - ${storeName} (${documentNumber})`,
+                            emailSubject,
                             emailHtml,
                             null, // CC recipients
-                            user.accessToken
+                            validAccessToken
                         );
                         
                         if (result.success) {
@@ -4196,14 +4395,19 @@ app.post('/api/generate-report', requireAuth, requireRole('Admin', 'Auditor'), a
                         const dbConfig = require('./config/default').database;
                         const pool = await sql.connect(dbConfig);
                         
-                        // Send notifications using user's delegated token
+                        // Send notifications using user's delegated token (refresh if expired)
+                        const validAccessToken = await getValidAccessToken(req);
+                        if (!validAccessToken) {
+                            throw new Error('Session expired. Please log in again to send emails.');
+                        }
+                        
                         notificationResult = await emailService.notifyReportGeneration(
                             reportData,
                             { 
                                 email: user.email, 
                                 name: user.displayName || user.email,
                                 azureUserId: user.azureUserId,
-                                accessToken: user.accessToken // Use user's delegated token from session
+                                accessToken: validAccessToken // Use refreshed token
                             },
                             pool,
                             selectedRecipients // Pass selected recipients array
@@ -4651,7 +4855,7 @@ app.get('/api/action-plan/:documentNumber', requireAuth, async (req, res) => {
  */
 app.post('/api/action-plan/send-email', requireAuth, async (req, res) => {
     try {
-        const { documentNumber, storeName, auditDate, score } = req.body;
+        const { documentNumber, storeName, auditDate, score, testEmail } = req.body;
         const user = req.currentUser;
         
         if (!documentNumber || !storeName) {
@@ -4672,134 +4876,63 @@ app.post('/api/action-plan/send-email', requireAuth, async (req, res) => {
         const connector = req.app.locals.sharePointConnector;
         const emailService = new EmailNotificationService(connector);
         
-        // Get store manager recipients for this store
-        const recipients = await emailService.getReportRecipients(storeName, pool);
+        let recipientEmails;
         
-        if (recipients.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'No store managers found for this store'
-            });
+        // If testEmail provided (for testing), use that instead of looking up store managers
+        if (testEmail) {
+            console.log(`📧 [API] TEST MODE: Sending to ${testEmail}`);
+            recipientEmails = [testEmail];
+        } else {
+            // Get store manager recipients for this store
+            const recipients = await emailService.getReportRecipients(storeName, pool);
+            
+            if (recipients.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'No store managers found for this store'
+                });
+            }
+            
+            // Extract recipient emails
+            recipientEmails = recipients.map(r => r.email);
         }
-        
-        // Extract recipient emails
-        const recipientEmails = recipients.map(r => r.email);
         
         console.log(`📧 [API] Found recipients: ${recipientEmails.join(', ')}`);
         
-        // Build email content
+        // Build email content using dynamic template
         const reportUrl = `${process.env.APP_BASE_URL || 'https://pappreports.gmrlapps.com:3001'}/reports/Action_Plan_Report_${documentNumber}_${new Date().toISOString().split('T')[0]}.html`;
         
-        const subject = `🎯 Action Plan Ready - ${storeName} - ${documentNumber}`;
+        // Use dynamic email template
+        const emailTemplateService = require('./services/email-template-service');
+        const emailData = await emailTemplateService.buildEmail('action_plan_ready', {
+            document_number: documentNumber,
+            store_name: storeName,
+            audit_date: auditDate || 'N/A',
+            score: score || 'N/A',
+            score_color: parseFloat(score) >= 70 ? '#27ae60' : '#e74c3c',
+            report_url: reportUrl,
+            recipient_name: 'Store Manager'
+        });
         
-        const htmlBody = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f4f4; padding: 20px 0;">
-                <tr>
-                    <td align="center">
-                        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                            <!-- Header -->
-                            <tr>
-                                <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                                    <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">🎯 Action Plan Report</h1>
-                                    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">Food Safety Audit System</p>
-                                </td>
-                            </tr>
-                            
-                            <!-- Content -->
-                            <tr>
-                                <td style="padding: 40px 30px;">
-                                    <h2 style="color: #2c3e50; margin: 0 0 20px 0; font-size: 22px;">Dear Store Manager,</h2>
-                                    
-                                    <p style="font-size: 16px; line-height: 1.8; color: #34495e; margin: 0 0 30px 0;">
-                                        The Action Plan for your store audit is now ready for your review and action.
-                                    </p>
-                                    
-                                    <!-- Info Box -->
-                                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f8f9fa; border-radius: 8px; margin: 0 0 30px 0; border: 1px solid #e9ecef;">
-                                        <tr>
-                                            <td style="padding: 25px;">
-                                                <table width="100%" cellpadding="8" cellspacing="0" border="0">
-                                                    <tr>
-                                                        <td style="color: #7f8c8d; font-size: 14px; width: 40%; vertical-align: top;">📄 Document Number:</td>
-                                                        <td style="font-weight: bold; color: #2c3e50; font-size: 15px;">${documentNumber}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style="color: #7f8c8d; font-size: 14px; padding-top: 15px; vertical-align: top;">🏪 Store Name:</td>
-                                                        <td style="font-weight: bold; color: #2c3e50; font-size: 15px; padding-top: 15px;">${storeName}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style="color: #7f8c8d; font-size: 14px; padding-top: 15px; vertical-align: top;">📅 Audit Date:</td>
-                                                        <td style="font-weight: bold; color: #2c3e50; font-size: 15px; padding-top: 15px;">${auditDate || 'N/A'}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style="color: #7f8c8d; font-size: 14px; padding-top: 15px; vertical-align: top;">📊 Audit Score:</td>
-                                                        <td style="font-weight: bold; color: ${parseFloat(score) >= 70 ? '#27ae60' : '#e74c3c'}; font-size: 18px; padding-top: 15px;">${score || 'N/A'}</td>
-                                                    </tr>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                    
-                                    <!-- CTA Button -->
-                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                                        <tr>
-                                            <td align="center" style="padding: 20px 0;">
-                                                <a href="${reportUrl}" style="display: inline-block; background: #2c3e50; color: white; padding: 18px 50px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 17px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border: 2px solid #2c3e50;">
-                                                    📋 View Action Plan
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                    
-                                    <!-- Warning Box -->
-                                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 5px; margin: 30px 0 0 0;">
-                                        <tr>
-                                            <td style="padding: 20px;">
-                                                <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
-                                                    <strong>⚠️ Important:</strong> Please review the findings and take necessary corrective actions. Update the action plan with your progress.
-                                                </p>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                    
-                                    <p style="font-size: 14px; color: #7f8c8d; margin: 30px 0 0 0; line-height: 1.6;">
-                                        Best regards,<br>
-                                        <strong style="color: #2c3e50;">Food Safety Audit Team</strong>
-                                    </p>
-                                </td>
-                            </tr>
-                            
-                            <!-- Footer -->
-                            <tr>
-                                <td style="text-align: center; padding: 25px 30px; background: #f8f9fa; border-radius: 0 0 10px 10px; border-top: 1px solid #e9ecef;">
-                                    <p style="margin: 0; color: #95a5a6; font-size: 12px; line-height: 1.5;">
-                                        This is an automated notification from the Food Safety Audit System.<br>
-                                        Please do not reply to this email.
-                                    </p>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </body>
-        </html>
-        `;
+        const subject = emailData.subject;
+        const htmlBody = emailData.html;
         
-        // Send email using user's delegated token
+        // Get valid access token (refresh if expired)
+        const validAccessToken = await getValidAccessToken(req);
+        if (!validAccessToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'Session expired. Please log out and log in again.'
+            });
+        }
+        
+        // Send email using refreshed token
         const result = await emailService.sendEmail(
             recipientEmails,
             subject,
             htmlBody,
             null,
-            user.accessToken
+            validAccessToken
         );
         
         if (result.success) {
@@ -4895,69 +5028,36 @@ app.post('/api/action-plan/submit-to-auditor', requireAuth, async (req, res) => 
         // Initialize email service (pass null since we're using user's delegated token)
         const emailService = new EmailNotificationService(null);
         
-        const subject = `Action Plan Submitted`;
+        // Use dynamic email template
+        const emailTemplateService = require('./services/email-template-service');
+        const emailData = await emailTemplateService.buildEmail('action_plan_submitted', {
+            document_number: documentNumber,
+            store_name: storeName,
+            audit_date: auditDate || 'N/A',
+            score: score || 'N/A',
+            submitter_name: user.displayName || user.email,
+            submitter_email: user.email
+        });
         
-        const htmlBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="padding: 30px;">
-                <p style="font-size: 16px; line-height: 1.6; color: #333;">
-                    Subject: Action Plan Submitted
-                </p>
-                
-                <p style="font-size: 16px; line-height: 1.6; color: #333;">
-                    Dear Food Safety Team,
-                </p>
-                
-                <p style="font-size: 16px; line-height: 1.6; color: #333;">
-                    The action plan related to the Food Safety Report sent has been completed and saved on the online dashboard.
-                </p>
-                
-                <p style="font-size: 16px; line-height: 1.6; color: #333;">
-                    Thank you.
-                </p>
-            </div>
-        </div>
-        `;
+        const subject = emailData.subject;
+        const htmlBody = emailData.html;
         
         // Get valid access token (refresh if expired)
-        const TokenRefreshService = require('./auth/services/token-refresh-service');
-        const session = await require('./auth/services/session-manager').getSession(req.sessionToken);
-        
-        let accessToken = user.accessToken;
-        
-        // Check if we have a refresh token to use
-        if (session && session.azure_refresh_token) {
-            accessToken = await TokenRefreshService.getValidAccessToken(
-                req.sessionToken,
-                user.accessToken,
-                session.azure_refresh_token
-            );
-        } else {
-            // No refresh token - check if current token is still valid
-            const isValid = await TokenRefreshService.isTokenValid(user.accessToken);
-            if (!isValid) {
-                console.log('❌ [API] Token expired and no refresh token available');
-                return res.status(401).json({
-                    success: false,
-                    error: 'Your session has expired. Please log out and log in again to send emails.'
-                });
-            }
-        }
-        
-        if (!accessToken) {
+        const validAccessToken = await getValidAccessToken(req);
+        if (!validAccessToken) {
             return res.status(401).json({
                 success: false,
                 error: 'Session expired. Please log out and log in again.'
             });
         }
         
-        // Send email using user's delegated token
+        // Send email using refreshed token
         const result = await emailService.sendEmail(
             recipientEmails,
             subject,
             htmlBody,
             ccEmails.length > 0 ? ccEmails : null,
-            accessToken
+            validAccessToken
         );
         
         if (result.success) {

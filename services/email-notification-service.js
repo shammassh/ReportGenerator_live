@@ -6,7 +6,8 @@
  */
 
 const sql = require('mssql');
-const EmailTemplates = require('./email-templates');
+const EmailTemplates = require('./email-templates'); // Legacy static templates (fallback)
+const emailTemplateService = require('./email-template-service'); // Dynamic templates from database
 
 class EmailNotificationService {
     constructor(connector) {
@@ -275,38 +276,53 @@ class EmailNotificationService {
             try {
                 console.log(`📧 [EMAIL] Sending to: ${recipient.email} (${recipient.role})`);
 
-                // Generate personalized email
-                const emailHtml = EmailTemplates.generateReportNotificationEmail({
-                    documentNumber,
-                    storeName,
-                    auditDate,
-                    overallScore,
-                    auditor,
+                // Determine score color
+                const scoreColor = overallScore >= 83 ? '#10b981' : '#ef4444';
+                
+                // Try to use dynamic template from database first
+                let subject, emailHtml;
+                const templateData = {
                     recipientName: recipient.name,
-                    recipientRole: recipient.role,
-                    dashboardUrl,
-                    reportUrl
-                });
-
-                const plainText = EmailTemplates.generatePlainTextVersion({
-                    documentNumber,
-                    storeName,
-                    auditDate,
-                    overallScore,
-                    auditor,
-                    recipientName: recipient.name,
-                    recipientRole: recipient.role,
-                    dashboardUrl
-                });
-
-                const subject = `🍽️ New Audit Report: ${storeName} - ${documentNumber}`;
+                    storeName: storeName,
+                    documentNumber: documentNumber,
+                    auditDate: auditDate,
+                    score: `${overallScore}%`,
+                    scoreColor: scoreColor,
+                    reportUrl: reportUrl || dashboardUrl,
+                    dashboardUrl: dashboardUrl,
+                    auditorName: auditor || 'Food Safety Team'
+                };
+                
+                const dynamicEmail = await emailTemplateService.buildEmail('report_notification', templateData);
+                
+                if (dynamicEmail) {
+                    // Use dynamic template from database
+                    subject = dynamicEmail.subject;
+                    emailHtml = dynamicEmail.html;
+                    console.log(`📧 [EMAIL] Using dynamic template: report_notification`);
+                } else {
+                    // Fallback to legacy static template
+                    console.log(`📧 [EMAIL] Fallback to static template`);
+                    emailHtml = EmailTemplates.generateReportNotificationEmail({
+                        documentNumber,
+                        storeName,
+                        auditDate,
+                        overallScore,
+                        auditor,
+                        recipientName: recipient.name,
+                        recipientRole: recipient.role,
+                        dashboardUrl,
+                        reportUrl
+                    });
+                    subject = `🍽️ New Audit Report: ${storeName} - ${documentNumber}`;
+                }
 
                 // Send email using sender's access token from session
                 const result = await this.sendEmail(
                     [recipient.email],
                     subject,
                     emailHtml,
-                    plainText,
+                    null, // No plain text for dynamic templates
                     sentBy.accessToken // Pass user's token from session
                 );
 
