@@ -2571,6 +2571,471 @@ app.post('/api/broadcast/mark-all-read', requireAuth, async (req, res) => {
     }
 });
 
+// ==========================================
+// AUDIT CALENDAR API ROUTES
+// ==========================================
+
+// Serve calendar page
+app.get('/admin/audit-calendar', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'audit-app', 'pages', 'audit-calendar.html'));
+});
+
+// Get auditors list for calendar
+app.get('/api/calendar/auditors', requireAuth, async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request().query(`
+            SELECT id, display_name, email 
+            FROM Users 
+            WHERE role IN ('Auditor', 'SuperAuditor', 'Admin') 
+            AND is_approved = 1
+            ORDER BY display_name
+        `);
+        
+        res.json({ success: true, auditors: result.recordset });
+    } catch (error) {
+        console.error('Error fetching auditors:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get checklists for calendar
+app.get('/api/calendar/checklists', requireAuth, async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request().query(`
+            SELECT SchemaID as id, SchemaName as name, Description as description
+            FROM AuditSchemas 
+            WHERE IsActive = 1
+            ORDER BY SchemaName
+        `);
+        
+        res.json({ success: true, checklists: result.recordset });
+    } catch (error) {
+        console.error('Error fetching checklists:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get scheduled audits for calendar view
+app.get('/api/calendar/audits', requireAuth, async (req, res) => {
+    try {
+        const { year, month, store_id, auditor_id } = req.query;
+        const userRole = req.currentUser?.role;
+        const userId = req.currentUser?.id;
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        let whereClause = '1=1';
+        const request = pool.request();
+        
+        // Date range filter
+        if (year && month) {
+            const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+            const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+            whereClause += ` AND sa.scheduled_date BETWEEN @startDate AND @endDate`;
+            request.input('startDate', sql.Date, startDate);
+            request.input('endDate', sql.Date, endDate);
+        }
+        
+        // Role-based filtering
+        if (userRole === 'Auditor') {
+            // Auditors only see their own scheduled audits
+            whereClause += ` AND sa.auditor_user_id = @userId`;
+            request.input('userId', sql.Int, userId);
+        } else if (userRole === 'StoreManager') {
+            // Store managers see audits for their assigned stores
+            whereClause += ` AND sa.store_id IN (
+                SELECT store_id FROM UserAssignments WHERE user_id = @userId
+            )`;
+            request.input('userId', sql.Int, userId);
+        }
+        
+        // Optional filters
+        if (store_id) {
+            whereClause += ` AND sa.store_id = @storeId`;
+            request.input('storeId', sql.Int, store_id);
+        }
+        if (auditor_id) {
+            whereClause += ` AND sa.auditor_user_id = @auditorId`;
+            request.input('auditorId', sql.Int, auditor_id);
+        }
+        
+        const result = await request.query(`
+            SELECT 
+                sa.id,
+                sa.store_id,
+                COALESCE(s.StoreName, sa.store_name) AS store_name,
+                sa.checklist_schema_id,
+                COALESCE(cs.SchemaName, sa.checklist_name) AS checklist_name,
+                sa.auditor_user_id,
+                COALESCE(u.display_name, sa.auditor_name) AS auditor_name,
+                CONVERT(VARCHAR(10), sa.scheduled_date, 120) AS scheduled_date,
+                CONVERT(VARCHAR(5), sa.scheduled_time, 108) AS scheduled_time,
+                sa.priority,
+                sa.status,
+                sa.notes,
+                sa.recurring_rule_id,
+                sa.actual_audit_id
+            FROM ScheduledAudits sa
+            LEFT JOIN Stores s ON sa.store_id = s.StoreID
+            LEFT JOIN AuditSchemas cs ON sa.checklist_schema_id = cs.SchemaID
+            LEFT JOIN Users u ON sa.auditor_user_id = u.id
+            WHERE ${whereClause}
+            ORDER BY sa.scheduled_date, sa.scheduled_time
+        `);
+        
+        res.json({ success: true, audits: result.recordset });
+    } catch (error) {
+        console.error('Error fetching scheduled audits:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Create scheduled audit
+app.post('/api/calendar/audits', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const { store_id, scheduled_date, scheduled_time, auditor_user_id, checklist_schema_id, priority, notes } = req.body;
+        const createdBy = req.currentUser?.id;
+        
+        if (!store_id || !scheduled_date) {
+            return res.status(400).json({ success: false, error: 'Store and date are required' });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // Get store name
+        const storeResult = await pool.request()
+            .input('storeId', sql.Int, store_id)
+            .query('SELECT StoreName FROM Stores WHERE StoreID = @storeId');
+        const storeName = storeResult.recordset[0]?.StoreName;
+        
+        // Handle empty string as null for time
+        const timeValue = scheduled_time && scheduled_time.trim() !== '' ? scheduled_time : null;
+        
+        const result = await pool.request()
+            .input('storeId', sql.Int, store_id)
+            .input('storeName', sql.NVarChar, storeName)
+            .input('scheduledDate', sql.Date, scheduled_date)
+            .input('scheduledTime', sql.NVarChar, timeValue)
+            .input('auditorId', sql.Int, auditor_user_id || null)
+            .input('checklistId', sql.Int, checklist_schema_id || null)
+            .input('priority', sql.NVarChar, priority || 'Normal')
+            .input('notes', sql.NVarChar, notes || null)
+            .input('createdBy', sql.Int, createdBy)
+            .query(`
+                INSERT INTO ScheduledAudits 
+                (store_id, store_name, scheduled_date, scheduled_time, auditor_user_id, checklist_schema_id, priority, notes, created_by)
+                OUTPUT INSERTED.id
+                VALUES (@storeId, @storeName, @scheduledDate, @scheduledTime, @auditorId, @checklistId, @priority, @notes, @createdBy)
+            `);
+        
+        res.json({ success: true, id: result.recordset[0].id });
+    } catch (error) {
+        console.error('Error creating scheduled audit:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Update scheduled audit
+app.put('/api/calendar/audits/:id', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const auditId = req.params.id;
+        const { store_id, scheduled_date, scheduled_time, auditor_user_id, checklist_schema_id, priority, notes, status } = req.body;
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // Get store name if store changed
+        let storeName = null;
+        if (store_id) {
+            const storeResult = await pool.request()
+                .input('storeId', sql.Int, store_id)
+                .query('SELECT StoreName FROM Stores WHERE StoreID = @storeId');
+            storeName = storeResult.recordset[0]?.StoreName;
+        }
+        
+        // Handle empty string as null for time
+        const timeValue = scheduled_time && scheduled_time.trim() !== '' ? scheduled_time : null;
+        
+        await pool.request()
+            .input('id', sql.Int, auditId)
+            .input('storeId', sql.Int, store_id || null)
+            .input('storeName', sql.NVarChar, storeName)
+            .input('scheduledDate', sql.Date, scheduled_date || null)
+            .input('scheduledTime', sql.NVarChar, timeValue)
+            .input('auditorId', sql.Int, auditor_user_id || null)
+            .input('checklistId', sql.Int, checklist_schema_id || null)
+            .input('priority', sql.NVarChar, priority || null)
+            .input('notes', sql.NVarChar, notes || null)
+            .input('status', sql.NVarChar, status || null)
+            .query(`
+                UPDATE ScheduledAudits SET
+                    store_id = COALESCE(@storeId, store_id),
+                    store_name = COALESCE(@storeName, store_name),
+                    scheduled_date = COALESCE(@scheduledDate, scheduled_date),
+                    scheduled_time = @scheduledTime,
+                    auditor_user_id = @auditorId,
+                    checklist_schema_id = @checklistId,
+                    priority = COALESCE(@priority, priority),
+                    notes = @notes,
+                    status = COALESCE(@status, status),
+                    updated_at = GETDATE()
+                WHERE id = @id
+            `);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error updating scheduled audit:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Delete (cancel) scheduled audit
+app.delete('/api/calendar/audits/:id', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const auditId = req.params.id;
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        await pool.request()
+            .input('id', sql.Int, auditId)
+            .query(`UPDATE ScheduledAudits SET status = 'Cancelled', updated_at = GETDATE() WHERE id = @id`);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error cancelling scheduled audit:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Create recurring audit rule
+app.post('/api/calendar/recurring', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const { 
+            store_id, frequency, day_of_week, day_of_month, week_of_month,
+            preferred_time, auditor_user_id, checklist_schema_id, 
+            start_date, end_date, notes 
+        } = req.body;
+        const createdBy = req.currentUser?.id;
+        
+        if (!store_id || !frequency || !start_date) {
+            return res.status(400).json({ success: false, error: 'Store, frequency, and start date are required' });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // Get store name
+        const storeResult = await pool.request()
+            .input('storeId', sql.Int, store_id)
+            .query('SELECT StoreName FROM Stores WHERE StoreID = @storeId');
+        const storeName = storeResult.recordset[0]?.StoreName;
+        
+        // Create the recurring rule
+        const ruleResult = await pool.request()
+            .input('storeId', sql.Int, store_id)
+            .input('storeName', sql.NVarChar, storeName)
+            .input('frequency', sql.NVarChar, frequency)
+            .input('dayOfWeek', sql.Int, day_of_week ?? null)
+            .input('dayOfMonth', sql.Int, day_of_month ?? null)
+            .input('weekOfMonth', sql.Int, week_of_month ?? null)
+            .input('preferredTime', sql.Time, preferred_time || null)
+            .input('auditorId', sql.Int, auditor_user_id || null)
+            .input('checklistId', sql.Int, checklist_schema_id || null)
+            .input('startDate', sql.Date, start_date)
+            .input('endDate', sql.Date, end_date || null)
+            .input('notes', sql.NVarChar, notes || null)
+            .input('createdBy', sql.Int, createdBy)
+            .query(`
+                INSERT INTO RecurringAuditRules 
+                (store_id, store_name, frequency, day_of_week, day_of_month, week_of_month, 
+                 preferred_time, default_auditor_id, default_checklist_id, start_date, end_date, notes, created_by)
+                OUTPUT INSERTED.id
+                VALUES (@storeId, @storeName, @frequency, @dayOfWeek, @dayOfMonth, @weekOfMonth,
+                        @preferredTime, @auditorId, @checklistId, @startDate, @endDate, @notes, @createdBy)
+            `);
+        
+        const ruleId = ruleResult.recordset[0].id;
+        
+        // Generate initial scheduled audits for the next 3 months
+        const auditsToCreate = generateRecurringDates(
+            { frequency, day_of_week, day_of_month, week_of_month, start_date, end_date },
+            90 // days ahead
+        );
+        
+        for (const auditDate of auditsToCreate) {
+            await pool.request()
+                .input('storeId', sql.Int, store_id)
+                .input('storeName', sql.NVarChar, storeName)
+                .input('scheduledDate', sql.Date, auditDate)
+                .input('scheduledTime', sql.Time, preferred_time || null)
+                .input('auditorId', sql.Int, auditor_user_id || null)
+                .input('checklistId', sql.Int, checklist_schema_id || null)
+                .input('ruleId', sql.Int, ruleId)
+                .input('createdBy', sql.Int, createdBy)
+                .query(`
+                    INSERT INTO ScheduledAudits 
+                    (store_id, store_name, scheduled_date, scheduled_time, auditor_user_id, 
+                     checklist_schema_id, recurring_rule_id, created_by)
+                    VALUES (@storeId, @storeName, @scheduledDate, @scheduledTime, @auditorId, 
+                            @checklistId, @ruleId, @createdBy)
+                `);
+        }
+        
+        res.json({ success: true, ruleId, auditsCreated: auditsToCreate.length });
+    } catch (error) {
+        console.error('Error creating recurring rule:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Helper function to generate recurring dates
+function generateRecurringDates(rule, daysAhead) {
+    const dates = [];
+    const startDate = new Date(rule.start_date);
+    const endDate = rule.end_date ? new Date(rule.end_date) : new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
+    const maxDate = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
+    const actualEndDate = endDate < maxDate ? endDate : maxDate;
+    
+    let currentDate = new Date(startDate);
+    
+    while (currentDate <= actualEndDate) {
+        let targetDate = null;
+        
+        switch (rule.frequency) {
+            case 'Weekly':
+                if (rule.day_of_week !== null && rule.day_of_week !== undefined) {
+                    const diff = (rule.day_of_week - currentDate.getDay() + 7) % 7;
+                    targetDate = new Date(currentDate);
+                    targetDate.setDate(currentDate.getDate() + (diff === 0 ? 0 : diff));
+                    currentDate.setDate(currentDate.getDate() + 7);
+                } else {
+                    targetDate = new Date(currentDate);
+                    currentDate.setDate(currentDate.getDate() + 7);
+                }
+                break;
+                
+            case 'BiWeekly':
+                if (rule.day_of_week !== null && rule.day_of_week !== undefined) {
+                    const diff = (rule.day_of_week - currentDate.getDay() + 7) % 7;
+                    targetDate = new Date(currentDate);
+                    targetDate.setDate(currentDate.getDate() + (diff === 0 ? 0 : diff));
+                    currentDate.setDate(currentDate.getDate() + 14);
+                } else {
+                    targetDate = new Date(currentDate);
+                    currentDate.setDate(currentDate.getDate() + 14);
+                }
+                break;
+                
+            case 'Monthly':
+                if (rule.day_of_month === -1) {
+                    // Last day of month
+                    targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+                } else if (rule.day_of_month) {
+                    targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), rule.day_of_month);
+                    // Handle months with fewer days
+                    if (targetDate.getMonth() !== currentDate.getMonth()) {
+                        targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+                    }
+                } else {
+                    targetDate = new Date(currentDate);
+                }
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                break;
+                
+            case 'Quarterly':
+                if (rule.day_of_month === -1) {
+                    targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+                } else if (rule.day_of_month) {
+                    targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), rule.day_of_month);
+                    if (targetDate.getMonth() !== currentDate.getMonth()) {
+                        targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+                    }
+                } else {
+                    targetDate = new Date(currentDate);
+                }
+                currentDate.setMonth(currentDate.getMonth() + 3);
+                break;
+                
+            default:
+                currentDate.setDate(currentDate.getDate() + 7);
+        }
+        
+        if (targetDate && targetDate >= startDate && targetDate <= actualEndDate) {
+            dates.push(targetDate.toISOString().split('T')[0]);
+        }
+    }
+    
+    return dates;
+}
+
+// Get recurring rules
+app.get('/api/calendar/recurring', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request().query(`
+            SELECT 
+                r.*,
+                s.name AS store_name,
+                u.display_name AS auditor_name,
+                cs.name AS checklist_name
+            FROM RecurringAuditRules r
+            LEFT JOIN Stores s ON r.store_id = s.id
+            LEFT JOIN Users u ON r.default_auditor_id = u.id
+            LEFT JOIN ChecklistSchemas cs ON r.default_checklist_id = cs.id
+            WHERE r.is_active = 1
+            ORDER BY r.created_at DESC
+        `);
+        
+        res.json({ success: true, rules: result.recordset });
+    } catch (error) {
+        console.error('Error fetching recurring rules:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Deactivate recurring rule
+app.delete('/api/calendar/recurring/:id', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const ruleId = req.params.id;
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        await pool.request()
+            .input('id', sql.Int, ruleId)
+            .query(`UPDATE RecurringAuditRules SET is_active = 0, updated_at = GETDATE() WHERE id = @id`);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deactivating recurring rule:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ==========================================
+// END AUDIT CALENDAR API ROUTES
+// ==========================================
+
 // Get audit by ID
 app.get('/api/audits/:auditId', requireAuth, async (req, res) => {
     try {

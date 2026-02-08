@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Calendar - Food Safety Audit System</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.8em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .toolbar {
+            background: #f8fafc;
+            padding: 15px 30px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .view-tabs {
+            display: flex;
+            gap: 5px;
+            background: #e2e8f0;
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .view-tab {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+
+        .view-tab.active {
+            background: white;
+            color: #1e3c72;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .nav-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-btn {
+            width: 36px;
+            height: 36px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .current-period {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #1e293b;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .today-btn {
+            padding: 8px 16px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .today-btn:hover {
+            background: #f1f5f9;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+        }
+
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            min-width: 150px;
+        }
+
+        .calendar-container {
+            padding: 20px 30px;
+            min-height: 600px;
+        }
+
+        /* Month View */
+        .month-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #e2e8f0;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .day-header {
+            background: #f1f5f9;
+            padding: 12px;
+            text-align: center;
+            font-weight: 600;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .day-cell {
+            background: white;
+            min-height: 120px;
+            padding: 8px;
+            vertical-align: top;
+            position: relative;
+        }
+
+        .day-cell.other-month {
+            background: #f8fafc;
+        }
+
+        .day-cell.other-month .day-number {
+            color: #cbd5e1;
+        }
+
+        .day-cell.today {
+            background: #eff6ff;
+        }
+
+        .day-cell.today .day-number {
+            background: #3b82f6;
+            color: white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .day-number {
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .day-events {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .event {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: all 0.2s;
+        }
+
+        .event:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .event.scheduled { background: #dbeafe; color: #1e40af; }
+        .event.inprogress { background: #fef3c7; color: #92400e; }
+        .event.completed { background: #d1fae5; color: #065f46; }
+        .event.cancelled { background: #f3f4f6; color: #6b7280; text-decoration: line-through; }
+        .event.missed { background: #fee2e2; color: #991b1b; }
+        .event.urgent { background: #ffedd5; color: #c2410c; border-left: 3px solid #f97316; }
+        .event.followup { background: #ede9fe; color: #5b21b6; border-left: 3px solid #8b5cf6; }
+
+        .more-events {
+            font-size: 11px;
+            color: #6b7280;
+            padding: 2px 8px;
+            cursor: pointer;
+        }
+
+        .more-events:hover {
+            color: #3b82f6;
+        }
+
+        /* Week View */
+        .week-grid {
+            display: grid;
+            grid-template-columns: 80px repeat(7, 1fr);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .week-header {
+            display: contents;
+        }
+
+        .week-header-cell {
+            background: #f1f5f9;
+            padding: 15px 10px;
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .week-header-cell.time-col {
+            background: #f8fafc;
+        }
+
+        .week-day-name {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .week-day-number {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-top: 4px;
+        }
+
+        .week-body {
+            display: contents;
+        }
+
+        .time-slot {
+            background: #f8fafc;
+            padding: 10px;
+            font-size: 12px;
+            color: #64748b;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: right;
+            padding-right: 15px;
+        }
+
+        .week-cell {
+            background: white;
+            border-bottom: 1px solid #f1f5f9;
+            border-right: 1px solid #f1f5f9;
+            min-height: 60px;
+            padding: 4px;
+            position: relative;
+        }
+
+        .week-cell:hover {
+            background: #f8fafc;
+        }
+
+        /* List View */
+        .list-view {
+            background: white;
+        }
+
+        .list-header {
+            display: grid;
+            grid-template-columns: 120px 200px 150px 150px 100px 100px 1fr 100px;
+            background: #f1f5f9;
+            padding: 12px 15px;
+            font-weight: 600;
+            color: #64748b;
+            font-size: 13px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .list-row {
+            display: grid;
+            grid-template-columns: 120px 200px 150px 150px 100px 100px 1fr 100px;
+            padding: 15px;
+            border-bottom: 1px solid #f1f5f9;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .list-row:hover {
+            background: #f8fafc;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status-badge.scheduled { background: #dbeafe; color: #1e40af; }
+        .status-badge.completed { background: #d1fae5; color: #065f46; }
+        .status-badge.inprogress { background: #fef3c7; color: #92400e; }
+        .status-badge.cancelled { background: #f3f4f6; color: #6b7280; }
+        .status-badge.missed { background: #fee2e2; color: #991b1b; }
+
+        .priority-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .priority-badge.normal { background: #f1f5f9; color: #64748b; }
+        .priority-badge.urgent { background: #ffedd5; color: #c2410c; }
+        .priority-badge.follow-up { background: #ede9fe; color: #5b21b6; }
+
+        .action-btn {
+            padding: 6px 12px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #f1f5f9;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .modal-body {
+            padding: 25px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-group label .required {
+            color: #ef4444;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .modal-footer {
+            background: #f8fafc;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .btn-cancel {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .btn-cancel:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 20px;
+            padding: 15px 30px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* Recurring Modal Additions */
+        .recurring-options {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .recurring-options.show {
+            display: block;
+        }
+
+        .day-picker {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .day-picker label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .day-picker input:checked + span {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .day-picker input {
+            display: none;
+        }
+
+        .day-picker label:has(input:checked) {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            color: #64748b;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .list-header, .list-row {
+                grid-template-columns: 100px 150px 120px 120px 80px 80px 1fr 80px;
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filters {
+                flex-wrap: wrap;
+            }
+            
+            .day-cell {
+                min-height: 80px;
+            }
+            
+            .event {
+                font-size: 10px;
+                padding: 2px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 Audit Calendar</h1>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="openScheduleModal()" id="scheduleBtn" style="display: none;">
+                    <span>➕</span> Schedule Audit
+                </button>
+                <button class="btn btn-secondary" onclick="openRecurringModal()" id="recurringBtn" style="display: none;">
+                    <span>🔄</span> Recurring
+                </button>
+                <button class="btn btn-secondary" onclick="window.location.href='/dashboard'">
+                    <span>🏠</span> Dashboard
+                </button>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <div class="view-tabs">
+                <button class="view-tab active" data-view="month">Month</button>
+                <button class="view-tab" data-view="week">Week</button>
+                <button class="view-tab" data-view="list">List</button>
+            </div>
+
+            <div class="nav-controls">
+                <button class="nav-btn" onclick="navigate(-1)">◀</button>
+                <button class="today-btn" onclick="goToday()">Today</button>
+                <span class="current-period" id="currentPeriod">February 2026</span>
+                <button class="nav-btn" onclick="navigate(1)">▶</button>
+            </div>
+
+            <div class="filters">
+                <select class="filter-select" id="storeFilter" onchange="applyFilters()">
+                    <option value="">All Stores</option>
+                </select>
+                <select class="filter-select" id="auditorFilter" onchange="applyFilters()">
+                    <option value="">All Auditors</option>
+                </select>
+                <select class="filter-select" id="statusFilter" onchange="applyFilters()">
+                    <option value="">All Status</option>
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="InProgress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Missed">Missed</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="calendar-container" id="calendarContainer">
+            <div class="loading">
+                <div class="spinner"></div>
+                Loading calendar...
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #3b82f6;"></div>
+                <span>Scheduled</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f59e0b;"></div>
+                <span>In Progress</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #10b981;"></div>
+                <span>Completed</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ef4444;"></div>
+                <span>Missed/Overdue</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f97316;"></div>
+                <span>Urgent</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #8b5cf6;"></div>
+                <span>Follow-up</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #6b7280;"></div>
+                <span>Cancelled</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Audit Modal -->
+    <div class="modal-overlay" id="scheduleModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📅 <span id="modalTitle">Schedule New Audit</span></h2>
+                <button class="modal-close" onclick="closeScheduleModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editAuditId">
+                
+                <div class="form-group">
+                    <label>Store <span class="required">*</span></label>
+                    <select class="form-control" id="scheduleStore" required>
+                        <option value="">Select store...</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Date <span class="required">*</span></label>
+                        <input type="date" class="form-control" id="scheduleDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Time (optional)</label>
+                        <input type="time" class="form-control" id="scheduleTime">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Assigned Auditor</label>
+                    <select class="form-control" id="scheduleAuditor">
+                        <option value="">Select auditor (optional)...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Checklist</label>
+                    <select class="form-control" id="scheduleChecklist">
+                        <option value="">Select checklist (optional)...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select class="form-control" id="schedulePriority">
+                        <option value="Normal">Normal</option>
+                        <option value="Urgent">Urgent</option>
+                        <option value="Follow-up">Follow-up</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="statusGroup" style="display: none;">
+                    <label>Status</label>
+                    <select class="form-control" id="scheduleStatus">
+                        <option value="Scheduled">🟡 Scheduled</option>
+                        <option value="Completed">🟢 Completed</option>
+                        <option value="Missed">🔴 Missed</option>
+                        <option value="Cancelled">⚪ Cancelled</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Notes / Instructions</label>
+                    <textarea class="form-control" id="scheduleNotes" rows="3" placeholder="Any special instructions for the auditor..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" id="deleteBtn" onclick="deleteAudit()" style="display: none; margin-right: auto;">
+                    🗑️ Delete
+                </button>
+                <button class="btn btn-cancel" onclick="closeScheduleModal()">Cancel</button>
+                <button class="btn btn-save" onclick="saveSchedule()">💾 Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recurring Audit Modal -->
+    <div class="modal-overlay" id="recurringModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>🔄 Recurring Audit Setup</h2>
+                <button class="modal-close" onclick="closeRecurringModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Store <span class="required">*</span></label>
+                    <select class="form-control" id="recurringStore" required>
+                        <option value="">Select store...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Frequency <span class="required">*</span></label>
+                    <select class="form-control" id="recurringFrequency" onchange="updateFrequencyOptions()">
+                        <option value="Weekly">Weekly</option>
+                        <option value="BiWeekly">Bi-Weekly</option>
+                        <option value="Monthly">Monthly</option>
+                        <option value="Quarterly">Quarterly</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="dayOfWeekGroup">
+                    <label>Day of Week</label>
+                    <select class="form-control" id="recurringDayOfWeek">
+                        <option value="0">Sunday</option>
+                        <option value="1">Monday</option>
+                        <option value="2">Tuesday</option>
+                        <option value="3">Wednesday</option>
+                        <option value="4">Thursday</option>
+                        <option value="5">Friday</option>
+                        <option value="6">Saturday</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="dayOfMonthGroup" style="display: none;">
+                    <label>Day of Month</label>
+                    <select class="form-control" id="recurringDayOfMonth">
+                        <option value="1">1st</option>
+                        <option value="15">15th</option>
+                        <option value="-1">Last day</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Preferred Time (optional)</label>
+                    <input type="time" class="form-control" id="recurringTime">
+                </div>
+
+                <div class="form-group">
+                    <label>Default Auditor</label>
+                    <select class="form-control" id="recurringAuditor">
+                        <option value="">Assign later</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Checklist</label>
+                    <select class="form-control" id="recurringChecklist">
+                        <option value="">Select checklist...</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Date <span class="required">*</span></label>
+                        <input type="date" class="form-control" id="recurringStartDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>End Date (optional)</label>
+                        <input type="date" class="form-control" id="recurringEndDate">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea class="form-control" id="recurringNotes" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" onclick="closeRecurringModal()">Cancel</button>
+                <button class="btn btn-save" onclick="saveRecurring()">🔄 Create Recurring Schedule</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let currentView = 'month';
+        let currentDate = new Date();
+        let scheduledAudits = [];
+        let stores = [];
+        let auditors = [];
+        let checklists = [];
+        let userRole = null;
+        let canEdit = false;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkPermissions();
+            await loadDropdownData();
+            await loadCalendarData();
+            setupViewTabs();
+            renderCalendar();
+        });
+
+        async function checkPermissions() {
+            try {
+                const res = await fetch('/auth/session');
+                if (res.ok) {
+                    const data = await res.json();
+                    userRole = data.user?.role;
+                    canEdit = ['Admin', 'SuperAuditor'].includes(userRole);
+                    
+                    if (canEdit) {
+                        document.getElementById('scheduleBtn').style.display = 'flex';
+                        document.getElementById('recurringBtn').style.display = 'flex';
+                    }
+                }
+            } catch (e) {
+                console.error('Error checking permissions:', e);
+            }
+        }
+
+        async function loadDropdownData() {
+            try {
+                // Load stores
+                const storesRes = await fetch('/api/stores/active');
+                if (storesRes.ok) {
+                    const storesData = await storesRes.json();
+                    stores = storesData.data || [];
+                    populateStoreDropdowns();
+                }
+
+                // Load auditors
+                const auditorsRes = await fetch('/api/calendar/auditors');
+                if (auditorsRes.ok) {
+                    const auditorsData = await auditorsRes.json();
+                    auditors = auditorsData.auditors || [];
+                    populateAuditorDropdowns();
+                }
+
+                // Load checklists
+                const checklistsRes = await fetch('/api/calendar/checklists');
+                if (checklistsRes.ok) {
+                    const checklistsData = await checklistsRes.json();
+                    checklists = checklistsData.checklists || [];
+                    populateChecklistDropdowns();
+                }
+            } catch (e) {
+                console.error('Error loading dropdown data:', e);
+            }
+        }
+
+        function populateStoreDropdowns() {
+            const selects = ['storeFilter', 'scheduleStore', 'recurringStore'];
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    const isFilter = id === 'storeFilter';
+                    select.innerHTML = isFilter ? '<option value="">All Stores</option>' : '<option value="">Select store...</option>';
+                    stores.forEach(s => {
+                        // Handle both id/name and storeId/storeName formats
+                        const storeId = s.id || s.storeId || s.StoreID;
+                        const storeName = s.name || s.storeName || s.StoreName;
+                        select.innerHTML += `<option value="${storeId}">${storeName}</option>`;
+                    });
+                }
+            });
+        }
+
+        function populateAuditorDropdowns() {
+            const selects = ['auditorFilter', 'scheduleAuditor', 'recurringAuditor'];
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    const isFilter = id === 'auditorFilter';
+                    const isRecurring = id === 'recurringAuditor';
+                    select.innerHTML = isFilter ? '<option value="">All Auditors</option>' : 
+                                       isRecurring ? '<option value="">Assign later</option>' :
+                                       '<option value="">Select auditor (optional)...</option>';
+                    auditors.forEach(a => {
+                        select.innerHTML += `<option value="${a.id}">${a.display_name}</option>`;
+                    });
+                }
+            });
+        }
+
+        function populateChecklistDropdowns() {
+            const selects = ['scheduleChecklist', 'recurringChecklist'];
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    select.innerHTML = '<option value="">Select checklist (optional)...</option>';
+                    checklists.forEach(c => {
+                        // Handle both id/name and SchemaID/SchemaName formats
+                        const checklistId = c.id || c.SchemaID;
+                        const checklistName = c.name || c.SchemaName;
+                        select.innerHTML += `<option value="${checklistId}">${checklistName}</option>`;
+                    });
+                }
+            });
+        }
+
+        async function loadCalendarData() {
+            try {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth() + 1;
+                
+                const res = await fetch(`/api/calendar/audits?year=${year}&month=${month}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    scheduledAudits = data.audits || [];
+                }
+            } catch (e) {
+                console.error('Error loading calendar data:', e);
+            }
+        }
+
+        function setupViewTabs() {
+            document.querySelectorAll('.view-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    currentView = tab.dataset.view;
+                    renderCalendar();
+                });
+            });
+        }
+
+        function navigate(direction) {
+            if (currentView === 'month') {
+                currentDate.setMonth(currentDate.getMonth() + direction);
+            } else if (currentView === 'week') {
+                currentDate.setDate(currentDate.getDate() + (direction * 7));
+            }
+            loadCalendarData().then(() => renderCalendar());
+        }
+
+        function goToday() {
+            currentDate = new Date();
+            loadCalendarData().then(() => renderCalendar());
+        }
+
+        function updatePeriodDisplay() {
+            const options = currentView === 'month' 
+                ? { month: 'long', year: 'numeric' }
+                : { month: 'short', day: 'numeric', year: 'numeric' };
+            document.getElementById('currentPeriod').textContent = currentDate.toLocaleDateString('en-US', options);
+        }
+
+        function renderCalendar() {
+            updatePeriodDisplay();
+            const container = document.getElementById('calendarContainer');
+            
+            if (currentView === 'month') {
+                renderMonthView(container);
+            } else if (currentView === 'week') {
+                renderWeekView(container);
+            } else {
+                renderListView(container);
+            }
+        }
+
+        function renderMonthView(container) {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startDay = firstDay.getDay();
+            const daysInMonth = lastDay.getDate();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let html = '<div class="month-grid">';
+            
+            // Day headers
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            days.forEach(d => {
+                html += `<div class="day-header">${d}</div>`;
+            });
+
+            // Previous month days
+            const prevMonth = new Date(year, month, 0);
+            const prevMonthDays = prevMonth.getDate();
+            for (let i = startDay - 1; i >= 0; i--) {
+                const day = prevMonthDays - i;
+                html += `<div class="day-cell other-month"><div class="day-number">${day}</div></div>`;
+            }
+
+            // Current month days
+            for (let day = 1; day <= daysInMonth; day++) {
+                const cellDate = new Date(year, month, day);
+                const isToday = cellDate.getTime() === today.getTime();
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayAudits = getAuditsForDate(dateStr);
+
+                html += `<div class="day-cell ${isToday ? 'today' : ''}" onclick="${canEdit ? `openScheduleModal('${dateStr}')` : ''}">`;
+                html += `<div class="day-number">${day}</div>`;
+                html += '<div class="day-events">';
+                
+                const maxShow = 3;
+                dayAudits.slice(0, maxShow).forEach(audit => {
+                    const statusClass = getStatusClass(audit);
+                    const auditorInfo = audit.auditor_name ? ` (${audit.auditor_name.split(' ')[0]})` : '';
+                    html += `<div class="event ${statusClass}" onclick="event.stopPropagation(); viewAudit(${audit.id})" title="${audit.store_name}${auditorInfo}">
+                        ${audit.scheduled_time ? formatTime(audit.scheduled_time) + ' ' : ''}${audit.store_name}${auditorInfo}
+                    </div>`;
+                });
+                
+                if (dayAudits.length > maxShow) {
+                    html += `<div class="more-events">+${dayAudits.length - maxShow} more</div>`;
+                }
+                
+                html += '</div></div>';
+            }
+
+            // Next month days
+            const totalCells = startDay + daysInMonth;
+            const remainingCells = 7 - (totalCells % 7);
+            if (remainingCells < 7) {
+                for (let i = 1; i <= remainingCells; i++) {
+                    html += `<div class="day-cell other-month"><div class="day-number">${i}</div></div>`;
+                }
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderWeekView(container) {
+            const startOfWeek = new Date(currentDate);
+            startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+            
+            let html = '<div class="week-grid">';
+            
+            // Header
+            html += '<div class="week-header">';
+            html += '<div class="week-header-cell time-col"></div>';
+            
+            for (let i = 0; i < 7; i++) {
+                const day = new Date(startOfWeek);
+                day.setDate(startOfWeek.getDate() + i);
+                const isToday = day.toDateString() === new Date().toDateString();
+                html += `<div class="week-header-cell ${isToday ? 'today' : ''}">
+                    <div class="week-day-name">${day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                    <div class="week-day-number">${day.getDate()}</div>
+                </div>`;
+            }
+            html += '</div>';
+
+            // Time slots
+            html += '<div class="week-body">';
+            for (let hour = 8; hour <= 18; hour++) {
+                html += `<div class="time-slot">${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? 'PM' : 'AM'}</div>`;
+                
+                for (let i = 0; i < 7; i++) {
+                    const day = new Date(startOfWeek);
+                    day.setDate(startOfWeek.getDate() + i);
+                    const dateStr = day.toISOString().split('T')[0];
+                    const hourAudits = getAuditsForDateAndHour(dateStr, hour);
+                    
+                    html += `<div class="week-cell" onclick="${canEdit ? `openScheduleModal('${dateStr}', '${String(hour).padStart(2, '0')}:00')` : ''}">`;
+                    hourAudits.forEach(audit => {
+                        const statusClass = getStatusClass(audit);
+                        const auditorInfo = audit.auditor_name ? ` (${audit.auditor_name.split(' ')[0]})` : '';
+                        html += `<div class="event ${statusClass}" onclick="event.stopPropagation(); viewAudit(${audit.id})" title="${audit.store_name}${auditorInfo}">${audit.store_name}${auditorInfo}</div>`;
+                    });
+                    html += '</div>';
+                }
+            }
+            html += '</div></div>';
+            
+            container.innerHTML = html;
+        }
+
+        function renderListView(container) {
+            const filtered = applyFiltersToAudits();
+            
+            let html = '<div class="list-view">';
+            html += `<div class="list-header">
+                <div>Date</div>
+                <div>Store</div>
+                <div>Auditor</div>
+                <div>Checklist</div>
+                <div>Time</div>
+                <div>Status</div>
+                <div>Notes</div>
+                <div>Actions</div>
+            </div>`;
+
+            if (filtered.length === 0) {
+                html += '<div style="padding: 40px; text-align: center; color: #64748b;">No scheduled audits found</div>';
+            } else {
+                filtered.sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));
+                filtered.forEach(audit => {
+                    const statusClass = audit.status.toLowerCase();
+                    html += `<div class="list-row">
+                        <div>${formatDate(audit.scheduled_date)}</div>
+                        <div><strong>${audit.store_name || 'N/A'}</strong></div>
+                        <div>${audit.auditor_name || '<em>Unassigned</em>'}</div>
+                        <div>${audit.checklist_name || '-'}</div>
+                        <div>${audit.scheduled_time ? formatTime(audit.scheduled_time) : '-'}</div>
+                        <div><span class="status-badge ${statusClass}">${audit.status}</span></div>
+                        <div style="font-size: 12px; color: #64748b;">${audit.notes ? audit.notes.substring(0, 30) + '...' : '-'}</div>
+                        <div>
+                            ${canEdit && audit.status === 'Scheduled' ? 
+                                `<button class="action-btn" onclick="viewAudit(${audit.id})">✏️ Edit</button>` : 
+                                `<button class="action-btn" onclick="viewAudit(${audit.id})">👁️ View</button>`
+                            }
+                        </div>
+                    </div>`;
+                });
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function getAuditsForDate(dateStr) {
+            return applyFiltersToAudits().filter(a => a.scheduled_date === dateStr || a.scheduled_date?.split('T')[0] === dateStr);
+        }
+
+        function getAuditsForDateAndHour(dateStr, hour) {
+            return getAuditsForDate(dateStr).filter(a => {
+                if (!a.scheduled_time) return hour === 9; // Default to 9 AM
+                const auditHour = parseInt(a.scheduled_time.split(':')[0]);
+                return auditHour === hour;
+            });
+        }
+
+        function applyFiltersToAudits() {
+            let filtered = [...scheduledAudits];
+            
+            const storeFilter = document.getElementById('storeFilter').value;
+            const auditorFilter = document.getElementById('auditorFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            if (storeFilter) filtered = filtered.filter(a => a.store_id == storeFilter);
+            if (auditorFilter) filtered = filtered.filter(a => a.auditor_user_id == auditorFilter);
+            if (statusFilter) filtered = filtered.filter(a => a.status === statusFilter);
+
+            return filtered;
+        }
+
+        function applyFilters() {
+            renderCalendar();
+        }
+
+        function getStatusClass(audit) {
+            const status = audit.status?.toLowerCase() || 'scheduled';
+            const priority = audit.priority?.toLowerCase() || 'normal';
+            
+            if (status === 'completed') return 'completed';
+            if (status === 'inprogress') return 'inprogress';
+            if (status === 'cancelled') return 'cancelled';
+            if (status === 'missed') return 'missed';
+            if (priority === 'urgent') return 'urgent';
+            if (priority === 'follow-up') return 'followup';
+            return 'scheduled';
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function formatTime(timeStr) {
+            if (!timeStr) return '';
+            const [hours, minutes] = timeStr.split(':');
+            const h = parseInt(hours);
+            return `${h > 12 ? h - 12 : h}:${minutes} ${h >= 12 ? 'PM' : 'AM'}`;
+        }
+
+        // Modal functions
+        function openScheduleModal(dateStr = null, timeStr = null) {
+            if (!canEdit) return;
+            
+            document.getElementById('modalTitle').textContent = 'Schedule New Audit';
+            document.getElementById('editAuditId').value = '';
+            document.getElementById('deleteBtn').style.display = 'none';
+            document.getElementById('statusGroup').style.display = 'none'; // Hide status for new audits
+            
+            // Reset form
+            document.getElementById('scheduleStore').value = '';
+            document.getElementById('scheduleDate').value = dateStr || '';
+            document.getElementById('scheduleTime').value = timeStr || '';
+            document.getElementById('scheduleAuditor').value = '';
+            document.getElementById('scheduleChecklist').value = '';
+            document.getElementById('schedulePriority').value = 'Normal';
+            document.getElementById('scheduleStatus').value = 'Scheduled';
+            document.getElementById('scheduleNotes').value = '';
+            
+            // Enable all fields for new audit
+            document.querySelectorAll('#scheduleModal .form-control').forEach(el => el.disabled = false);
+            
+            document.getElementById('scheduleModal').classList.add('show');
+        }
+
+        function closeScheduleModal() {
+            document.getElementById('scheduleModal').classList.remove('show');
+        }
+
+        function viewAudit(id) {
+            const audit = scheduledAudits.find(a => a.id === id);
+            if (!audit) return;
+
+            // Admin/SuperAuditor can always edit (to change status)
+            const canEditThis = canEdit;
+            const isCompleted = ['Completed', 'Missed', 'Cancelled'].includes(audit.status);
+            
+            document.getElementById('modalTitle').textContent = canEditThis ? 'Edit Audit' : 'View Scheduled Audit';
+            document.getElementById('editAuditId').value = id;
+            document.getElementById('deleteBtn').style.display = canEditThis && audit.status === 'Scheduled' ? 'block' : 'none';
+            
+            // Show status dropdown for editing existing audits (Admin/SuperAuditor only)
+            document.getElementById('statusGroup').style.display = canEditThis ? 'block' : 'none';
+            
+            document.getElementById('scheduleStore').value = audit.store_id || '';
+            document.getElementById('scheduleDate').value = audit.scheduled_date?.split('T')[0] || '';
+            document.getElementById('scheduleTime').value = audit.scheduled_time || '';
+            document.getElementById('scheduleAuditor').value = audit.auditor_user_id || '';
+            document.getElementById('scheduleChecklist').value = audit.checklist_schema_id || '';
+            document.getElementById('schedulePriority').value = audit.priority || 'Normal';
+            document.getElementById('scheduleStatus').value = audit.status || 'Scheduled';
+            document.getElementById('scheduleNotes').value = audit.notes || '';
+            
+            // Disable core fields if completed, but keep status editable for Admin/SuperAuditor
+            document.querySelectorAll('#scheduleModal .form-control').forEach(el => {
+                if (el.id === 'scheduleStatus') {
+                    el.disabled = !canEditThis; // Status always editable by Admin/SuperAuditor
+                } else {
+                    el.disabled = !canEditThis || isCompleted; // Other fields disabled if completed
+                }
+            });
+            
+            document.getElementById('scheduleModal').classList.add('show');
+        }
+
+        async function saveSchedule() {
+            const id = document.getElementById('editAuditId').value;
+            const storeId = document.getElementById('scheduleStore').value;
+            const date = document.getElementById('scheduleDate').value;
+            
+            if (!storeId || !date) {
+                alert('Please select a store and date');
+                return;
+            }
+
+            const data = {
+                store_id: parseInt(storeId),
+                scheduled_date: date,
+                scheduled_time: document.getElementById('scheduleTime').value || null,
+                auditor_user_id: document.getElementById('scheduleAuditor').value || null,
+                checklist_schema_id: document.getElementById('scheduleChecklist').value || null,
+                priority: document.getElementById('schedulePriority').value,
+                status: document.getElementById('scheduleStatus').value || 'Scheduled',
+                notes: document.getElementById('scheduleNotes').value
+            };
+
+            try {
+                const url = id ? `/api/calendar/audits/${id}` : '/api/calendar/audits';
+                const method = id ? 'PUT' : 'POST';
+                
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    closeScheduleModal();
+                    await loadCalendarData();
+                    renderCalendar();
+                } else {
+                    const error = await res.json();
+                    alert(error.error || 'Failed to save');
+                }
+            } catch (e) {
+                console.error('Error saving:', e);
+                alert('Failed to save schedule');
+            }
+        }
+
+        async function deleteAudit() {
+            const id = document.getElementById('editAuditId').value;
+            if (!id) return;
+            
+            if (!confirm('Are you sure you want to cancel this scheduled audit?')) return;
+
+            try {
+                const res = await fetch(`/api/calendar/audits/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (res.ok) {
+                    closeScheduleModal();
+                    await loadCalendarData();
+                    renderCalendar();
+                } else {
+                    alert('Failed to cancel audit');
+                }
+            } catch (e) {
+                console.error('Error deleting:', e);
+                alert('Failed to cancel audit');
+            }
+        }
+
+        // Recurring Modal
+        function openRecurringModal() {
+            document.getElementById('recurringModal').classList.add('show');
+            document.getElementById('recurringStartDate').value = new Date().toISOString().split('T')[0];
+        }
+
+        function closeRecurringModal() {
+            document.getElementById('recurringModal').classList.remove('show');
+        }
+
+        function updateFrequencyOptions() {
+            const freq = document.getElementById('recurringFrequency').value;
+            document.getElementById('dayOfWeekGroup').style.display = ['Weekly', 'BiWeekly'].includes(freq) ? 'block' : 'none';
+            document.getElementById('dayOfMonthGroup').style.display = ['Monthly', 'Quarterly'].includes(freq) ? 'block' : 'none';
+        }
+
+        async function saveRecurring() {
+            const storeId = document.getElementById('recurringStore').value;
+            const frequency = document.getElementById('recurringFrequency').value;
+            const startDate = document.getElementById('recurringStartDate').value;
+
+            if (!storeId || !startDate) {
+                alert('Please select a store and start date');
+                return;
+            }
+
+            const data = {
+                store_id: parseInt(storeId),
+                frequency,
+                day_of_week: ['Weekly', 'BiWeekly'].includes(frequency) ? parseInt(document.getElementById('recurringDayOfWeek').value) : null,
+                day_of_month: ['Monthly', 'Quarterly'].includes(frequency) ? parseInt(document.getElementById('recurringDayOfMonth').value) : null,
+                preferred_time: document.getElementById('recurringTime').value || null,
+                auditor_user_id: document.getElementById('recurringAuditor').value || null,
+                checklist_schema_id: document.getElementById('recurringChecklist').value || null,
+                start_date: startDate,
+                end_date: document.getElementById('recurringEndDate').value || null,
+                notes: document.getElementById('recurringNotes').value
+            };
+
+            try {
+                const res = await fetch('/api/calendar/recurring', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    closeRecurringModal();
+                    alert('Recurring schedule created! Audits will be auto-generated.');
+                    await loadCalendarData();
+                    renderCalendar();
+                } else {
+                    const error = await res.json();
+                    alert(error.error || 'Failed to create recurring schedule');
+                }
+            } catch (e) {
+                console.error('Error:', e);
+                alert('Failed to create recurring schedule');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -395,6 +395,28 @@
             background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
         }
 
+        .calendar-btn {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+        }
+
+        .calendar-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(2, 132, 199, 0.4);
+            background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+        }
+
         .admin-panel-btn {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
@@ -1509,6 +1531,10 @@
                 <span>📢</span>
                 Broadcast
             </button>
+            <button class="calendar-btn" id="calendarBtn" onclick="window.location.href='/admin/audit-calendar'" style="display: none;">
+                <span>📅</span>
+                Audit Calendar
+            </button>
             <button class="admin-panel-btn" id="adminPanelBtn" onclick="window.location.href='/admin/users'" style="display: none;">
                 <span>👤</span>
                 User Management
@@ -1951,6 +1977,13 @@
                             broadcastBtn.style.display = 'flex';
                             console.log('✅ Broadcast button display set to flex');
                         }
+                    }
+
+                    // Show calendar button for all roles (different views per role)
+                    const calendarBtn = document.getElementById('calendarBtn');
+                    if (calendarBtn) {
+                        calendarBtn.style.display = 'flex';
+                        console.log('✅ Calendar button display set to flex for role:', userRole);
                     }
 
                     // Show admin panel button for Admin only
