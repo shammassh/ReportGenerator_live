@@ -25,6 +25,7 @@ const AuditReportGenerator = require('./audit-app/report-generator');
 const ScoreCalculatorService = require('./audit-app/services/score-calculator-service');
 const TokenRefreshService = require('./auth/services/token-refresh-service');
 const SessionManager = require('./auth/services/session-manager');
+const { activityLogService, logLogin, logLogout, logReportGenerated, logEmailSent, logBroadcast, logActionPlanSaved, logActionPlanSubmitted, logUserRoleChanged, logTemplateUpdated } = require('./services/activity-log-service');
 
 /**
  * Helper function to get a valid access token, refreshing if expired
@@ -2412,6 +2413,9 @@ app.post('/api/broadcast/send', requireAuth, requireRole('Admin', 'SuperAuditor'
         
         console.log(`Broadcast #${broadcastId} sent: ${recipients.length} recipients, ${emailsSent} emails`);
         
+        // Log the broadcast activity
+        logBroadcast(req.currentUser, recipients.length, title, req);
+        
         res.json({ 
             success: true, 
             broadcastId,
@@ -3105,6 +3109,9 @@ const emailTemplateService = require('./services/email-template-service');
 
 // Serve email templates management page
 app.get('/admin/email-templates', requireAuth, requireRole('Admin'), (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.sendFile(path.join(__dirname, 'audit-app', 'pages', 'email-templates.html'));
 });
 
@@ -3253,6 +3260,110 @@ app.post('/api/admin/email-templates/test', requireAuth, requireRole('Admin'), a
 
 // ==========================================
 // END EMAIL TEMPLATE MANAGEMENT API ROUTES
+// ==========================================
+
+// ==========================================
+// ACTIVITY LOG MANAGEMENT API ROUTES (Admin Only)
+// ==========================================
+
+// Serve activity log page
+app.get('/admin/activity-log', requireAuth, requireRole('Admin'), (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.sendFile(path.join(__dirname, 'audit-app', 'pages', 'activity-log.html'));
+});
+
+// Get activity logs with pagination and filters
+app.get('/api/admin/activity-log', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const { page, pageSize, category, userId, search, startDate, endDate, actionType } = req.query;
+        const result = await activityLogService.getLogs({
+            page: parseInt(page) || 1,
+            pageSize: parseInt(pageSize) || 50,
+            actionType,
+            category,
+            userId: userId ? parseInt(userId) : null,
+            search,
+            startDate,
+            endDate
+        });
+        res.json(result);
+    } catch (error) {
+        console.error('Error fetching activity logs:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get single activity log by ID
+app.get('/api/admin/activity-log/:id', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const result = await activityLogService.getLogs({
+            page: 1,
+            pageSize: 1,
+            search: null
+        });
+        // Simple approach - fetch by searching
+        const sql = require('mssql');
+        const pool = await sql.connect({
+            server: 'localhost',
+            database: 'FoodSafetyDB_Live',
+            user: 'sa',
+            password: 'Kokowawa123@@',
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+        const logResult = await pool.request()
+            .input('id', sql.Int, parseInt(req.params.id))
+            .query('SELECT * FROM ActivityLog WHERE id = @id');
+        
+        if (logResult.recordset.length === 0) {
+            return res.status(404).json({ success: false, error: 'Log not found' });
+        }
+        
+        const log = logResult.recordset[0];
+        log.metadata = log.metadata ? JSON.parse(log.metadata) : null;
+        res.json(log);
+    } catch (error) {
+        console.error('Error fetching activity log:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get activity log stats
+app.get('/api/admin/activity-log/stats', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const stats = await activityLogService.getStats();
+        res.json(stats);
+    } catch (error) {
+        console.error('Error fetching activity log stats:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get active users for filter dropdown
+app.get('/api/admin/activity-log/users', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const users = await activityLogService.getActiveUsers();
+        res.json(users);
+    } catch (error) {
+        console.error('Error fetching active users:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Run cleanup (delete logs older than 90 days)
+app.post('/api/admin/activity-log/cleanup', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const result = await activityLogService.cleanup(90);
+        res.json(result);
+    } catch (error) {
+        console.error('Error running cleanup:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ==========================================
+// END ACTIVITY LOG MANAGEMENT API ROUTES
 // ==========================================
 
 // Get audit by ID
@@ -4018,6 +4129,12 @@ app.post('/api/audits/save-report-for-store-manager', requireAuth, requireRole('
             }
         } catch (emailError) {
             console.error('⚠️ Email notification failed (report still saved):', emailError.message);
+        }
+        
+        // Log the report generation activity
+        logReportGenerated(req.currentUser, documentNumber, storeName, req);
+        if (emailStatus.sent) {
+            logEmailSent(req.currentUser, emailStatus.recipients, `Food Safety Audit Report - ${storeName}`, req);
         }
         
         res.json({ 
@@ -4801,6 +4918,10 @@ app.post('/api/action-plan/save', requireAuth, async (req, res) => {
         
         if (result.success) {
             console.log(`✅ Saved ${result.successCount} actions for ${documentNumber}`);
+            
+            // Log the activity
+            logActionPlanSaved(req.currentUser, documentNumber, result.successCount, req);
+            
             res.json({
                 success: true,
                 message: `Successfully saved ${result.successCount} actions`,
@@ -5081,6 +5202,9 @@ app.post('/api/action-plan/submit-to-auditor', requireAuth, async (req, res) => 
                     emailBody: htmlBody
                 }, pool);
             }
+            
+            // Log the activity
+            logActionPlanSubmitted(req.currentUser, documentNumber, req);
             
             res.json({
                 success: true,

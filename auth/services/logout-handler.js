@@ -6,6 +6,7 @@
  */
 
 const SessionManager = require('../services/session-manager');
+const { logLogout } = require('../../services/activity-log-service');
 
 class LogoutHandler {
     /**
@@ -15,6 +16,11 @@ class LogoutHandler {
         try {
             // Get session token from cookie
             const sessionToken = req.cookies?.auth_token;
+            
+            // Log to activity log before destroying session
+            if (req.currentUser) {
+                logLogout(req.currentUser, req);
+            }
             
             if (sessionToken) {
                 // Delete session from database

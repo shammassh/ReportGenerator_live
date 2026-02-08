@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Log - Food Safety Audit System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c5282;
+            --sidebar-width: 250px;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            background: linear-gradient(180deg, #1a365d 0%, #2c5282 100%);
+            color: white;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .sidebar-brand {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.2s;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .stats-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .log-table {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .log-table th {
+            background: #f1f5f9;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+            padding: 1rem;
+        }
+        
+        .log-table td {
+            padding: 0.875rem 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .badge-category {
+            padding: 0.35rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .badge-AUTH { background: #dbeafe; color: #1e40af; }
+        .badge-REPORT { background: #dcfce7; color: #166534; }
+        .badge-EMAIL { background: #fef3c7; color: #92400e; }
+        .badge-ACTION_PLAN { background: #f3e8ff; color: #7c3aed; }
+        .badge-ADMIN { background: #fee2e2; color: #991b1b; }
+        .badge-TEMPLATE { background: #e0e7ff; color: #3730a3; }
+        .badge-AUDIT { background: #ccfbf1; color: #0f766e; }
+        
+        .action-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+        }
+        
+        .action-icon-AUTH { background: #dbeafe; color: #1e40af; }
+        .action-icon-REPORT { background: #dcfce7; color: #166534; }
+        .action-icon-EMAIL { background: #fef3c7; color: #92400e; }
+        .action-icon-ACTION_PLAN { background: #f3e8ff; color: #7c3aed; }
+        .action-icon-ADMIN { background: #fee2e2; color: #991b1b; }
+        .action-icon-TEMPLATE { background: #e0e7ff; color: #3730a3; }
+        .action-icon-AUDIT { background: #ccfbf1; color: #0f766e; }
+        
+        .filter-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .pagination-info {
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        .time-ago {
+            color: #64748b;
+            font-size: 0.8rem;
+        }
+        
+        .target-badge {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
+
+        .cleanup-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+        }
+        
+        .cleanup-btn:hover {
+            background: #b91c1c;
+            color: white;
+        }
+        
+        @media (max-width: 992px) {
+            .sidebar { width: 70px; }
+            .sidebar-brand span, .nav-link span { display: none; }
+            .main-content { margin-left: 70px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <h5 class="mb-0"><i class="bi bi-shield-check me-2"></i><span>FS Audit</span></h5>
+        </div>
+        <div class="sidebar-nav">
+            <a href="/dashboard" class="nav-link">
+                <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+            </a>
+            <a href="/admin/users" class="nav-link">
+                <i class="bi bi-people"></i><span>User Management</span>
+            </a>
+            <a href="/admin/email-templates" class="nav-link">
+                <i class="bi bi-envelope-paper"></i><span>Email Templates</span>
+            </a>
+            <a href="/admin/activity-log" class="nav-link active">
+                <i class="bi bi-journal-text"></i><span>Activity Log</span>
+            </a>
+            <hr class="mx-3 my-2" style="border-color: rgba(255,255,255,0.2);">
+            <a href="/auth/logout" class="nav-link">
+                <i class="bi bi-box-arrow-left"></i><span>Logout</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1">Activity Log</h2>
+                <p class="text-muted mb-0">Monitor system activity and user actions (90-day retention)</p>
+            </div>
+            <button class="btn cleanup-btn" onclick="runCleanup()" id="cleanupBtn">
+                <i class="bi bi-trash3 me-2"></i>Run Cleanup
+            </button>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-muted small mb-1">Today</div>
+                            <div class="stats-number" id="statToday">-</div>
+                        </div>
+                        <div class="action-icon action-icon-AUTH">
+                            <i class="bi bi-calendar-day"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-muted small mb-1">Last 7 Days</div>
+                            <div class="stats-number" id="statWeek">-</div>
+                        </div>
+                        <div class="action-icon action-icon-REPORT">
+                            <i class="bi bi-calendar-week"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-muted small mb-1">Total Records</div>
+                            <div class="stats-number" id="statTotal">-</div>
+                        </div>
+                        <div class="action-icon action-icon-EMAIL">
+                            <i class="bi bi-database"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-muted small mb-1">Est. Storage</div>
+                            <div class="stats-number" id="statStorage">-</div>
+                        </div>
+                        <div class="action-icon action-icon-ADMIN">
+                            <i class="bi bi-hdd"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Stats -->
+        <div class="row g-4 mb-4" id="categoryStats">
+            <!-- Filled by JS -->
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-card">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">Category</label>
+                    <select class="form-select" id="filterCategory">
+                        <option value="">All Categories</option>
+                        <option value="AUTH">🔐 Authentication</option>
+                        <option value="REPORT">📊 Reports</option>
+                        <option value="EMAIL">📧 Emails</option>
+                        <option value="ACTION_PLAN">📋 Action Plans</option>
+                        <option value="ADMIN">⚙️ Admin</option>
+                        <option value="TEMPLATE">📝 Templates</option>
+                        <option value="AUDIT">🔍 Audits</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">User</label>
+                    <select class="form-select" id="filterUser">
+                        <option value="">All Users</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">From Date</label>
+                    <input type="date" class="form-control" id="filterStartDate">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">To Date</label>
+                    <input type="date" class="form-control" id="filterEndDate">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted">Search</label>
+                    <input type="text" class="form-control" id="filterSearch" placeholder="Search description...">
+                </div>
+                <div class="col-md-1">
+                    <button class="btn btn-primary w-100" onclick="loadLogs(1)">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Table -->
+        <div class="log-table">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;"></th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Description</th>
+                        <th>Target</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody id="logTableBody">
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <div class="spinner-border spinner-border-sm me-2"></div>
+                            Loading activity logs...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <div class="pagination-info" id="paginationInfo">
+                Showing 0 of 0 entries
+            </div>
+            <nav>
+                <ul class="pagination mb-0" id="pagination">
+                </ul>
+            </nav>
+        </div>
+    </main>
+
+    <!-- Detail Modal -->
+    <div class="modal fade" id="detailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Activity Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="detailModalBody">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentPage = 1;
+        const pageSize = 50;
+        
+        const categoryIcons = {
+            AUTH: 'bi-shield-lock',
+            REPORT: 'bi-file-earmark-bar-graph',
+            EMAIL: 'bi-envelope',
+            ACTION_PLAN: 'bi-clipboard-check',
+            ADMIN: 'bi-gear',
+            TEMPLATE: 'bi-file-earmark-code',
+            AUDIT: 'bi-search'
+        };
+        
+        const categoryLabels = {
+            AUTH: 'Authentication',
+            REPORT: 'Reports',
+            EMAIL: 'Emails',
+            ACTION_PLAN: 'Action Plans',
+            ADMIN: 'Admin',
+            TEMPLATE: 'Templates',
+            AUDIT: 'Audits'
+        };
+
+        // Load stats on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            loadUsers();
+            loadLogs(1);
+            
+            // Set default date range (last 7 days)
+            const today = new Date();
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            
+            document.getElementById('filterEndDate').value = today.toISOString().split('T')[0];
+            document.getElementById('filterStartDate').value = weekAgo.toISOString().split('T')[0];
+        });
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/admin/activity-log/stats');
+                const data = await response.json();
+                
+                document.getElementById('statToday').textContent = data.totalToday.toLocaleString();
+                document.getElementById('statWeek').textContent = data.totalWeek.toLocaleString();
+                document.getElementById('statTotal').textContent = data.totalAll.toLocaleString();
+                
+                // Estimate storage (500 bytes per entry)
+                const storageKB = (data.totalAll * 500) / 1024;
+                const storageMB = storageKB / 1024;
+                document.getElementById('statStorage').textContent = 
+                    storageMB >= 1 ? `${storageMB.toFixed(1)} MB` : `${storageKB.toFixed(0)} KB`;
+                
+                // Category stats
+                const categoryHtml = data.byCategory.map(cat => `
+                    <div class="col-md-2">
+                        <div class="stats-card text-center">
+                            <div class="action-icon action-icon-${cat.action_category} mx-auto mb-2">
+                                <i class="bi ${categoryIcons[cat.action_category] || 'bi-circle'}"></i>
+                            </div>
+                            <div class="fw-bold">${cat.count}</div>
+                            <div class="small text-muted">${categoryLabels[cat.action_category] || cat.action_category}</div>
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('categoryStats').innerHTML = categoryHtml;
+                
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/admin/activity-log/users');
+                const users = await response.json();
+                
+                const select = document.getElementById('filterUser');
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.user_id;
+                    option.textContent = user.user_name || user.user_email;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to load users:', error);
+            }
+        }
+
+        async function loadLogs(page) {
+            currentPage = page;
+            const tbody = document.getElementById('logTableBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">
+                        <div class="spinner-border spinner-border-sm me-2"></div>
+                        Loading...
+                    </td>
+                </tr>
+            `;
+            
+            try {
+                const params = new URLSearchParams({
+                    page,
+                    pageSize,
+                    category: document.getElementById('filterCategory').value,
+                    userId: document.getElementById('filterUser').value,
+                    search: document.getElementById('filterSearch').value,
+                    startDate: document.getElementById('filterStartDate').value,
+                    endDate: document.getElementById('filterEndDate').value
+                });
+                
+                const response = await fetch(`/api/admin/activity-log?${params}`);
+                const data = await response.json();
+                
+                if (data.logs.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                                No activity logs found
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    tbody.innerHTML = data.logs.map(log => `
+                        <tr onclick="showDetail(${log.id})" style="cursor: pointer;">
+                            <td>
+                                <div class="action-icon action-icon-${log.action_category}">
+                                    <i class="bi ${categoryIcons[log.action_category] || 'bi-circle'}"></i>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="user-avatar">${getInitials(log.user_name || log.user_email)}</div>
+                                    <div>
+                                        <div class="fw-medium">${log.user_name || 'Unknown'}</div>
+                                        <div class="small text-muted">${log.user_email || ''}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge badge-category badge-${log.action_category}">${log.action_type}</span>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 300px;" title="${escapeHtml(log.description || '')}">
+                                    ${escapeHtml(log.description || '-')}
+                                </div>
+                            </td>
+                            <td>
+                                ${log.target_id ? `<span class="target-badge">${escapeHtml(log.target_id)}</span>` : '-'}
+                            </td>
+                            <td>
+                                <div class="time-ago">${formatTimeAgo(log.created_at)}</div>
+                                <div class="small text-muted">${formatDateTime(log.created_at)}</div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+                
+                // Update pagination
+                updatePagination(data.pagination);
+                
+            } catch (error) {
+                console.error('Failed to load logs:', error);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Failed to load activity logs
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function updatePagination(pagination) {
+            const { page, pageSize, total, totalPages } = pagination;
+            const start = (page - 1) * pageSize + 1;
+            const end = Math.min(page * pageSize, total);
+            
+            document.getElementById('paginationInfo').textContent = 
+                `Showing ${start}-${end} of ${total} entries`;
+            
+            const paginationEl = document.getElementById('pagination');
+            let html = '';
+            
+            // Previous button
+            html += `
+                <li class="page-item ${page === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="loadLogs(${page - 1}); return false;">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+            `;
+            
+            // Page numbers
+            const maxPages = 5;
+            let startPage = Math.max(1, page - Math.floor(maxPages / 2));
+            let endPage = Math.min(totalPages, startPage + maxPages - 1);
+            
+            if (endPage - startPage < maxPages - 1) {
+                startPage = Math.max(1, endPage - maxPages + 1);
+            }
+            
+            if (startPage > 1) {
+                html += `<li class="page-item"><a class="page-link" href="#" onclick="loadLogs(1); return false;">1</a></li>`;
+                if (startPage > 2) {
+                    html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                html += `
+                    <li class="page-item ${i === page ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="loadLogs(${i}); return false;">${i}</a>
+                    </li>
+                `;
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                }
+                html += `<li class="page-item"><a class="page-link" href="#" onclick="loadLogs(${totalPages}); return false;">${totalPages}</a></li>`;
+            }
+            
+            // Next button
+            html += `
+                <li class="page-item ${page === totalPages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="loadLogs(${page + 1}); return false;">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+            `;
+            
+            paginationEl.innerHTML = html;
+        }
+
+        async function showDetail(logId) {
+            // Find the log in current data
+            const response = await fetch(`/api/admin/activity-log/${logId}`);
+            const log = await response.json();
+            
+            const modal = document.getElementById('detailModalBody');
+            modal.innerHTML = `
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="small text-muted">User</label>
+                        <div class="fw-medium">${log.user_name || 'Unknown'}</div>
+                        <div class="small text-muted">${log.user_email || ''}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="small text-muted">Time</label>
+                        <div class="fw-medium">${formatDateTime(log.created_at)}</div>
+                        <div class="small text-muted">${formatTimeAgo(log.created_at)}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="small text-muted">Action Type</label>
+                        <div><span class="badge badge-category badge-${log.action_category}">${log.action_type}</span></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="small text-muted">Category</label>
+                        <div class="fw-medium">${categoryLabels[log.action_category] || log.action_category}</div>
+                    </div>
+                    <div class="col-12">
+                        <label class="small text-muted">Description</label>
+                        <div class="fw-medium">${escapeHtml(log.description || '-')}</div>
+                    </div>
+                    ${log.target_id ? `
+                    <div class="col-md-6">
+                        <label class="small text-muted">Target Type</label>
+                        <div class="fw-medium">${log.target_type || '-'}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="small text-muted">Target ID</label>
+                        <div><span class="target-badge">${escapeHtml(log.target_id)}</span></div>
+                    </div>
+                    ` : ''}
+                    ${log.metadata ? `
+                    <div class="col-12">
+                        <label class="small text-muted">Additional Data</label>
+                        <pre class="bg-light p-2 rounded small mb-0">${JSON.stringify(log.metadata, null, 2)}</pre>
+                    </div>
+                    ` : ''}
+                    <div class="col-md-6">
+                        <label class="small text-muted">IP Address</label>
+                        <div class="fw-medium">${log.ip_address || '-'}</div>
+                    </div>
+                </div>
+            `;
+            
+            new bootstrap.Modal(document.getElementById('detailModal')).show();
+        }
+
+        async function runCleanup() {
+            if (!confirm('This will delete activity logs older than 90 days. Continue?')) return;
+            
+            const btn = document.getElementById('cleanupBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Cleaning...';
+            
+            try {
+                const response = await fetch('/api/admin/activity-log/cleanup', { method: 'POST' });
+                const result = await response.json();
+                
+                alert(`Cleanup completed: ${result.DeletedRows} old records deleted`);
+                loadStats();
+                loadLogs(1);
+            } catch (error) {
+                alert('Cleanup failed: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-trash3 me-2"></i>Run Cleanup';
+            }
+        }
+
+        function getInitials(name) {
+            if (!name) return '?';
+            return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        }
+
+        function formatTimeAgo(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
+            
+            if (seconds < 60) return 'Just now';
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+            return `${Math.floor(seconds / 604800)}w ago`;
+        }
+
+        function formatDateTime(dateStr) {
+            return new Date(dateStr).toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

@@ -571,6 +571,29 @@
             background: linear-gradient(135deg, #db2777 0%, #ec4899 100%);
         }
 
+        /* Activity Log Button */
+        .activity-log-btn {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .activity-log-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        }
+
         /* Score Calculator Button */
         .score-calculator-btn {
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
@@ -1577,6 +1600,10 @@
                 <span>📧</span>
                 Email Templates
             </button>
+            <button class="activity-log-btn" id="activityLogBtn" onclick="window.location.href='/admin/activity-log'" style="display: none;">
+                <span>📋</span>
+                Activity Log
+            </button>
             <button class="score-calculator-btn" id="scoreCalculatorBtn" onclick="openScoreCalculator()" style="display: none;">
                 <span>🧮</span>
                 Score Calculator
@@ -2040,12 +2067,17 @@
                         }
                     }
 
-                    // Show Email Templates button for Admin only
+                    // Show Email Templates and Activity Log buttons for Admin only
                     if (userRole === 'Admin') {
                         const emailTemplatesBtn = document.getElementById('emailTemplatesBtn');
                         if (emailTemplatesBtn) {
                             emailTemplatesBtn.style.display = 'flex';
                             console.log('✅ Email Templates button display set to flex');
+                        }
+                        const activityLogBtn = document.getElementById('activityLogBtn');
+                        if (activityLogBtn) {
+                            activityLogBtn.style.display = 'flex';
+                            console.log('✅ Activity Log button display set to flex');
                         }
                     }
 
@@ -2132,6 +2164,11 @@
                     if (userRole === 'Admin') {
                         if (adminBtn) {
                             adminBtn.style.display = 'flex';
+                        }
+                        // Show Activity Log button for Admin only (in fallback)
+                        const activityLogBtn = document.getElementById('activityLogBtn');
+                        if (activityLogBtn) {
+                            activityLogBtn.style.display = 'flex';
                         }
                     }
 

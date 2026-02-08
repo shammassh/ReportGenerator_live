@@ -23,6 +23,9 @@ const UserManagementPage = require('../admin/pages/user-management');
 const GraphUsersService = require('../admin/services/graph-users-service');
 const RoleAssignmentService = require('../admin/services/role-assignment-service');
 
+// Import activity logging
+const { logLogin, logLogout, logUserRoleChanged } = require('../services/activity-log-service');
+
 // Import auditor modules
 const AuditorSelectionPage = require('../auditor/pages/selection-page');
 const StoresService = require('../auditor/services/stores-service');
@@ -481,6 +484,10 @@ class AuthServer {
                 const userId = parseInt(req.params.userId);
                 const updateData = req.body;
                 
+                // Get user's old role before update
+                const oldUser = await RoleAssignmentService.getUserById(userId);
+                const oldRole = oldUser?.role || 'Unknown';
+                
                 const updatedUser = await RoleAssignmentService.updateUser(userId, updateData);
                 
                 // Handle HeadOfOperations brand assignments
@@ -509,6 +516,11 @@ class AuthServer {
                     'UPDATE_USER',
                     { targetUserId: userId, changes: updateData }
                 );
+                
+                // Log activity for role changes
+                if (updateData.role && updateData.role !== oldRole) {
+                    logUserRoleChanged(req.currentUser, { id: userId, email: updatedUser.email }, oldRole, updateData.role, req);
+                }
                 
                 res.json({ user: updatedUser });
             } catch (error) {

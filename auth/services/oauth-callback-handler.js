@@ -8,6 +8,7 @@
 const msal = require('@azure/msal-node');
 const sql = require('mssql');
 const config = require('../../config/default');
+const { logLogin } = require('../../services/activity-log-service');
 
 class OAuthCallbackHandler {
     constructor() {
@@ -74,8 +75,11 @@ class OAuthCallbackHandler {
                 maxAge: 24 * 60 * 60 * 1000 // 24 hours
             });
             
-            // Log login action
+            // Log login action (legacy audit log)
             await this.logAuditAction(user.id, 'LOGIN', req);
+            
+            // Log to Activity Log system
+            logLogin({ id: user.id, email: user.email, displayName: user.display_name }, req);
             
             // Redirect to returnUrl if present, otherwise redirect based on role
             if (res.locals.returnUrl) {
