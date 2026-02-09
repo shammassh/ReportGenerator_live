@@ -499,8 +499,31 @@ class ReportGenerator {
         };
         const colors = deptColors[data.department] || { bg: '#f1f5f9', text: '#334155', header: '#64748b' };
 
+        // Collect all pictures for galleries
+        const allFindingPics = [];
+        const allCorrectivePics = [];
+        const allGoodPics = [];
+
         const rows = data.findings.map((f, idx) => {
             const pics = data.pictures[f.responseId] || [];
+            
+            // Categorize pictures and add to galleries
+            for (const p of pics) {
+                const picType = (p.pictureType || 'finding').toLowerCase();
+                const picData = {
+                    dataUrl: p.dataUrl,
+                    referenceValue: f.referenceValue || '',
+                    title: f.title || ''
+                };
+                if (picType === 'corrective') {
+                    allCorrectivePics.push(picData);
+                } else if (picType === 'good') {
+                    allGoodPics.push(picData);
+                } else {
+                    allFindingPics.push(picData);
+                }
+            }
+            
             const picsHtml = pics.map(p => 
                 `<img src="${p.dataUrl}" style="max-width:80px;max-height:60px;margin:2px;border-radius:4px;cursor:pointer;" onclick="openImageModal(this.src)">`
             ).join('');
@@ -508,7 +531,7 @@ class ReportGenerator {
             const priorityClass = f.priority ? `priority-${f.priority.toLowerCase()}` : '';
             
             return `
-                <tr>
+                <tr id="ref-${f.referenceValue || idx}">
                     <td>${idx + 1}</td>
                     <td>${f.referenceValue || ''}</td>
                     <td>${f.title || ''}</td>
@@ -519,6 +542,29 @@ class ReportGenerator {
                 </tr>
             `;
         }).join('');
+
+        // Build gallery sections
+        const buildGallery = (pics, title, bgColor) => {
+            if (pics.length === 0) return '';
+            const galleryItems = pics.map(p => `
+                <div style="display:inline-block;margin:8px;text-align:center;">
+                    <img src="${p.dataUrl}" style="max-width:200px;max-height:150px;border-radius:8px;cursor:pointer;border:2px solid #e2e8f0;" onclick="openImageModal(this.src)">
+                    <div style="font-size:0.8rem;color:#64748b;margin-top:4px;">${p.referenceValue}</div>
+                </div>
+            `).join('');
+            return `
+                <div style="margin-top:30px;padding:20px;background:${bgColor};border-radius:8px;">
+                    <h3 style="margin-bottom:15px;">${title} (${pics.length})</h3>
+                    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                        ${galleryItems}
+                    </div>
+                </div>
+            `;
+        };
+
+        const findingGallery = buildGallery(allFindingPics, '📸 Finding Pictures', '#fef3c7');
+        const correctiveGallery = buildGallery(allCorrectivePics, '🔧 Corrective Action Pictures', '#dbeafe');
+        const goodGallery = buildGallery(allGoodPics, '✅ Good Observation Pictures', '#dcfce7');
 
         return `<!DOCTYPE html>
 <html lang="en">
@@ -549,6 +595,17 @@ class ReportGenerator {
         .modal-close { position: absolute; top: 20px; right: 30px; color: white; font-size: 2rem; cursor: pointer; }
         .footer { text-align: center; padding: 20px; color: #64748b; font-size: 0.85rem; margin-top: 30px; }
         .no-items { text-align: center; padding: 40px; color: #64748b; }
+        .action-buttons { display: flex; gap: 10px; justify-content: center; margin: 20px 0; flex-wrap: wrap; }
+        .action-buttons button { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+        .btn-print-fast { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+        .btn-print-fast:hover { transform: translateY(-2px); }
+        .btn-print-full { background: ${colors.header}; color: white; }
+        .btn-print-full:hover { transform: translateY(-2px); opacity: 0.9; }
+        @media print { 
+            .no-print { display: none !important; }
+            .container { max-width: 100%; }
+            body { background: white; }
+        }
     </style>
 </head>
 <body>
@@ -561,6 +618,11 @@ class ReportGenerator {
                 <span><strong>Store:</strong> ${data.storeName}</span>
                 <span><strong>Date:</strong> ${new Date(data.auditDate).toLocaleDateString()}</span>
             </div>
+        </div>
+
+        <div class="action-buttons no-print">
+            <button id="printCompressedBtn" class="btn-print-fast" onclick="printCompressed()">🖨️ Print (Fast - Compressed)</button>
+            <button class="btn-print-full" onclick="window.print()">🖨️ Print (Full Quality)</button>
         </div>
 
         <div class="summary">
@@ -587,6 +649,10 @@ class ReportGenerator {
         </table>
         ` : '<div class="no-items">No items assigned to this department.</div>'}
 
+        ${findingGallery}
+        ${correctiveGallery}
+        ${goodGallery}
+
         <div class="footer">
             <p>Generated on ${new Date().toLocaleString()} | Food Safety Audit System</p>
         </div>
@@ -606,6 +672,70 @@ class ReportGenerator {
             document.getElementById('imageModal').style.display = 'none';
         }
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeImageModal(); });
+        
+        // Compress images and print - reduces PDF size significantly
+        async function printCompressed() {
+            const btn = document.getElementById('printCompressedBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Compressing images...';
+            
+            const images = document.querySelectorAll('img');
+            const totalImages = images.length;
+            
+            try {
+                let processed = 0;
+                
+                for (const img of images) {
+                    // Skip modal image or small images
+                    if (img.id === 'modalImage' || img.naturalWidth < 100 || img.naturalHeight < 100) {
+                        processed++;
+                        continue;
+                    }
+                    
+                    // Compress using canvas
+                    await new Promise((resolve) => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        // Reduce size: max 600px wide, maintain aspect ratio
+                        const maxWidth = 600;
+                        const scale = Math.min(1, maxWidth / img.naturalWidth);
+                        canvas.width = img.naturalWidth * scale;
+                        canvas.height = img.naturalHeight * scale;
+                        
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        // Convert to JPEG at 50% quality
+                        const compressedSrc = canvas.toDataURL('image/jpeg', 0.5);
+                        img.src = compressedSrc;
+                        
+                        processed++;
+                        if (processed % 20 === 0) {
+                            btn.innerHTML = '⏳ Compressing... ' + processed + '/' + totalImages;
+                        }
+                        
+                        resolve();
+                    });
+                }
+                
+                btn.innerHTML = '🖨️ Opening print dialog...';
+                await new Promise(r => setTimeout(r, 500));
+                window.print();
+                
+                btn.innerHTML = '✅ Print ready';
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Compression error:', error);
+                window.print();
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
     </script>
 </body>
 </html>`;

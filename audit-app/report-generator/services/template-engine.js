@@ -1580,14 +1580,20 @@ class TemplateEngine {
                 <button class="action-bar-btn save-btn" onclick="saveReportForStoreManager()">
                     💾 Save for Store Manager
                 </button>
-                <button class="action-bar-btn print-btn" onclick="window.print()">
-                    🖨️ Print
+                <button class="action-bar-btn pdf-btn" onclick="downloadPDF()">
+                    📄 Download PDF
+                </button>
+                <button class="action-bar-btn print-compressed-btn" onclick="printCompressed()">
+                    🖨️ Print (Fast)
                 </button>
                 <button class="action-bar-btn close-btn" onclick="window.close()">
                     ✖️ Close
                 </button>
             </div>
             <div id="saveStatus" class="save-status no-print"></div>
+            <div id="printWarning" class="print-warning no-print" style="display:none;">
+                ⚠️ This report has many images. If printing fails, please use "Download PDF" instead.
+            </div>
             
             <style>
                 .action-bar {
@@ -1596,6 +1602,25 @@ class TemplateEngine {
                     right: 20px;
                     display: flex;
                     gap: 10px;
+                    z-index: 999;
+                }
+                .pdf-btn {
+                    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+                }
+                .pdf-btn:hover {
+                    background: linear-gradient(135deg, #047857 0%, #059669 100%);
+                }
+                .print-warning {
+                    position: fixed;
+                    bottom: 80px;
+                    right: 20px;
+                    background: #fef3c7;
+                    color: #92400e;
+                    padding: 10px 15px;
+                    border-radius: 8px;
+                    font-size: 0.85rem;
+                    max-width: 300px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
                     z-index: 999;
                 }
                 .action-bar-btn {
@@ -1621,12 +1646,13 @@ class TemplateEngine {
                     cursor: not-allowed;
                     transform: none;
                 }
-                .print-btn {
-                    background: linear-gradient(135deg, #3b82f6, #2563eb);
+                .print-compressed-btn {
+                    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
                     color: white;
                 }
-                .print-btn:hover {
+                .print-compressed-btn:hover {
                     transform: translateY(-2px);
+                    background: linear-gradient(135deg, #7c3aed, #6d28d9);
                 }
                 .close-btn {
                     background: #6b7280;
@@ -1729,6 +1755,158 @@ class TemplateEngine {
                         status.style.display = 'none';
                     }, 8000);
                 }
+                
+                // Count images to show warning for large reports
+                function countImages() {
+                    return document.querySelectorAll('img').length;
+                }
+                
+                // Compress images and print - reduces PDF size significantly
+                async function printCompressed() {
+                    const btn = document.querySelector('.print-compressed-btn');
+                    const originalText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '⏳ Compressing images...';
+                    
+                    const images = document.querySelectorAll('img');
+                    const totalImages = images.length;
+                    const originalSrcs = []; // Store original sources for restoration
+                    
+                    try {
+                        let processed = 0;
+                        
+                        for (const img of images) {
+                            // Store original src
+                            originalSrcs.push({ img, src: img.src });
+                            
+                            // Skip small images or already compressed
+                            if (img.naturalWidth < 100 || img.naturalHeight < 100) {
+                                processed++;
+                                continue;
+                            }
+                            
+                            // Compress using canvas
+                            await new Promise((resolve) => {
+                                const canvas = document.createElement('canvas');
+                                const ctx = canvas.getContext('2d');
+                                
+                                // Reduce size: max 600px wide, maintain aspect ratio
+                                const maxWidth = 600;
+                                const scale = Math.min(1, maxWidth / img.naturalWidth);
+                                canvas.width = img.naturalWidth * scale;
+                                canvas.height = img.naturalHeight * scale;
+                                
+                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                
+                                // Convert to JPEG at 50% quality (much smaller than PNG)
+                                const compressedSrc = canvas.toDataURL('image/jpeg', 0.5);
+                                img.src = compressedSrc;
+                                
+                                processed++;
+                                if (processed % 20 === 0) {
+                                    btn.innerHTML = '⏳ Compressing... ' + processed + '/' + totalImages;
+                                }
+                                
+                                resolve();
+                            });
+                        }
+                        
+                        btn.innerHTML = '🖨️ Opening print dialog...';
+                        
+                        // Small delay to let images update
+                        await new Promise(r => setTimeout(r, 500));
+                        
+                        // Print
+                        window.print();
+                        
+                        // Restore original images after print (optional - keeps compressed for faster future prints)
+                        // Uncomment below to restore full quality after print:
+                        // for (const item of originalSrcs) {
+                        //     item.img.src = item.src;
+                        // }
+                        
+                        btn.innerHTML = '✅ Print ready';
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btn.innerHTML = originalText;
+                        }, 2000);
+                        
+                    } catch (error) {
+                        console.error('Compression error:', error);
+                        // Fallback to regular print
+                        window.print();
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                }
+                
+                // Download PDF via server-side generation
+                async function downloadPDF() {
+                    const btn = document.querySelector('.pdf-btn');
+                    const originalText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '⏳ Generating PDF (may take 2-5 min)...';
+                    
+                    try {
+                        const fileName = window.location.pathname.split('/').pop();
+                        const response = await fetch('/api/audits/export-pdf', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ fileName })
+                        });
+                        
+                        if (!response.ok) {
+                            // Try to parse as JSON, but handle HTML error pages
+                            const contentType = response.headers.get('content-type');
+                            if (contentType && contentType.includes('application/json')) {
+                                const error = await response.json();
+                                throw new Error(error.error || 'PDF generation failed');
+                            } else {
+                                // Server returned HTML (error page or auth redirect)
+                                throw new Error('Server error - please refresh and try again');
+                            }
+                        }
+                        
+                        const contentType = response.headers.get('content-type');
+                        
+                        // Check if response is JSON (large PDF saved to disk)
+                        if (contentType && contentType.includes('application/json')) {
+                            const result = await response.json();
+                            if (result.success && result.downloadUrl) {
+                                // Large PDF - open download URL in new window
+                                btn.innerHTML = '⬇️ Opening download...';
+                                window.open(result.downloadUrl, '_blank');
+                                alert('PDF generated successfully (' + result.sizeMB + ' MB)!\\nDownload should start in a new tab.');
+                            } else {
+                                throw new Error(result.error || 'PDF generation failed');
+                            }
+                        } else if (contentType && contentType.includes('application/pdf')) {
+                            // Small PDF - direct download
+                            const blob = await response.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = fileName.replace('.html', '.pdf');
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        } else {
+                            throw new Error('Server did not return a PDF file');
+                        }
+                        
+                        btn.innerHTML = '✅ Downloaded';
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btn.innerHTML = originalText;
+                        }, 3000);
+                    } catch (error) {
+                        console.error('PDF download error:', error);
+                        alert('PDF generation failed: ' + error.message + '\\n\\nTip: Refresh the page and try again, or wait for the server to be ready.');
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                }
             </script>
         `;
     }
@@ -1826,6 +2004,9 @@ class TemplateEngine {
         {{chart}}
         {{sections}}
         {{findings}}
+        {{allFindingsPictures}}
+        {{allGoodObservationsPictures}}
+        {{allCorrectiveActionsPictures}}
         {{footer}}
     </div>
     {{imageModal}}

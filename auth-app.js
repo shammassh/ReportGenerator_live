@@ -4218,6 +4218,199 @@ app.get('/api/audits/reports/images/:folderName/:imageName', requireAuth, (req, 
     res.sendFile(imagePath);
 });
 
+// Export audit report to PDF
+app.post('/api/audits/export-pdf', requireAuth, async (req, res) => {
+    let browser = null;
+    try {
+        let { fileName } = req.body;
+        
+        if (!fileName) {
+            return res.status(400).json({ success: false, error: 'fileName is required' });
+        }
+        
+        // Decode URL-encoded filename (spaces become %20 in URLs)
+        fileName = decodeURIComponent(fileName);
+        
+        console.log(`📄 [API] Exporting PDF for: ${fileName}`);
+        
+        const htmlPath = path.join(__dirname, 'reports', fileName);
+        const reportsDir = path.join(__dirname, 'reports');
+        
+        if (!fs.existsSync(htmlPath)) {
+            return res.status(404).json({ success: false, error: 'HTML report not found' });
+        }
+        
+        // Check file size
+        const stats = fs.statSync(htmlPath);
+        const sizeMB = stats.size / 1024 / 1024;
+        console.log(`   📊 HTML file size: ${sizeMB.toFixed(2)} MB`);
+        
+        // Read HTML and convert relative image paths to absolute file:// URLs
+        let htmlContent = fs.readFileSync(htmlPath, 'utf8');
+        
+        // Convert relative image paths to absolute file:// URLs for Puppeteer
+        // Pattern: images/FolderName/imageName.jpg -> file:///reportsDir/FolderName_images/imageName.jpg
+        htmlContent = htmlContent.replace(/src="images\/([^\/]+)\/([^"]+)"/g, (match, folderName, imageName) => {
+            const absPath = path.join(reportsDir, `${folderName}_images`, imageName).replace(/\\/g, '/');
+            return `src="file:///${absPath}"`;
+        });
+        
+        // Also handle click handlers in image links  
+        htmlContent = htmlContent.replace(/openImageModal\('images\/([^\/]+)\/([^']+)'\)/g, (match, folderName, imageName) => {
+            const absPath = path.join(reportsDir, `${folderName}_images`, imageName).replace(/\\/g, '/');
+            return `openImageModal('file:///${absPath}')`;
+        });
+        
+        console.log(`   📊 HTML size after path conversion: ${(htmlContent.length / 1024 / 1024).toFixed(2)} MB`);
+        
+        // Convert to PDF using Puppeteer with memory-optimized settings
+        const puppeteer = require('puppeteer');
+        console.log(`   🔄 Converting HTML to PDF (this may take a few minutes for large reports)...`);
+        
+        browser = await puppeteer.launch({ 
+            headless: 'new',
+            args: [
+                '--no-sandbox', 
+                '--disable-setuid-sandbox',
+                '--disable-web-security',
+                '--allow-file-access-from-files',
+                '--disable-features=IsolateOrigins,site-per-process',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-extensions',
+                '--disable-background-networking',
+                '--disable-default-apps',
+                '--disable-sync',
+                '--disable-translate',
+                '--metrics-recording-only',
+                '--mute-audio',
+                '--no-first-run',
+                '--safebrowsing-disable-auto-update',
+                '--js-flags=--max-old-space-size=4096'  // 4GB memory limit
+            ]
+        });
+        
+        const page = await browser.newPage();
+        
+        // Lower viewport for memory savings
+        await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 1 });
+        
+        // Set longer timeout for navigation
+        page.setDefaultNavigationTimeout(300000); // 5 minutes
+        page.setDefaultTimeout(300000);
+        
+        console.log(`   📄 Loading HTML content...`);
+        
+        // Set HTML content with longer timeout
+        await page.setContent(htmlContent, { 
+            waitUntil: 'domcontentloaded',  // Don't wait for all images initially
+            timeout: 300000  // 5 minutes
+        });
+        
+        console.log(`   🖼️ Waiting for images to load...`);
+        
+        // Wait for images to load with a maximum timeout
+        try {
+            await page.evaluate(() => {
+                return new Promise((resolve) => {
+                    const images = document.querySelectorAll('img');
+                    let loaded = 0;
+                    const total = images.length;
+                    
+                    if (total === 0) {
+                        resolve();
+                        return;
+                    }
+                    
+                    const checkDone = () => {
+                        loaded++;
+                        if (loaded >= total) resolve();
+                    };
+                    
+                    images.forEach(img => {
+                        if (img.complete) {
+                            checkDone();
+                        } else {
+                            img.addEventListener('load', checkDone);
+                            img.addEventListener('error', checkDone);
+                        }
+                    });
+                    
+                    // Maximum wait time of 2 minutes for all images
+                    setTimeout(resolve, 120000);
+                });
+            });
+        } catch (imgError) {
+            console.log(`   ⚠️ Some images may not have loaded: ${imgError.message}`);
+        }
+        
+        console.log(`   📝 Generating PDF...`);
+        
+        const pdfBuffer = await page.pdf({ 
+            format: 'A4',
+            printBackground: true,
+            preferCSSPageSize: false,
+            displayHeaderFooter: true,
+            headerTemplate: '<div></div>',
+            footerTemplate: `
+                <div style="font-size: 10px; width: 100%; text-align: center; color: #666; padding: 5px;">
+                    Page <span class="pageNumber"></span> of <span class="totalPages"></span>
+                </div>
+            `,
+            margin: { top: '10mm', right: '10mm', bottom: '15mm', left: '10mm' },
+            scale: 0.8,
+            timeout: 300000  // 5 minutes
+        });
+        
+        await browser.close();
+        browser = null;
+        
+        const pdfSizeMB = pdfBuffer.length / 1024 / 1024;
+        console.log(`   ✅ PDF generated: ${pdfSizeMB.toFixed(2)} MB`);
+        
+        // Save PDF to disk for large files (>50MB) to avoid memory issues during transfer
+        const pdfFileName = fileName.replace('.html', '.pdf');
+        const pdfPath = path.join(__dirname, 'reports', pdfFileName);
+        
+        if (pdfSizeMB > 50) {
+            // Save to disk and return download URL
+            fs.writeFileSync(pdfPath, pdfBuffer);
+            console.log(`   💾 Large PDF saved to disk: ${pdfPath}`);
+            
+            // Return JSON with download URL
+            return res.json({
+                success: true,
+                downloadUrl: `/api/audits/reports/${pdfFileName}`,
+                fileName: pdfFileName,
+                sizeMB: pdfSizeMB.toFixed(2)
+            });
+        }
+        
+        // For smaller PDFs, stream directly
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${pdfFileName}"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        res.end(pdfBuffer);
+        
+    } catch (error) {
+        console.error('❌ PDF export error:', error);
+        
+        // Always close browser on error
+        if (browser) {
+            try {
+                await browser.close();
+            } catch (closeError) {
+                console.error('Error closing browser:', closeError);
+            }
+        }
+        
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || 'PDF generation failed'
+        });
+    }
+});
+
 // Delete audit
 app.delete('/api/audits/:auditId', requireAuth, requireRole('Admin', 'SuperAuditor', 'Auditor'), async (req, res) => {
     try {

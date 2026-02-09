@@ -258,8 +258,9 @@ class DataService {
                     
                     try {
                         await fs.writeFile(filePath, row.FileData);
-                        // Use path that matches server route: images/ReportBaseName/pic_xxx.jpg
-                        dataUrl = `images/${reportBaseName}/${fileName}`;
+                        // Use full API path that matches server route
+                        // Server route adds '_images' to folderName, so use reportBaseName directly
+                        dataUrl = `/api/audits/reports/images/${reportBaseName}/${fileName}`;
                         console.log(`   💾 Saved: ${fileName} (${(fileSize / 1024).toFixed(1)} KB)`);
                     } catch (err) {
                         console.error(`   ❌ Failed to save ${fileName}:`, err.message);
