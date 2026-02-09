@@ -997,6 +997,12 @@
                 if (select) {
                     const isFilter = id === 'storeFilter';
                     select.innerHTML = isFilter ? '<option value="">All Stores</option>' : '<option value="">Select store...</option>';
+                    
+                    // Add static "Office" option
+                    if (!isFilter) {
+                        select.innerHTML += `<option value="office">🏢 Office</option>`;
+                    }
+                    
                     stores.forEach(s => {
                         // Handle both id/name and storeId/storeName formats
                         const storeId = s.id || s.storeId || s.StoreID;

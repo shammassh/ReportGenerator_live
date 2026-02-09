@@ -2712,11 +2712,7 @@ app.get('/api/calendar/audits', requireAuth, async (req, res) => {
         }
         
         // Role-based filtering
-        if (userRole === 'Auditor') {
-            // Auditors only see their own scheduled audits
-            whereClause += ` AND sa.auditor_user_id = @userId`;
-            request.input('userId', sql.Int, userId);
-        } else if (userRole === 'StoreManager') {
+        if (userRole === 'StoreManager') {
             // Store managers see audits for their assigned stores
             whereClause += ` AND sa.store_id IN (
                 SELECT store_id FROM UserAssignments WHERE user_id = @userId
@@ -2813,7 +2809,7 @@ app.post('/api/calendar/audits', requireAuth, requireRole('Admin', 'SuperAuditor
 });
 
 // Update scheduled audit
-app.put('/api/calendar/audits/:id', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.put('/api/calendar/audits/:id', requireAuth, requireRole('Admin', 'SuperAuditor', 'Auditor'), async (req, res) => {
     try {
         const auditId = req.params.id;
         const { store_id, scheduled_date, scheduled_time, auditor_user_id, checklist_schema_id, priority, notes, status } = req.body;
