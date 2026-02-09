@@ -446,7 +446,11 @@ class ReportGenerator {
                 f.department && f.department.toLowerCase().includes(department.toLowerCase())
             );
 
-            const pictures = await this.dataService.getAuditPictures(auditId);
+            // Create images folder for file-based storage (handles large audits)
+            const reportBaseName = `${department}_Report_${auditData.documentNumber}_${new Date().toISOString().split('T')[0]}`;
+            const imageDir = path.join(this.outputDir, `${reportBaseName}_images`);
+            
+            const pictures = await this.dataService.getAuditPictures(auditId, imageDir, reportBaseName);
 
             // Build department report HTML (similar to action plan but filtered)
             const html = this.buildDepartmentReportHtml({

@@ -44,8 +44,10 @@ class AuditService {
                 password: process.env.SQL_PASSWORD,
                 options: {
                     encrypt: process.env.SQL_ENCRYPT === 'true',
-                    trustServerCertificate: process.env.SQL_TRUST_CERT === 'true'
+                    trustServerCertificate: process.env.SQL_TRUST_CERT === 'true',
+                    requestTimeout: 120000    // 2 minutes for queries (for large reports)
                 },
+                connectionTimeout: 30000,  // 30 seconds to connect
                 pool: {
                     max: 10,
                     min: 0,
@@ -1203,30 +1205,44 @@ class AuditService {
                     ORDER BY ar.SectionNumber, ar.ReferenceValue
                 `);
             
-            // Get pictures for each response (all picture types for department reports)
-            const items = [];
-            for (const response of responsesResult.recordset) {
+            // Get all response IDs for batch picture fetch
+            const responseIds = responsesResult.recordset.map(r => r.ResponseID);
+            
+            // Fetch all pictures in one query (much faster than N+1 queries)
+            let picturesByResponse = {};
+            if (responseIds.length > 0) {
                 const picturesResult = await pool.request()
-                    .input('ResponseID', sql.Int, response.ResponseID)
                     .query(`
-                        SELECT PictureID, FileName, FileData, ContentType, PictureType
+                        SELECT PictureID, ResponseID, FileName, FileData, ContentType, PictureType
                         FROM AuditPictures
-                        WHERE ResponseID = @ResponseID
+                        WHERE ResponseID IN (${responseIds.join(',')})
                           AND PictureType IN ('Finding', 'finding', 'Corrective', 'corrective', 'Good', 'good')
-                        ORDER BY 
+                        ORDER BY ResponseID,
                             CASE WHEN PictureType IN ('Finding', 'finding') THEN 1 
                                  WHEN PictureType IN ('Good', 'good') THEN 2
                                  ELSE 3 END,
                             CreatedAt DESC
                     `);
                 
-                const pictures = picturesResult.recordset.map(pic => ({
-                    pictureId: pic.PictureID,
-                    fileName: pic.FileName,
-                    base64: pic.FileData.toString('base64'),
-                    contentType: pic.ContentType,
-                    pictureType: pic.PictureType
-                }));
+                // Group pictures by ResponseID
+                for (const pic of picturesResult.recordset) {
+                    if (!picturesByResponse[pic.ResponseID]) {
+                        picturesByResponse[pic.ResponseID] = [];
+                    }
+                    picturesByResponse[pic.ResponseID].push({
+                        pictureId: pic.PictureID,
+                        fileName: pic.FileName,
+                        base64: pic.FileData.toString('base64'),
+                        contentType: pic.ContentType,
+                        pictureType: pic.PictureType
+                    });
+                }
+            }
+            
+            // Build items with pictures
+            const items = [];
+            for (const response of responsesResult.recordset) {
+                const pictures = picturesByResponse[response.ResponseID] || [];
                 
                 // Use CR (Criterion/Requirement) as Corrective Action if CorrectiveAction is empty
                 const correctiveAction = response.CorrectiveAction || response.CR || '';

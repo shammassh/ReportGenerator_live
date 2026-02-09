@@ -1509,35 +1509,46 @@
                 <div class="report-loading-content">
                     <div class="report-loading-spinner"></div>
                     <div>Generating ${department} Report...</div>
+                    <div style="font-size: 12px; margin-top: 8px; opacity: 0.7;">This may take a few minutes for large audits with many pictures...</div>
                 </div>
             `;
             document.body.appendChild(loading);
             
             try {
-                const response = await fetch(`/api/audits/${auditId}/department-report/${department}`);
+                // Use AbortController with 5 minute timeout for large reports with many pictures
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
+                
+                // Use POST endpoint that generates server-side HTML file (handles large images)
+                const response = await fetch(`/api/audits/${auditId}/generate-department-report/${department}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
                 const result = await response.json();
                 
                 if (!result.success) {
                     throw new Error(result.error || 'Failed to generate report');
                 }
                 
-                const report = result.data;
-                
-                if (report.items.length === 0) {
+                if (result.totalFindings === 0) {
                     loading.remove();
                     alert(`No items found for ${department} department in this audit.`);
                     return;
                 }
                 
-                // Generate and open HTML report
-                const html = generateDepartmentReportHTML(report);
-                const blob = new Blob([html], { type: 'text/html' });
-                const url = URL.createObjectURL(blob);
-                window.open(url, '_blank');
+                // Open the server-generated report file
+                window.open(`/api/audits/reports/${result.fileName}`, '_blank');
                 
             } catch (error) {
                 console.error('Error generating department report:', error);
-                alert('Error generating report: ' + error.message);
+                if (error.name === 'AbortError') {
+                    alert('Report generation timed out. The audit may have too many pictures. Please try again or contact support.');
+                } else {
+                    alert('Error generating report: ' + error.message);
+                }
             } finally {
                 loading.remove();
             }
