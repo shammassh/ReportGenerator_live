@@ -4205,6 +4205,19 @@ app.get('/api/audits/reports/:fileName', requireAuth, (req, res) => {
     res.sendFile(filePath);
 });
 
+// Serve report images - matches pattern: /api/audits/reports/images/ReportName/pic_xxx.jpg
+app.get('/api/audits/reports/images/:folderName/:imageName', requireAuth, (req, res) => {
+    const { folderName, imageName } = req.params;
+    const imagePath = path.join(__dirname, 'reports', `${folderName}_images`, imageName);
+    
+    if (!fs.existsSync(imagePath)) {
+        console.log(`Image not found: ${imagePath}`);
+        return res.status(404).json({ success: false, error: 'Image not found' });
+    }
+    
+    res.sendFile(imagePath);
+});
+
 // Delete audit
 app.delete('/api/audits/:auditId', requireAuth, requireRole('Admin', 'SuperAuditor', 'Auditor'), async (req, res) => {
     try {

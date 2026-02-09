@@ -111,9 +111,11 @@ class ReportGenerator {
                 }
             }
 
-            // 5. Fetch pictures
+            // 5. Fetch pictures - create images folder for large reports
             console.log('🖼️ Step 5: Fetching pictures...');
-            const pictures = await this.dataService.getAuditPictures(auditId);
+            const reportBaseName = `Audit_Report_${auditData.documentNumber}_${new Date().toISOString().split('T')[0]}`;
+            const imageDir = path.join(this.outputDir, `${reportBaseName}_images`);
+            const pictures = await this.dataService.getAuditPictures(auditId, imageDir, reportBaseName);
 
             // 6. Fetch findings
             console.log('🔍 Step 6: Fetching findings...');
@@ -188,7 +190,7 @@ class ReportGenerator {
 
             // 10. Save report
             console.log('💾 Step 10: Saving report...');
-            const fileName = `Audit_Report_${auditData.documentNumber}_${new Date().toISOString().split('T')[0]}.html`;
+            const fileName = `${reportBaseName}.html`;
             const filePath = path.join(this.outputDir, fileName);
 
             // Ensure output directory exists
@@ -197,9 +199,15 @@ class ReportGenerator {
             // Write file
             await fs.writeFile(filePath, html, 'utf8');
 
+            // Check if images were saved to separate folder
+            const hasImageFolder = Object.values(pictures).flat().some(p => p.isFileBased);
+
             console.log(`\n${'='.repeat(60)}`);
             console.log(`✅ Report generated successfully!`);
             console.log(`📄 File: ${filePath}`);
+            if (hasImageFolder) {
+                console.log(`📁 Images: ${imageDir}`);
+            }
             console.log(`📊 Score: ${auditData.totalScore}% (${auditData.totalScore >= threshold ? 'PASS ✅' : 'FAIL ❌'})`);
             console.log(`🏪 Store: ${auditData.storeName}`);
             console.log(`${'='.repeat(60)}\n`);
@@ -208,6 +216,7 @@ class ReportGenerator {
                 success: true,
                 filePath,
                 fileName,
+                imageDir: hasImageFolder ? imageDir : null,
                 html,
                 data: reportData
             };

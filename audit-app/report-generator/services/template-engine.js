@@ -91,49 +91,96 @@ class TemplateEngine {
      * @returns {Promise<string>} - Complete HTML document
      */
     async buildDocument(reportData, options = {}) {
-        // Load templates if not loaded
-        if (Object.keys(this.templates).length === 0) {
-            await this.loadTemplates();
-        }
+        try {
+            // Load templates if not loaded
+            if (Object.keys(this.templates).length === 0) {
+                await this.loadTemplates();
+            }
 
-        const styles = await this.loadStyles();
-        
-        // Build each section
-        const header = this.buildHeader(reportData);
-        const auditInfo = this.buildAuditInfo(reportData);
-        const performanceBanner = this.buildPerformanceBanner(reportData);
-        const dataTable = this.buildDataTable(reportData);
-        const chartSection = this.buildChart(reportData);
-        const sectionsHtml = this.buildSections(reportData);
-        const findingsHtml = this.buildFindings(reportData);
-        const allFindingsPictures = this.buildAllFindingsPictures(reportData);
-        const allGoodObservationsPictures = this.buildAllGoodObservationsPictures(reportData);
-        const allCorrectiveActionsPictures = this.buildAllCorrectiveActionsPictures(reportData);
-        const imageModal = this.templates['image-modal'] || this.getImageModalHtml();
-        const footer = this.buildFooter(reportData);
+            const styles = await this.loadStyles();
+            
+            // Build each section with error handling
+            console.log('📄 Building report sections...');
+            const header = this.buildHeader(reportData);
+            const auditInfo = this.buildAuditInfo(reportData);
+            const performanceBanner = this.buildPerformanceBanner(reportData);
+            const dataTable = this.buildDataTable(reportData);
+            const chartSection = this.buildChart(reportData);
+            const sectionsHtml = this.buildSections(reportData);
+            const findingsHtml = this.buildFindings(reportData);
+            
+            // Build picture galleries with size monitoring
+            console.log('🖼️ Building picture galleries...');
+            let allFindingsPictures = '';
+            let allGoodObservationsPictures = '';
+            let allCorrectiveActionsPictures = '';
+            
+            try {
+                allFindingsPictures = this.buildAllFindingsPictures(reportData);
+                console.log(`   Finding pictures gallery: ${(allFindingsPictures.length / 1024).toFixed(1)} KB`);
+            } catch (e) {
+                console.error('   ⚠️ Error building finding pictures gallery:', e.message);
+                allFindingsPictures = '<div class="gallery-error">Finding pictures could not be loaded</div>';
+            }
+            
+            try {
+                allGoodObservationsPictures = this.buildAllGoodObservationsPictures(reportData);
+                console.log(`   Good observations gallery: ${(allGoodObservationsPictures.length / 1024).toFixed(1)} KB`);
+            } catch (e) {
+                console.error('   ⚠️ Error building good observations gallery:', e.message);
+                allGoodObservationsPictures = '<div class="gallery-error">Good observation pictures could not be loaded</div>';
+            }
+            
+            try {
+                allCorrectiveActionsPictures = this.buildAllCorrectiveActionsPictures(reportData);
+                console.log(`   Corrective actions gallery: ${(allCorrectiveActionsPictures.length / 1024).toFixed(1)} KB`);
+            } catch (e) {
+                console.error('   ⚠️ Error building corrective actions gallery:', e.message);
+                allCorrectiveActionsPictures = '<div class="gallery-error">Corrective action pictures could not be loaded</div>';
+            }
+            
+            const imageModal = this.templates['image-modal'] || this.getImageModalHtml();
+            const footer = this.buildFooter(reportData);
 
-        // Build main layout
-        const mainLayout = this.templates['main-layout'] || this.getMainLayoutTemplate();
-        
-        return this.replacePlaceholders(mainLayout, {
-            title: `Audit Report - ${reportData.documentNumber}`,
-            styles: `<style>${styles}</style>`,
-            header,
-            auditInfo,
-            performanceBanner,
-            dataTable,
-            chart: chartSection,
-            sections: sectionsHtml,
-            findings: findingsHtml,
-            allFindingsPictures,
-            allGoodObservationsPictures,
-            allCorrectiveActionsPictures,
+            // Build main layout
+            const mainLayout = this.templates['main-layout'] || this.getMainLayoutTemplate();
+            
+            // Estimate total size before combining
+            const totalSize = styles.length + header.length + auditInfo.length + performanceBanner.length + 
+                             dataTable.length + chartSection.length + sectionsHtml.length + findingsHtml.length +
+                             allFindingsPictures.length + allGoodObservationsPictures.length + allCorrectiveActionsPictures.length +
+                             imageModal.length + footer.length;
+            console.log(`📊 Estimated report size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
+            
+            // Check if we're approaching the string limit (500MB warning threshold)
+            if (totalSize > 500 * 1024 * 1024) {
+                console.warn('⚠️ Report size is very large, may cause memory issues');
+            }
+            
+            return this.replacePlaceholders(mainLayout, {
+                title: `Audit Report - ${reportData.documentNumber}`,
+                styles: `<style>${styles}</style>`,
+                header,
+                auditInfo,
+                performanceBanner,
+                dataTable,
+                chart: chartSection,
+                sections: sectionsHtml,
+                findings: findingsHtml,
+                allFindingsPictures,
+                allGoodObservationsPictures,
+                allCorrectiveActionsPictures,
             imageModal,
             footer,
             scripts: this.getScripts(reportData),
             documentNumber: reportData.documentNumber,
             generatedAt: new Date().toLocaleString()
         });
+        } catch (error) {
+            // Log the error for debugging
+            console.error('❌ Error in buildDocument:', error.message);
+            throw error;
+        }
     }
 
     /**
