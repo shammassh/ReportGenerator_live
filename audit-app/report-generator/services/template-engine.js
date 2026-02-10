@@ -260,7 +260,7 @@ class TemplateEngine {
      * Build performance banner
      */
     buildPerformanceBanner(data) {
-        const score = data.totalScore || 0;
+        const score = Math.round(data.totalScore || 0);
         const threshold = data.threshold || 83;
         const isPassing = score >= threshold;
         
