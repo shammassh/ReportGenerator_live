@@ -2032,11 +2032,13 @@
                         }
                     }
 
-                    // Show calendar button for all roles (different views per role)
-                    const calendarBtn = document.getElementById('calendarBtn');
-                    if (calendarBtn) {
-                        calendarBtn.style.display = 'flex';
-                        console.log('✅ Calendar button display set to flex for role:', userRole);
+                    // Show calendar button for Admin, SuperAuditor, and Auditor only (confidential)
+                    if (userRole === 'Admin' || userRole === 'SuperAuditor' || userRole === 'Auditor') {
+                        const calendarBtn = document.getElementById('calendarBtn');
+                        if (calendarBtn) {
+                            calendarBtn.style.display = 'flex';
+                            console.log('✅ Calendar button display set to flex for role:', userRole);
+                        }
                     }
 
                     // Show admin panel button for Admin only
