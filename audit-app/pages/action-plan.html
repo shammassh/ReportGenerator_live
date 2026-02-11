@@ -143,6 +143,89 @@
         .stat-item.no .stat-number { color: #dc2626; }
         .stat-item.partial .stat-number { color: #f59e0b; }
 
+        /* Status count cards */
+        .status-summary {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px dashed #e5e7eb;
+        }
+
+        .status-summary-title {
+            width: 100%;
+            font-size: 16px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 5px;
+        }
+
+        .status-card {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-width: 140px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .status-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .status-card.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .status-card.completed {
+            border-left: 4px solid #10b981;
+        }
+        .status-card.completed .status-count { color: #10b981; }
+        .status-card.completed:hover { border-color: #10b981; }
+
+        .status-card.in-progress {
+            border-left: 4px solid #f59e0b;
+        }
+        .status-card.in-progress .status-count { color: #f59e0b; }
+        .status-card.in-progress:hover { border-color: #f59e0b; }
+
+        .status-card.pending {
+            border-left: 4px solid #ef4444;
+        }
+        .status-card.pending .status-count { color: #ef4444; }
+        .status-card.pending:hover { border-color: #ef4444; }
+
+        .status-card.deferred {
+            border-left: 4px solid #6b7280;
+        }
+        .status-card.deferred .status-count { color: #6b7280; }
+        .status-card.deferred:hover { border-color: #6b7280; }
+
+        .status-count {
+            display: block;
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .status-label {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .status-percentage {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 3px;
+        }
+
         /* Instructions Section */
         .instructions-section {
             padding: 20px 25px;
@@ -387,6 +470,42 @@
         .status-in-progress { background-color: #dbeafe; }
         .status-completed { background-color: #d1fae5; }
         .status-deferred { background-color: #f3f4f6; }
+
+        /* Read-only fields for Auditor role */
+        .readonly-field {
+            background-color: #f3f4f6 !important;
+            color: #6b7280 !important;
+            cursor: not-allowed !important;
+            border-color: #e5e7eb !important;
+        }
+
+        .readonly-field:focus {
+            box-shadow: none !important;
+            border-color: #e5e7eb !important;
+        }
+
+        .readonly-notice {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid #f59e0b;
+            padding: 15px 25px;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .readonly-notice-icon {
+            font-size: 24px;
+        }
+
+        .readonly-notice-text {
+            color: #92400e;
+            font-size: 14px;
+        }
+
+        .readonly-notice-text strong {
+            color: #78350f;
+        }
 
         /* Picture Upload */
         .picture-section {
@@ -700,6 +819,36 @@
                     <span class="stat-label">Low Priority</span>
                 </div>
             </div>
+
+            <!-- Status Progress Cards -->
+            <div class="status-summary">
+                <div class="status-summary-title">📊 Action Plan Progress</div>
+                <div class="status-card completed" onclick="filterByStatus('Completed')" title="Click to filter Completed items">
+                    <span class="status-count" id="completedCount">0</span>
+                    <span class="status-label">✅ Completed</span>
+                    <span class="status-percentage" id="completedPct">0%</span>
+                </div>
+                <div class="status-card in-progress" onclick="filterByStatus('In Progress')" title="Click to filter In Progress items">
+                    <span class="status-count" id="inProgressCount">0</span>
+                    <span class="status-label">🔄 In Progress</span>
+                    <span class="status-percentage" id="inProgressPct">0%</span>
+                </div>
+                <div class="status-card pending" onclick="filterByStatus('Pending')" title="Click to filter Pending items">
+                    <span class="status-count" id="pendingCount">0</span>
+                    <span class="status-label">⏳ Pending</span>
+                    <span class="status-percentage" id="pendingPct">0%</span>
+                </div>
+                <div class="status-card deferred" onclick="filterByStatus('Deferred')" title="Click to filter Deferred items">
+                    <span class="status-count" id="deferredCount">0</span>
+                    <span class="status-label">⏸️ Deferred</span>
+                    <span class="status-percentage" id="deferredPct">0%</span>
+                </div>
+                <div class="status-card" onclick="filterByStatus('')" title="Click to show all items" style="background: #f3f4f6;">
+                    <span class="status-count" style="color: #374151;" id="allCount">0</span>
+                    <span class="status-label">📋 Show All</span>
+                    <span class="status-percentage">&nbsp;</span>
+                </div>
+            </div>
         </div>
 
         <!-- Instructions -->
@@ -799,11 +948,26 @@
                 const session = await sessionRes.json();
                 if (session.authenticated && session.user) {
                     currentUserRole = session.user.role;
-                    // Show submit button for StoreManager, Admin, Auditor, SuperAuditor
-                    const canSubmit = ['StoreManager', 'Admin', 'Auditor', 'SuperAuditor'].includes(currentUserRole);
-                    if (canSubmit) {
+                    
+                    // Roles that can edit action plan fields
+                    const canEditRoles = ['StoreManager', 'SuperAuditor', 'Admin', 'AreaManager', 'HeadOfOperations'];
+                    const canEdit = canEditRoles.includes(currentUserRole);
+                    
+                    // Show submit button only for roles that can edit
+                    if (canEdit) {
                         document.getElementById('submitBtn').style.display = 'flex';
+                        document.getElementById('saveBtn').style.display = 'flex';
+                    } else {
+                        // Hide save/submit buttons for Auditors (read-only view)
+                        document.getElementById('submitBtn').style.display = 'none';
+                        document.getElementById('saveBtn').style.display = 'none';
+                        
+                        // Show read-only notice
+                        showReadOnlyNotice();
                     }
+                    
+                    // Store canEdit flag for use in renderRow
+                    window.canEditActionPlan = canEdit;
                 }
             } catch (e) {
                 console.log('Could not check user role');
@@ -822,6 +986,23 @@
 
         function goBack() {
             window.location.href = '/auditor/audit-list';
+        }
+
+        function showReadOnlyNotice() {
+            // Insert read-only notice after instructions section
+            const instructionsSection = document.querySelector('.instructions-section');
+            if (instructionsSection) {
+                const notice = document.createElement('div');
+                notice.className = 'readonly-notice';
+                notice.innerHTML = `
+                    <span class="readonly-notice-icon">👁️</span>
+                    <span class="readonly-notice-text">
+                        <strong>View-Only Mode:</strong> You are viewing this action plan as an Auditor. 
+                        Only Store Managers, SuperAuditors, and Admins can edit action plan responses.
+                    </span>
+                `;
+                instructionsSection.parentNode.insertBefore(notice, instructionsSection.nextSibling);
+            }
         }
 
         async function loadAuditData(auditId) {
@@ -941,6 +1122,45 @@
             document.getElementById('highPriority').textContent = highCount;
             document.getElementById('mediumPriority').textContent = mediumCount;
             document.getElementById('lowPriority').textContent = lowCount;
+
+            // Update status counts
+            const total = actionItems.length;
+            const completedCount = actionItems.filter(i => i.status === 'Completed').length;
+            const inProgressCount = actionItems.filter(i => i.status === 'In Progress').length;
+            const pendingCount = actionItems.filter(i => !i.status || i.status === 'Pending').length;
+            const deferredCount = actionItems.filter(i => i.status === 'Deferred').length;
+
+            document.getElementById('completedCount').textContent = completedCount;
+            document.getElementById('inProgressCount').textContent = inProgressCount;
+            document.getElementById('pendingCount').textContent = pendingCount;
+            document.getElementById('deferredCount').textContent = deferredCount;
+            document.getElementById('allCount').textContent = total;
+
+            // Update percentages
+            const calcPct = (count) => total > 0 ? Math.round((count / total) * 100) : 0;
+            document.getElementById('completedPct').textContent = calcPct(completedCount) + '%';
+            document.getElementById('inProgressPct').textContent = calcPct(inProgressCount) + '%';
+            document.getElementById('pendingPct').textContent = calcPct(pendingCount) + '%';
+            document.getElementById('deferredPct').textContent = calcPct(deferredCount) + '%';
+        }
+
+        function filterByStatus(status) {
+            // Update the status filter dropdown
+            document.getElementById('statusFilter').value = status;
+            
+            // Update active card styling
+            document.querySelectorAll('.status-card').forEach(card => card.classList.remove('active'));
+            if (status) {
+                const statusClass = status.toLowerCase().replace(' ', '-');
+                const activeCard = document.querySelector(`.status-card.${statusClass}`);
+                if (activeCard) activeCard.classList.add('active');
+            }
+            
+            // Apply filters
+            applyFilters();
+            
+            // Scroll to table
+            document.getElementById('tableContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function populateFilters() {
@@ -1017,6 +1237,11 @@
             const answerClass = item.selectedChoice === 'No' ? 'answer-no' : 'answer-partial';
             const priorityClass = item.priority ? `priority-${item.priority.toLowerCase()}` : '';
             const statusClass = item.status ? `status-${item.status.toLowerCase().replace(' ', '-')}` : '';
+            
+            // Check if user can edit (set during page load based on role)
+            const canEdit = window.canEditActionPlan !== false;
+            const readonlyAttr = canEdit ? '' : 'readonly';
+            const disabledAttr = canEdit ? '' : 'disabled';
 
             return `
                 <tr data-index="${index}" data-ref="${item.referenceValue}">
@@ -1035,31 +1260,35 @@
                         ${item.priority ? `<span class="priority-badge ${priorityClass}">${item.priority}</span>` : '-'}
                     </td>
                     <td class="input-col">
-                        <textarea class="action-input" 
+                        <textarea class="action-input ${!canEdit ? 'readonly-field' : ''}" 
                             data-field="actionTaken" 
                             data-index="${index}"
-                            placeholder="Describe action taken..."
+                            placeholder="${canEdit ? 'Describe action taken...' : ''}"
+                            ${readonlyAttr}
                             onchange="updateItem(${index}, 'actionTaken', this.value)">${escapeHtml(item.actionTaken)}</textarea>
                     </td>
                     <td class="input-col">
-                        <input type="date" class="deadline-input" 
+                        <input type="date" class="deadline-input ${!canEdit ? 'readonly-field' : ''}" 
                             data-field="deadline" 
                             data-index="${index}"
                             value="${item.deadline}"
+                            ${readonlyAttr}
                             onchange="updateItem(${index}, 'deadline', this.value)">
                     </td>
                     <td class="input-col">
-                        <input type="text" class="person-input" 
+                        <input type="text" class="person-input ${!canEdit ? 'readonly-field' : ''}" 
                             data-field="personInCharge" 
                             data-index="${index}"
-                            placeholder="Name"
+                            placeholder="${canEdit ? 'Name' : ''}"
                             value="${escapeHtml(item.personInCharge)}"
+                            ${readonlyAttr}
                             onchange="updateItem(${index}, 'personInCharge', this.value)">
                     </td>
                     <td class="input-col">
-                        <select class="status-select ${statusClass}" 
+                        <select class="status-select ${statusClass} ${!canEdit ? 'readonly-field' : ''}" 
                             data-field="status" 
                             data-index="${index}"
+                            ${disabledAttr}
                             onchange="updateItem(${index}, 'status', this.value); updateStatusColor(this)">
                             <option value="Pending" ${item.status === 'Pending' ? 'selected' : ''}>Pending</option>
                             <option value="In Progress" ${item.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
@@ -1069,6 +1298,7 @@
                     </td>
                     <td class="input-col">
                         <div class="picture-section">
+                            ${canEdit ? `
                             <label class="picture-upload-btn">
                                 📷 Add
                                 <input type="file" class="picture-input" 
@@ -1076,12 +1306,12 @@
                                     multiple
                                     data-index="${index}"
                                     onchange="handlePictureUpload(${index}, this.files)">
-                            </label>
+                            </label>` : ''}
                             <div class="picture-preview" id="preview-${index}">
                                 ${(item.pictures || []).map((pic, picIndex) => `
                                     <div class="picture-thumb-wrapper">
                                         <img src="${pic}" class="picture-thumb" onclick="openLightbox('${pic}')">
-                                        <button class="remove-picture" onclick="removePicture(${index}, ${picIndex})">×</button>
+                                        ${canEdit ? `<button class="remove-picture" onclick="removePicture(${index}, ${picIndex})">×</button>` : ''}
                                     </div>
                                 `).join('')}
                             </div>
