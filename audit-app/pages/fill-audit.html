@@ -560,6 +560,40 @@
             color: white;
         }
 
+        /* Required Priority Indicator */
+        .priority-required {
+            color: #ef4444;
+            font-weight: 600;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .priority-options.missing-priority {
+            border: 2px solid #ef4444;
+            padding: 0.5rem;
+            border-radius: 8px;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .priority-options.missing-priority .priority-btn {
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        .priority-warning {
+            color: #ef4444;
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
         /* Escalate Section */
         .escalate-section {
             margin-top: 1rem;
@@ -1995,8 +2029,11 @@
                             <div class="finding-preview" id="finding-preview-${item.responseId}" style="display: ${item.finding && item.finding.toLowerCase().includes('good observation') ? 'block' : 'none'};">${formatFindingWithGoodObservation(item.finding || '')}</div>
                         </div>
                         <div class="finding-group">
-                            <div class="finding-label">⚠️ Priority</div>
-                            <div class="priority-options">
+                            <div class="finding-label">
+                                ⚠️ Priority
+                                ${item.selectedChoice === 'Partially' && !item.priority ? '<span class="priority-required">* Required</span>' : ''}
+                            </div>
+                            <div class="priority-options ${item.selectedChoice === 'Partially' && !item.priority ? 'missing-priority' : ''}" id="priority-options-${item.responseId}">
                                 <button class="priority-btn ${item.priority === 'High' ? 'selected-high' : ''}" 
                                     onclick="setPriority(${item.responseId}, 'High')">High</button>
                                 <button class="priority-btn ${item.priority === 'Medium' ? 'selected-medium' : ''}" 
@@ -2004,6 +2041,7 @@
                                 <button class="priority-btn ${item.priority === 'Low' ? 'selected-low' : ''}" 
                                     onclick="setPriority(${item.responseId}, 'Low')">Low</button>
                             </div>
+                            ${item.selectedChoice === 'Partially' && !item.priority ? '<div class="priority-warning">⚠️ Please select a priority level</div>' : ''}
                         </div>
                         ${renderCRField(item)}
                         <div class="finding-group">
@@ -2627,6 +2665,34 @@
                 if (!confirm(`There are still ${unanswered} unanswered questions. Are you sure you want to complete the audit?`)) {
                     return;
                 }
+            }
+
+            // Check for missing priorities on Partially answers (REQUIRED)
+            let missingPriorities = [];
+            auditData.sections.forEach(section => {
+                section.items.forEach(item => {
+                    if (item.selectedChoice === 'Partially' && !item.priority) {
+                        missingPriorities.push({
+                            section: section.sectionName,
+                            ref: item.referenceValue || '-',
+                            title: item.title
+                        });
+                    }
+                });
+            });
+
+            if (missingPriorities.length > 0) {
+                const itemsList = missingPriorities.slice(0, 5).map(p => `• ${p.ref} (${p.section})`).join('\n');
+                const moreText = missingPriorities.length > 5 ? `\n...and ${missingPriorities.length - 5} more` : '';
+                alert(`⚠️ Priority Required for "Partially" Answers\n\nPlease set the priority level for the following ${missingPriorities.length} item(s):\n\n${itemsList}${moreText}\n\nPriority is required for all Partially compliant items.`);
+                
+                // Navigate to the first section with missing priority
+                const firstMissing = missingPriorities[0];
+                const sectionIndex = auditData.sections.findIndex(s => s.sectionName === firstMissing.section);
+                if (sectionIndex >= 0) {
+                    selectSection(sectionIndex);
+                }
+                return;
             }
 
             try {
