@@ -67,18 +67,7 @@ window.openEditUserModal = async function(user) {
                     <div class="form-group">
                         <label>Assigned Brands *</label>
                         <div id="brandCheckboxes" class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="assigned_brands" value="Spinneys" ${(user.assigned_brands || []).includes('Spinneys') ? 'checked' : ''}>
-                                <span>Spinneys</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="assigned_brands" value="Happy" ${(user.assigned_brands || []).includes('Happy') ? 'checked' : ''}>
-                                <span>Happy</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="assigned_brands" value="GNG" ${(user.assigned_brands || []).includes('GNG') ? 'checked' : ''}>
-                                <span>GNG (Grab & Go)</span>
-                            </label>
+                            <p class="loading-text">Loading brands...</p>
                         </div>
                         <small class="form-hint">Head of Operations can view all stores for selected brands</small>
                     </div>
@@ -91,9 +80,6 @@ window.openEditUserModal = async function(user) {
                         <label>Filter by Brand</label>
                         <select id="areaBrandFilter" class="form-control" onchange="filterAreaStoresByBrand()">
                             <option value="">All Brands</option>
-                            <option value="Spinneys">Spinneys</option>
-                            <option value="Happy">Happy</option>
-                            <option value="GNG">GNG (Grab & Go)</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -162,6 +148,9 @@ window.openEditUserModal = async function(user) {
         // Load stores list for checkbox selection
         await loadStoresForModal(user);
         
+        // Load brands for HeadOfOperations
+        await loadBrandsForModal(user);
+        
         // Show modal
         modal.classList.add('show');
         
@@ -215,6 +204,60 @@ async function loadStoresForModal(user) {
         const storeCheckboxes = document.getElementById('storeCheckboxes');
         if (storeCheckboxes) {
             storeCheckboxes.innerHTML = '<p class="form-hint text-error">Failed to load stores</p>';
+        }
+    }
+}
+
+/**
+ * Load brands dynamically for HeadOfOperations and AreaManager
+ */
+async function loadBrandsForModal(user) {
+    try {
+        const response = await fetch('/api/brands');
+        if (!response.ok) {
+            throw new Error('Failed to fetch brands');
+        }
+        
+        const data = await response.json();
+        const brands = data.data || [];
+        
+        // Store brands globally for other functions
+        window._modalBrands = brands;
+        
+        // Parse user's assigned brands
+        const userBrands = user.assigned_brands || [];
+        
+        // Update brand checkboxes
+        const brandCheckboxes = document.getElementById('brandCheckboxes');
+        if (brandCheckboxes) {
+            if (brands.length === 0) {
+                brandCheckboxes.innerHTML = '<p class="form-hint">No brands available. Please add brands in System Settings.</p>';
+            } else {
+                brandCheckboxes.innerHTML = brands.map(brand => `
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="assigned_brands" value="${escapeHtml(brand.BrandName)}" 
+                            ${userBrands.includes(brand.BrandName) ? 'checked' : ''}>
+                        <span>${brand.BrandIcon || '🏬'} ${escapeHtml(brand.BrandName)}</span>
+                        <small style="color:#666; margin-left:0.5rem;">(${brand.StoreCount || 0} stores)</small>
+                    </label>
+                `).join('');
+            }
+        }
+        
+        // Update area brand filter dropdown
+        const areaBrandFilter = document.getElementById('areaBrandFilter');
+        if (areaBrandFilter) {
+            areaBrandFilter.innerHTML = '<option value="">All Brands</option>' + 
+                brands.map(brand => `
+                    <option value="${escapeHtml(brand.BrandName)}">${brand.BrandIcon || '🏬'} ${escapeHtml(brand.BrandName)}</option>
+                `).join('');
+        }
+        
+    } catch (error) {
+        console.error('Error loading brands:', error);
+        const brandCheckboxes = document.getElementById('brandCheckboxes');
+        if (brandCheckboxes) {
+            brandCheckboxes.innerHTML = '<p class="form-hint text-error">Failed to load brands</p>';
         }
     }
 }

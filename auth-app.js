@@ -808,6 +808,75 @@ app.get('/api/region-manager/my-region', requireAuth, requireRole('HeadOfOperati
 console.log('[APP] Store management system loaded');
 
 // ==========================================
+// Brand Management System
+// ==========================================
+const BrandService = require('./admin/services/brand-service');
+
+// Get all brands
+app.get('/api/brands', requireAuth, async (req, res) => {
+    try {
+        const activeOnly = req.query.activeOnly !== 'false';
+        const brands = await BrandService.getAllBrands(activeOnly);
+        res.json({ success: true, data: brands });
+    } catch (error) {
+        console.error('Error getting brands:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get single brand
+app.get('/api/brands/:brandId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const brand = await BrandService.getBrandById(parseInt(req.params.brandId));
+        if (!brand) {
+            return res.status(404).json({ success: false, error: 'Brand not found' });
+        }
+        res.json({ success: true, data: brand });
+    } catch (error) {
+        console.error('Error getting brand:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Create new brand
+app.post('/api/brands', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const brand = await BrandService.createBrand(req.body, req.currentUser.email);
+        console.log(`🏷️ [BRAND] Created brand "${brand.BrandName}" by ${req.currentUser.email}`);
+        res.json({ success: true, data: brand });
+    } catch (error) {
+        console.error('Error creating brand:', error);
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
+// Update brand
+app.put('/api/brands/:brandId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const brand = await BrandService.updateBrand(parseInt(req.params.brandId), req.body);
+        console.log(`🏷️ [BRAND] Updated brand "${brand.BrandName}" by ${req.currentUser.email}`);
+        res.json({ success: true, data: brand });
+    } catch (error) {
+        console.error('Error updating brand:', error);
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
+// Delete/deactivate brand
+app.delete('/api/brands/:brandId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const result = await BrandService.deleteBrand(parseInt(req.params.brandId));
+        console.log(`🏷️ [BRAND] Deactivated brand ID ${req.params.brandId} by ${req.currentUser.email}`);
+        res.json(result);
+    } catch (error) {
+        console.error('Error deleting brand:', error);
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
+console.log('[APP] Brand management system loaded');
+
+// ==========================================
 // Admin Database Tools
 // ==========================================
 
@@ -1675,6 +1744,11 @@ const SystemSettingsService = require('./audit-app/services/system-settings-serv
 // Serve System Settings page
 app.get('/admin/system-settings', requireAuth, requireRole('Admin', 'SuperAuditor'), (req, res) => {
     res.sendFile(path.join(__dirname, 'audit-app/pages/system-settings.html'));
+});
+
+// Brand Management Page
+app.get('/admin/brand-management', requireAuth, requireRole('Admin', 'SuperAuditor'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin/pages/brand-management.html'));
 });
 
 // Get all schemas with settings

@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <title>Brand Management - Food Safety Audit System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #1e3a5f;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #495057;
+            border: 1px solid #dee2e6;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .info-banner {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .info-banner .icon {
+            font-size: 36px;
+        }
+
+        .info-banner .text h3 {
+            color: #1e3a5f;
+            margin-bottom: 4px;
+        }
+
+        .info-banner .text p {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .card-header h2 {
+            color: #1e3a5f;
+            font-size: 20px;
+        }
+
+        .brands-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .brands-table th,
+        .brands-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .brands-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .brands-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .brand-icon {
+            font-size: 24px;
+        }
+
+        .brand-name {
+            font-weight: 600;
+            color: #1e3a5f;
+        }
+
+        .store-count {
+            background: #e0e7ff;
+            color: #4f46e5;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .status-inactive {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            margin-right: 4px;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-edit {
+            background: #e0e7ff;
+            color: #4f46e5;
+        }
+
+        .btn-delete {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-header h3 {
+            color: #1e3a5f;
+            font-size: 20px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .icon-picker {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .icon-option {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .icon-option:hover {
+            border-color: #6366f1;
+            background: #e0e7ff;
+        }
+
+        .icon-option.selected {
+            border-color: #4f46e5;
+            background: #e0e7ff;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #1e3a5f;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            z-index: 2000;
+        }
+
+        .toast.show {
+            display: flex;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success {
+            background: #059669;
+        }
+
+        .toast.error {
+            background: #dc2626;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏷️ Brand Management</h1>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="openAddBrandModal()">
+                <span>➕</span> Add Brand
+            </button>
+            <button class="btn btn-secondary" onclick="window.location.href='/dashboard'">
+                <span>🏠</span> Dashboard
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="info-banner">
+            <div class="icon">🏷️</div>
+            <div class="text">
+                <h3>Manage Brands</h3>
+                <p>Add, edit, or remove brands. Brands are used to group stores and assign Head of Operations to specific brand portfolios.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>All Brands</h2>
+                <span id="brandCount">0 brands</span>
+            </div>
+            <div id="brandsContainer">
+                <div class="loading">Loading brands...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Brand Modal -->
+    <div class="modal" id="brandModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Add New Brand</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="brandForm" onsubmit="handleSubmit(event)">
+                <input type="hidden" id="brandId" value="">
+                
+                <div class="form-group">
+                    <label for="brandName">Brand Name *</label>
+                    <input type="text" id="brandName" class="form-control" placeholder="e.g., Noknok" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="brandCode">Brand Code</label>
+                    <input type="text" id="brandCode" class="form-control" placeholder="e.g., NKN (optional)">
+                </div>
+
+                <div class="form-group">
+                    <label>Brand Icon</label>
+                    <div class="icon-picker" id="iconPicker">
+                        <div class="icon-option selected" data-icon="🏬" onclick="selectIcon('🏬')">🏬</div>
+                        <div class="icon-option" data-icon="🛒" onclick="selectIcon('🛒')">🛒</div>
+                        <div class="icon-option" data-icon="🏪" onclick="selectIcon('🏪')">🏪</div>
+                        <div class="icon-option" data-icon="😊" onclick="selectIcon('😊')">😊</div>
+                        <div class="icon-option" data-icon="🍽️" onclick="selectIcon('🍽️')">🍽️</div>
+                        <div class="icon-option" data-icon="🥗" onclick="selectIcon('🥗')">🥗</div>
+                        <div class="icon-option" data-icon="🍕" onclick="selectIcon('🍕')">🍕</div>
+                        <div class="icon-option" data-icon="☕" onclick="selectIcon('☕')">☕</div>
+                        <div class="icon-option" data-icon="🥤" onclick="selectIcon('🥤')">🥤</div>
+                        <div class="icon-option" data-icon="🎯" onclick="selectIcon('🎯')">🎯</div>
+                        <div class="icon-option" data-icon="⭐" onclick="selectIcon('⭐')">⭐</div>
+                        <div class="icon-option" data-icon="💎" onclick="selectIcon('💎')">💎</div>
+                    </div>
+                    <input type="hidden" id="brandIcon" value="🏬">
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-success">💾 Save Brand</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">
+        <span id="toastIcon">✓</span>
+        <span id="toastMessage">Success</span>
+    </div>
+
+    <script>
+        let brands = [];
+
+        // Check auth on load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            await loadBrands();
+        });
+
+        async function checkAuth() {
+            try {
+                const response = await fetch('/auth/session');
+                if (!response.ok) {
+                    window.location.href = '/auth/login';
+                    return;
+                }
+                const data = await response.json();
+                if (!data.user || !['Admin', 'SuperAuditor'].includes(data.user.role)) {
+                    alert('Access denied. Admin or SuperAuditor only.');
+                    window.location.href = '/dashboard';
+                    return;
+                }
+            } catch (error) {
+                window.location.href = '/auth/login';
+            }
+        }
+
+        async function loadBrands() {
+            try {
+                const response = await fetch('/api/brands?activeOnly=false');
+                const data = await response.json();
+                
+                if (data.success) {
+                    brands = data.data;
+                    renderBrands();
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                document.getElementById('brandsContainer').innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">⚠️</div>
+                        <p>Error loading brands: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderBrands() {
+            const container = document.getElementById('brandsContainer');
+            document.getElementById('brandCount').textContent = `${brands.length} brand${brands.length !== 1 ? 's' : ''}`;
+
+            if (brands.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🏷️</div>
+                        <p>No brands yet. Click "Add Brand" to create one.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="brands-table">
+                    <thead>
+                        <tr>
+                            <th>Icon</th>
+                            <th>Brand Name</th>
+                            <th>Code</th>
+                            <th>Stores</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${brands.map(brand => `
+                            <tr>
+                                <td><span class="brand-icon">${brand.BrandIcon || '🏬'}</span></td>
+                                <td><span class="brand-name">${escapeHtml(brand.BrandName)}</span></td>
+                                <td>${escapeHtml(brand.BrandCode || '-')}</td>
+                                <td><span class="store-count">${brand.StoreCount || 0} stores</span></td>
+                                <td>
+                                    <span class="status-badge ${brand.IsActive ? 'status-active' : 'status-inactive'}">
+                                        ${brand.IsActive ? 'Active' : 'Inactive'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="action-btn btn-edit" onclick="editBrand(${brand.BrandID})">✏️ Edit</button>
+                                    ${brand.StoreCount === 0 ? `<button class="action-btn btn-delete" onclick="deleteBrand(${brand.BrandID})">🗑️ Delete</button>` : ''}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function openAddBrandModal() {
+            document.getElementById('modalTitle').textContent = 'Add New Brand';
+            document.getElementById('brandForm').reset();
+            document.getElementById('brandId').value = '';
+            document.getElementById('brandIcon').value = '🏬';
+            resetIconPicker('🏬');
+            document.getElementById('brandModal').classList.add('show');
+        }
+
+        function editBrand(brandId) {
+            const brand = brands.find(b => b.BrandID === brandId);
+            if (!brand) return;
+
+            document.getElementById('modalTitle').textContent = 'Edit Brand';
+            document.getElementById('brandId').value = brand.BrandID;
+            document.getElementById('brandName').value = brand.BrandName;
+            document.getElementById('brandCode').value = brand.BrandCode || '';
+            document.getElementById('brandIcon').value = brand.BrandIcon || '🏬';
+            resetIconPicker(brand.BrandIcon || '🏬');
+            document.getElementById('brandModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('brandModal').classList.remove('show');
+        }
+
+        function selectIcon(icon) {
+            document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
+            document.querySelector(`.icon-option[data-icon="${icon}"]`).classList.add('selected');
+            document.getElementById('brandIcon').value = icon;
+        }
+
+        function resetIconPicker(selectedIcon) {
+            document.querySelectorAll('.icon-option').forEach(opt => {
+                opt.classList.toggle('selected', opt.dataset.icon === selectedIcon);
+            });
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+            
+            const brandId = document.getElementById('brandId').value;
+            const brandData = {
+                brandName: document.getElementById('brandName').value.trim(),
+                brandCode: document.getElementById('brandCode').value.trim() || null,
+                brandIcon: document.getElementById('brandIcon').value
+            };
+
+            try {
+                let response;
+                if (brandId) {
+                    // Update
+                    response = await fetch(`/api/brands/${brandId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(brandData)
+                    });
+                } else {
+                    // Create
+                    response = await fetch('/api/brands', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(brandData)
+                    });
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(brandId ? 'Brand updated successfully' : 'Brand created successfully', 'success');
+                    closeModal();
+                    await loadBrands();
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteBrand(brandId) {
+            const brand = brands.find(b => b.BrandID === brandId);
+            if (!brand) return;
+
+            if (!confirm(`Are you sure you want to delete "${brand.BrandName}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/brands/${brandId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast('Brand deleted successfully', 'success');
+                    await loadBrands();
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastMessage = document.getElementById('toastMessage');
+
+            toast.className = `toast show ${type}`;
+            toastIcon.textContent = type === 'success' ? '✓' : '✗';
+            toastMessage.textContent = message;
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

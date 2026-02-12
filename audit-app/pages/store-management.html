@@ -742,9 +742,7 @@
                 </div>
                 <select id="brandFilter" class="brand-filter" onchange="filterStores()">
                     <option value="">All Brands</option>
-                    <option value="spinneys">🛒 Spinneys</option>
-                    <option value="happy">😊 Happy</option>
-                    <option value="gng">🏪 GNG</option>
+                    <!-- Brands loaded dynamically -->
                 </select>
                 <div class="search-stats" id="searchStats">Showing all stores</div>
                 <button class="clear-search-btn" onclick="clearSearch()">Clear</button>
@@ -844,6 +842,7 @@
         const API_BASE = '/api/stores';
         let stores = [];
         let schemas = [];
+        let brands = [];
         let availableManagers = [];
         let managerAssignments = {};
         let selectedEditManagers = [];
@@ -858,6 +857,7 @@
             }
             
             loadSchemas();
+            loadBrands();
             loadAvailableManagers();
             loadStores();
             
@@ -906,6 +906,28 @@
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 3000);
+        }
+
+        // Load brands for filter dropdown
+        async function loadBrands() {
+            try {
+                const response = await fetch('/api/brands');
+                const result = await response.json();
+                if (result.success) {
+                    brands = result.data || [];
+                    
+                    // Populate brand filter dropdown
+                    const brandFilter = document.getElementById('brandFilter');
+                    brands.forEach(brand => {
+                        const option = document.createElement('option');
+                        option.value = brand.BrandName.toLowerCase();
+                        option.textContent = `${brand.BrandIcon || '🏪'} ${brand.BrandName}`;
+                        brandFilter.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading brands:', error);
+            }
         }
 
         // Load schemas for dropdowns
@@ -1041,16 +1063,14 @@
             // Filter by brand
             if (brandFilter) {
                 filtered = filtered.filter(store => {
+                    // Use the Brand field from store if available
+                    if (store.brand) {
+                        return store.brand.toLowerCase() === brandFilter;
+                    }
+                    // Fallback to name/code matching for legacy data
                     const name = store.storeName.toLowerCase();
                     const code = store.storeCode.toLowerCase();
-                    if (brandFilter === 'spinneys') {
-                        return name.includes('spinneys') || code.includes('spin');
-                    } else if (brandFilter === 'happy') {
-                        return name.includes('happy') || code.includes('happy');
-                    } else if (brandFilter === 'gng') {
-                        return name.includes('gng') || name.includes('g&g') || name.includes('g n g') || code.includes('gng');
-                    }
-                    return true;
+                    return name.includes(brandFilter) || code.includes(brandFilter);
                 });
             }
             

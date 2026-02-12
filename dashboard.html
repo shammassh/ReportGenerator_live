@@ -640,6 +640,29 @@
             background: linear-gradient(135deg, #00cc6a 0%, #00ff88 100%);
         }
 
+        /* Brand Management Button */
+        .brand-management-btn {
+            background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+        }
+
+        .brand-management-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(147, 51, 234, 0.4);
+            background: linear-gradient(135deg, #9333ea 0%, #a855f7 100%);
+        }
+
         /* Score Calculator Modal */
         .score-calculator-modal {
             display: none;
@@ -1631,6 +1654,10 @@
                 <span>🔍</span>
                 Database Inspector
             </button>
+            <button class="brand-management-btn" id="brandManagementBtn" onclick="window.location.href='/admin/brand-management'" style="display: none;">
+                <span>🏷️</span>
+                Brand Management
+            </button>
             <button class="score-calculator-btn" id="scoreCalculatorBtn" onclick="openScoreCalculator()" style="display: none;">
                 <span>🧮</span>
                 Score Calculator
@@ -2115,6 +2142,15 @@
                         }
                     }
 
+                    // Show Brand Management button for Admin and SuperAuditor
+                    if (userRole === 'Admin' || userRole === 'SuperAuditor') {
+                        const brandManagementBtn = document.getElementById('brandManagementBtn');
+                        if (brandManagementBtn) {
+                            brandManagementBtn.style.display = 'flex';
+                            console.log('✅ Brand Management button display set to flex');
+                        }
+                    }
+
                     return; // Exit early since we found user context
                 }
 
@@ -2218,6 +2254,11 @@
                         }
                         if (systemSettingsBtn) {
                             systemSettingsBtn.style.display = 'flex';
+                        }
+                        // Show Brand Management button for Admin and SuperAuditor (in fallback)
+                        const brandManagementBtn = document.getElementById('brandManagementBtn');
+                        if (brandManagementBtn) {
+                            brandManagementBtn.style.display = 'flex';
                         }
                     }
                 }

@@ -73,6 +73,7 @@ class StoreService {
                 location: row.Location,
                 schemaId: row.SchemaID,
                 schemaName: row.SchemaName,
+                brand: row.Brand,
                 isActive: row.IsActive,
                 createdAt: row.CreatedAt,
                 createdBy: row.CreatedBy
@@ -97,6 +98,7 @@ class StoreService {
                 location: row.Location,
                 schemaId: row.SchemaID,
                 schemaName: row.SchemaName,
+                brand: row.Brand,
                 isActive: row.IsActive
             }));
         } catch (error) {
