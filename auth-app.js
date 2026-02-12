@@ -5081,9 +5081,24 @@ app.post('/api/export-doc', requireAuth, requireRole('Admin', 'Auditor'), async 
 /**
  * POST /api/action-plan/save
  * Save action plan data to MSSQL
+ * Only StoreManager, SuperAuditor, and Admin can edit action plans
+ * Auditors can only view (read-only access)
  */
 app.post('/api/action-plan/save', requireAuth, async (req, res) => {
     try {
+        const userRole = req.currentUser?.role;
+        
+        // Block Auditors from modifying action plan data
+        // Only StoreManager, SuperAuditor, Admin, AreaManager, HeadOfOperations can edit
+        const canEditRoles = ['StoreManager', 'SuperAuditor', 'Admin', 'AreaManager', 'HeadOfOperations'];
+        if (!canEditRoles.includes(userRole)) {
+            console.log(`⚠️ Action plan save blocked - User ${req.currentUser?.email} (${userRole}) not authorized to edit`);
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have permission to edit action plan responses. Only Store Managers, SuperAuditors, and Admins can modify action plans.'
+            });
+        }
+        
         const { documentNumber, actions, updatedBy } = req.body;
         
         if (!documentNumber || !actions || !Array.isArray(actions)) {

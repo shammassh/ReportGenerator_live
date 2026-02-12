@@ -594,6 +594,29 @@
             gap: 0.25rem;
         }
 
+        /* Required Finding Indicator */
+        .finding-required {
+            color: #ef4444;
+            font-weight: 600;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        .finding-input.missing-finding {
+            border: 2px solid #ef4444 !important;
+            background: rgba(239, 68, 68, 0.1) !important;
+        }
+
+        .finding-warning {
+            color: #ef4444;
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
         /* Escalate Section */
         .escalate-section {
             margin-top: 1rem;
@@ -2021,12 +2044,17 @@
                     <!-- Finding section for No/Partially -->
                     <div class="finding-section ${showFinding ? 'visible' : ''}" id="finding-${item.responseId}">
                         <div class="finding-group">
-                            <div class="finding-label">📝 Finding</div>
-                            <textarea class="finding-input" rows="2" 
+                            <div class="finding-label">
+                                📝 Finding
+                                ${showFinding && !item.finding ? '<span class="finding-required">* Required</span>' : ''}
+                            </div>
+                            <textarea class="finding-input ${showFinding && !item.finding ? 'missing-finding' : ''}" rows="2" 
+                                id="finding-input-${item.responseId}"
                                 placeholder="Describe the finding or issue... (Type 'Good observation' to highlight positive notes in green)"
                                 onchange="updateFinding(${item.responseId}, 'finding', this.value)"
                                 oninput="updateFindingPreview(${item.responseId}, this.value)"
                             >${item.finding || ''}</textarea>
+                            ${showFinding && !item.finding ? '<div class="finding-warning">⚠️ Please describe the finding</div>' : ''}
                             <div class="finding-preview-label" id="preview-label-${item.responseId}" style="display: ${item.finding && item.finding.toLowerCase().includes('good observation') ? 'block' : 'none'};">👁️ Preview:</div>
                             <div class="finding-preview" id="finding-preview-${item.responseId}" style="display: ${item.finding && item.finding.toLowerCase().includes('good observation') ? 'block' : 'none'};">${formatFindingWithGoodObservation(item.finding || '')}</div>
                         </div>
@@ -2283,6 +2311,22 @@
 
                 // Update local data
                 if (item) item[field] = value;
+
+                // If finding field is updated, remove required indicator
+                if (field === 'finding' && value && value.trim()) {
+                    const findingInput = document.getElementById(`finding-input-${responseId}`);
+                    if (findingInput) {
+                        findingInput.classList.remove('missing-finding');
+                    }
+                    // Hide required indicator and warning
+                    const findingSection = document.getElementById(`finding-${responseId}`);
+                    if (findingSection) {
+                        const requiredSpan = findingSection.querySelector('.finding-required');
+                        const warningDiv = findingSection.querySelector('.finding-warning');
+                        if (requiredSpan) requiredSpan.style.display = 'none';
+                        if (warningDiv) warningDiv.style.display = 'none';
+                    }
+                }
 
             } catch (error) {
                 console.error('Error updating finding:', error);
@@ -2667,6 +2711,43 @@
                 if (!confirm(`There are still ${unanswered} unanswered questions. Are you sure you want to complete the audit?`)) {
                     return;
                 }
+            }
+
+            // Check for missing findings on No/Partially answers (REQUIRED)
+            let missingFindings = [];
+            auditData.sections.forEach(section => {
+                section.items.forEach(item => {
+                    if ((item.selectedChoice === 'No' || item.selectedChoice === 'Partially') && !item.finding) {
+                        missingFindings.push({
+                            section: section.sectionName,
+                            ref: item.referenceValue || '-',
+                            title: item.title,
+                            responseId: item.responseId
+                        });
+                    }
+                });
+            });
+
+            if (missingFindings.length > 0) {
+                const itemsList = missingFindings.slice(0, 5).map(p => `• ${p.ref} (${p.section})`).join('\n');
+                const moreText = missingFindings.length > 5 ? `\n...and ${missingFindings.length - 5} more` : '';
+                alert(`⚠️ Finding Required for "No" and "Partially" Answers\n\nPlease describe the finding for the following ${missingFindings.length} item(s):\n\n${itemsList}${moreText}\n\nFinding is required for all non-compliant items.`);
+                
+                // Navigate to the first section with missing finding
+                const firstMissing = missingFindings[0];
+                const sectionIndex = auditData.sections.findIndex(s => s.sectionName === firstMissing.section);
+                if (sectionIndex >= 0) {
+                    selectSection(sectionIndex);
+                    // Focus on the finding input after section renders
+                    setTimeout(() => {
+                        const findingInput = document.getElementById(`finding-input-${firstMissing.responseId}`);
+                        if (findingInput) {
+                            findingInput.focus();
+                            findingInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }, 100);
+                }
+                return;
             }
 
             // Check for missing priorities on Partially answers (REQUIRED)
