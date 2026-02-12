@@ -18,7 +18,8 @@ class NotificationHistoryService {
             dateTo,
             recipient,
             documentNumber,
-            sentBy
+            sentBy,
+            notificationType
         } = filters;
 
         const {
@@ -38,6 +39,12 @@ class NotificationHistoryService {
         if (status) {
             conditions.push(`status = @param${paramIndex}`);
             parameters.push({ name: `param${paramIndex}`, value: status });
+            paramIndex++;
+        }
+
+        if (notificationType) {
+            conditions.push(`notification_type = @param${paramIndex}`);
+            parameters.push({ name: `param${paramIndex}`, value: notificationType });
             paramIndex++;
         }
 

@@ -3362,6 +3362,43 @@ app.post('/api/admin/activity-log/cleanup', requireAuth, requireRole('Admin'), a
 // END ACTIVITY LOG MANAGEMENT API ROUTES
 // ==========================================
 
+// ==========================================
+// DATABASE INSPECTOR (Admin Only)
+// ==========================================
+const DatabaseInspectorService = require('./admin/services/database-inspector-service');
+
+// Serve database inspector page
+app.get('/admin/database-inspector', requireAuth, requireRole('Admin'), (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.sendFile(path.join(__dirname, 'admin', 'pages', 'database-inspector.html'));
+});
+
+// Execute database inspector query
+app.get('/api/admin/db-inspector/:queryType', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const { queryType } = req.params;
+        console.log(`🔍 [DB Inspector] Running query: ${queryType}`);
+        
+        const result = await DatabaseInspectorService.executeQuery(queryType);
+        
+        res.json({
+            success: true,
+            title: result.title,
+            data: result.data,
+            columns: result.columns
+        });
+    } catch (error) {
+        console.error('❌ [DB Inspector] Query error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ==========================================
+// END DATABASE INSPECTOR
+// ==========================================
+
 // Get audit by ID
 app.get('/api/audits/:auditId', requireAuth, async (req, res) => {
     try {
@@ -5871,7 +5908,7 @@ app.use((req, res) => {
  */
 app.get('/api/notifications', requireAuth, requireRole('Admin', 'Auditor'), async (req, res) => {
     try {
-        const { status, dateFrom, dateTo, recipient, documentNumber, sentBy, page, pageSize, sortBy, sortOrder } = req.query;
+        const { status, dateFrom, dateTo, recipient, documentNumber, sentBy, notificationType, page, pageSize, sortBy, sortOrder } = req.query;
 
         console.log(`📋 [API] Fetching notification history (User: ${req.session.user.email})`);
 
@@ -5884,7 +5921,8 @@ app.get('/api/notifications', requireAuth, requireRole('Admin', 'Auditor'), asyn
             dateTo,
             recipient,
             documentNumber,
-            sentBy
+            sentBy,
+            notificationType
         };
 
         const options = {

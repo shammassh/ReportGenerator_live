@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <title>Database Inspector - Admin Only</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            color: #00ff88;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-badge {
+            background: #ff4444;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #00ff88;
+            color: #1a1a2e;
+        }
+
+        .btn-primary:hover {
+            background: #00cc6a;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Query Selector */
+        .query-panel {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .query-panel h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+        }
+
+        .query-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+
+        .query-btn {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.3s ease;
+        }
+
+        .query-btn:hover {
+            background: rgba(0, 255, 136, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .query-btn.active {
+            background: #00ff88;
+            color: #1a1a2e;
+        }
+
+        .query-btn .query-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .query-btn .query-desc {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        /* Results Panel */
+        .results-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .results-header {
+            background: rgba(0, 255, 136, 0.1);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .results-header h3 {
+            color: #00ff88;
+        }
+
+        .results-meta {
+            color: #888;
+            font-size: 14px;
+        }
+
+        .results-table-container {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            background: rgba(0, 0, 0, 0.3);
+            position: sticky;
+            top: 0;
+        }
+
+        th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #00ff88;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 10px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: #e0e0e0;
+        }
+
+        tbody tr:hover {
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        /* Status indicators */
+        .match { color: #00ff88; }
+        .mismatch { color: #ff4444; }
+        .warning { color: #ffaa00; }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #888;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #00ff88;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Search Filter */
+        .search-bar {
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .search-bar input {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+        }
+
+        .search-bar input::placeholder {
+            color: #888;
+        }
+
+        .search-bar input:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 50px;
+            color: #888;
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        /* Diff highlight */
+        .diff-old {
+            background: rgba(255, 68, 68, 0.2);
+            color: #ff6666;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        .diff-new {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔍 Database Inspector <span class="admin-badge">ADMIN ONLY</span></h1>
+            <div class="header-buttons">
+                <button class="btn btn-primary" onclick="refreshQuery()">🔄 Refresh</button>
+                <button class="btn btn-secondary" onclick="exportResults()">📥 Export CSV</button>
+                <a href="/dashboard" class="btn btn-secondary">← Dashboard</a>
+            </div>
+        </div>
+
+        <!-- Query Selector -->
+        <div class="query-panel">
+            <h3>📊 Select Query</h3>
+            <div class="query-grid">
+                <button class="query-btn" onclick="runQuery('store_assignments')" id="btn-store_assignments">
+                    <div class="query-title">🏪 Store Assignments</div>
+                    <div class="query-desc">Compare StoreManagerAssignments table vs Users.assigned_stores column</div>
+                </button>
+                <button class="query-btn" onclick="runQuery('users_roles')" id="btn-users_roles">
+                    <div class="query-title">👥 Users & Roles</div>
+                    <div class="query-desc">All users with their roles, status, and assigned stores</div>
+                </button>
+                <button class="query-btn" onclick="runQuery('store_managers_by_store')" id="btn-store_managers_by_store">
+                    <div class="query-title">📋 Managers by Store</div>
+                    <div class="query-desc">Which managers are assigned to each store</div>
+                </button>
+                <button class="query-btn" onclick="runQuery('recent_audits')" id="btn-recent_audits">
+                    <div class="query-title">📝 Recent Audits</div>
+                    <div class="query-desc">Last 50 audits with store and status</div>
+                </button>
+                <button class="query-btn" onclick="runQuery('notifications_summary')" id="btn-notifications_summary">
+                    <div class="query-title">📧 Notifications Summary</div>
+                    <div class="query-desc">Recent notifications grouped by document</div>
+                </button>
+                <button class="query-btn" onclick="runQuery('stores_list')" id="btn-stores_list">
+                    <div class="query-title">🏬 Stores List</div>
+                    <div class="query-desc">All stores with their codes and brands</div>
+                </button>
+                <button class="query-btn" onclick="runQuery('schemas_sections')" id="btn-schemas_sections">
+                    <div class="query-title">📑 Schemas & Sections</div>
+                    <div class="query-desc">Audit schemas with section counts</div>
+                </button>
+                <button class="query-btn" onclick="runQuery('email_recipients_check')" id="btn-email_recipients_check">
+                    <div class="query-title">📬 Email Recipients Check</div>
+                    <div class="query-desc">Who will receive email for each store (live lookup)</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="results-panel">
+            <div class="results-header">
+                <h3 id="resultsTitle">Select a query to view results</h3>
+                <div class="results-meta" id="resultsMeta"></div>
+            </div>
+            <div class="search-bar" id="searchBar" style="display: none;">
+                <input type="text" id="searchInput" placeholder="🔍 Filter results..." oninput="filterResults()">
+            </div>
+            <div class="results-table-container" id="resultsContainer">
+                <div class="empty-state">
+                    <div class="icon">📊</div>
+                    <p>Select a query above to view database data</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentQuery = null;
+        let currentData = [];
+
+        // Check auth on load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+        });
+
+        async function checkAuth() {
+            try {
+                const response = await fetch('/auth/session');
+                if (!response.ok) {
+                    window.location.href = '/auth/login';
+                    return;
+                }
+                const data = await response.json();
+                if (!data.user || data.user.role !== 'Admin') {
+                    alert('Access denied. Admin only.');
+                    window.location.href = '/dashboard';
+                    return;
+                }
+            } catch (error) {
+                window.location.href = '/auth/login';
+            }
+        }
+
+        async function runQuery(queryType) {
+            // Update button states
+            document.querySelectorAll('.query-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${queryType}`).classList.add('active');
+            
+            currentQuery = queryType;
+            
+            // Show loading
+            document.getElementById('resultsContainer').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Running query...</p>
+                </div>
+            `;
+            document.getElementById('searchBar').style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/admin/db-inspector/${queryType}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    currentData = result.data;
+                    renderResults(result.title, result.data, result.columns);
+                } else {
+                    showError(result.error || 'Query failed');
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function renderResults(title, data, columns) {
+            document.getElementById('resultsTitle').textContent = title;
+            document.getElementById('resultsMeta').textContent = `${data.length} rows returned`;
+            document.getElementById('searchBar').style.display = 'block';
+
+            if (data.length === 0) {
+                document.getElementById('resultsContainer').innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <p>No data found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const cols = columns || Object.keys(data[0]);
+            
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            ${cols.map(col => `<th>${formatColumnName(col)}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        ${data.map(row => `
+                            <tr>
+                                ${cols.map(col => `<td>${formatCell(row[col], col)}</td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('resultsContainer').innerHTML = html;
+        }
+
+        function formatColumnName(col) {
+            return col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function formatCell(value, column) {
+            if (value === null || value === undefined) return '<span style="color:#666;">NULL</span>';
+            if (value === true) return '<span class="match">✅ Yes</span>';
+            if (value === false) return '<span class="mismatch">❌ No</span>';
+            
+            // Check for status columns
+            if (column.toLowerCase().includes('status')) {
+                if (value === 'match' || value === 'OK') return `<span class="match">✅ ${value}</span>`;
+                if (value === 'mismatch' || value === 'MISSING') return `<span class="mismatch">❌ ${value}</span>`;
+            }
+
+            // Check for comparison columns
+            if (column === 'comparison') {
+                if (value === 'MATCH') return '<span class="match">✅ MATCH</span>';
+                if (value === 'MISMATCH') return '<span class="mismatch">❌ MISMATCH</span>';
+                if (value === 'MISSING') return '<span class="warning">⚠️ MISSING</span>';
+            }
+            
+            // Format dates
+            if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T/)) {
+                return new Date(value).toLocaleString();
+            }
+
+            return escapeHtml(String(value));
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function filterResults() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#tableBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(search) ? '' : 'none';
+            });
+        }
+
+        function refreshQuery() {
+            if (currentQuery) {
+                runQuery(currentQuery);
+            }
+        }
+
+        function exportResults() {
+            if (currentData.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            const cols = Object.keys(currentData[0]);
+            let csv = cols.join(',') + '\n';
+            
+            currentData.forEach(row => {
+                csv += cols.map(col => {
+                    const val = row[col];
+                    if (val === null || val === undefined) return '';
+                    return `"${String(val).replace(/"/g, '""')}"`;
+                }).join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `db_inspector_${currentQuery}_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function showError(message) {
+            document.getElementById('resultsContainer').innerHTML = `
+                <div class="empty-state" style="color: #ff4444;">
+                    <div class="icon">⚠️</div>
+                    <p>Error: ${message}</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

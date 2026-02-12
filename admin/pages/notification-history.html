@@ -394,6 +394,131 @@
             text-decoration: underline;
         }
 
+        /* Flow Legend */
+        .flow-legend {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .flow-legend h3 {
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .flow-legend p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* Flow Arrow */
+        .flow-arrow {
+            color: #667eea;
+            font-weight: bold;
+            margin: 0 5px;
+        }
+
+        /* Notification Type Badge */
+        .type-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .type-ReportPublished {
+            background: #e0f2fe;
+            color: #0277bd;
+        }
+
+        .type-ActionPlanSubmitted {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .type-DepartmentReport {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .type-default {
+            background: #f5f5f5;
+            color: #616161;
+        }
+
+        /* Sender Info */
+        .sender-info {
+            font-size: 13px;
+        }
+
+        .sender-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .sender-email {
+            font-size: 11px;
+            color: #888;
+        }
+
+        /* Detail Row */
+        .detail-row {
+            background: #f8f9fa;
+        }
+
+        .detail-row td {
+            padding: 15px;
+        }
+
+        .email-details {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .email-subject {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .email-subject-label {
+            color: #888;
+            font-size: 12px;
+        }
+
+        .expand-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #667eea;
+        }
+
+        .expand-btn:hover {
+            color: #5568d3;
+        }
+
+        /* Store info */
+        .store-info {
+            font-size: 13px;
+        }
+
+        .store-code {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .store-name {
+            font-size: 11px;
+            color: #666;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .header {
@@ -455,6 +580,12 @@
             </div>
         </div>
 
+        <!-- Email Flow Legend -->
+        <div class="flow-legend">
+            <h3>📧 Email Flow Tracker</h3>
+            <p>This page shows the complete flow of all emails sent by the system. Each row shows: <strong>WHO sent</strong> → <strong>WHAT document</strong> → <strong>TO WHOM</strong></p>
+        </div>
+
         <!-- Filter Panel -->
         <div class="filter-panel">
             <h3>🔍 Filters</h3>
@@ -466,6 +597,15 @@
                         <option value="sent">Sent</option>
                         <option value="failed">Failed</option>
                         <option value="pending">Pending</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Notification Type</label>
+                    <select id="filterType">
+                        <option value="">All Types</option>
+                        <option value="ReportPublished">Report Published</option>
+                        <option value="ActionPlanSubmitted">Action Plan Submitted</option>
+                        <option value="DepartmentReport">Department Report</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -492,6 +632,7 @@
             <div class="filter-buttons">
                 <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
                 <button class="btn btn-secondary" onclick="clearFilters()">Clear Filters</button>
+                <button class="btn btn-secondary" onclick="exportToCSV()">📥 Export CSV</button>
             </div>
         </div>
 
@@ -621,6 +762,7 @@
         function getFilters() {
             return {
                 status: document.getElementById('filterStatus').value,
+                notificationType: document.getElementById('filterType').value,
                 dateFrom: document.getElementById('filterDateFrom').value,
                 dateTo: document.getElementById('filterDateTo').value,
                 recipient: document.getElementById('filterRecipient').value,
@@ -638,6 +780,7 @@
         // Clear Filters
         async function clearFilters() {
             document.getElementById('filterStatus').value = '';
+            document.getElementById('filterType').value = '';
             document.getElementById('filterDateFrom').value = '';
             document.getElementById('filterDateTo').value = '';
             document.getElementById('filterRecipient').value = '';
@@ -645,6 +788,41 @@
             document.getElementById('filterSentBy').value = '';
             currentPage = 1;
             await loadNotifications();
+        }
+
+        // Export to CSV
+        function exportToCSV() {
+            if (notifications.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            const headers = ['Date/Time', 'Document', 'Type', 'Sender Name', 'Sender Email', 'Recipient Name', 'Recipient Email', 'Recipient Role', 'Status', 'Error'];
+            const rows = notifications.map(n => [
+                formatDate(n.sent_at),
+                n.document_number,
+                n.notification_type || '',
+                n.sent_by_name || '',
+                n.sent_by_email || '',
+                n.recipient_name || '',
+                n.recipient_email,
+                n.recipient_role || '',
+                n.status,
+                n.error_message || ''
+            ]);
+
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `notification_history_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
         // Refresh Data
@@ -672,31 +850,58 @@
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 30px;"></th>
                             <th class="sortable ${currentSort.column === 'sent_at' ? 'sorted-' + currentSort.order.toLowerCase() : ''}" onclick="sortTable('sent_at')">Date/Time</th>
+                            <th>From (Sender)</th>
                             <th class="sortable ${currentSort.column === 'document_number' ? 'sorted-' + currentSort.order.toLowerCase() : ''}" onclick="sortTable('document_number')">Document</th>
-                            <th>Recipient</th>
+                            <th>Type</th>
+                            <th>To (Recipient)</th>
                             <th class="sortable ${currentSort.column === 'status' ? 'sorted-' + currentSort.order.toLowerCase() : ''}" onclick="sortTable('status')">Status</th>
-                            <th>Sent By</th>
-                            <th>Error</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${data.map(n => `
+                        ${data.map((n, index) => `
                             <tr>
+                                <td>
+                                    <button class="expand-btn" onclick="toggleDetails(${index})">▶</button>
+                                </td>
                                 <td>${formatDate(n.sent_at)}</td>
+                                <td>
+                                    <div class="sender-info">
+                                        <div class="sender-name">${n.sent_by_name || n.sent_by || 'System'}</div>
+                                        <div class="sender-email">${n.sent_by_email || ''}</div>
+                                    </div>
+                                </td>
                                 <td>
                                     <a href="#" class="document-link" onclick="viewDocument('${n.document_number}')">${n.document_number}</a>
                                 </td>
                                 <td>
+                                    <span class="type-badge type-${n.notification_type || 'default'}">${formatNotificationType(n.notification_type)}</span>
+                                </td>
+                                <td>
                                     <div class="recipient-name">${n.recipient_name || 'Unknown'}</div>
                                     <div class="recipient-email">${n.recipient_email}</div>
+                                    ${n.recipient_role ? `<div style="font-size: 10px; color: #888;">(${n.recipient_role})</div>` : ''}
                                 </td>
                                 <td>
                                     <span class="status-badge status-${n.status}">${n.status.toUpperCase()}</span>
+                                    ${n.error_message ? `<span class="error-tooltip" data-error="${escapeHtml(n.error_message)}">⚠️</span>` : ''}
                                 </td>
-                                <td>${n.sent_by || 'System'}</td>
-                                <td>
-                                    ${n.error_message ? `<span class="error-tooltip" data-error="${escapeHtml(n.error_message)}">⚠️ Error</span>` : '-'}
+                            </tr>
+                            <tr class="detail-row" id="detail-${index}" style="display: none;">
+                                <td colspan="7">
+                                    <div class="email-details">
+                                        <div>
+                                            <span class="email-subject-label">📧 Email Subject:</span>
+                                            <div class="email-subject">${n.email_subject || 'N/A'}</div>
+                                        </div>
+                                        ${n.error_message ? `
+                                        <div style="color: #dc3545;">
+                                            <span class="email-subject-label">❌ Error:</span>
+                                            <div>${n.error_message}</div>
+                                        </div>
+                                        ` : ''}
+                                    </div>
                                 </td>
                             </tr>
                         `).join('')}
@@ -705,6 +910,26 @@
             `;
 
             container.innerHTML = html;
+        }
+
+        // Toggle Details Row
+        function toggleDetails(index) {
+            const detailRow = document.getElementById(`detail-${index}`);
+            const btn = event.target;
+            if (detailRow.style.display === 'none') {
+                detailRow.style.display = 'table-row';
+                btn.textContent = '▼';
+            } else {
+                detailRow.style.display = 'none';
+                btn.textContent = '▶';
+            }
+        }
+
+        // Format Notification Type
+        function formatNotificationType(type) {
+            if (!type) return 'Unknown';
+            // Convert ReportPublished to "Report Published"
+            return type.replace(/([A-Z])/g, ' $1').trim();
         }
 
         // Render Pagination

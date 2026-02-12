@@ -617,6 +617,29 @@
             background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
         }
 
+        /* Database Inspector Button */
+        .db-inspector-btn {
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+            color: #1a1a2e;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+        }
+
+        .db-inspector-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(0, 204, 106, 0.4);
+            background: linear-gradient(135deg, #00cc6a 0%, #00ff88 100%);
+        }
+
         /* Score Calculator Modal */
         .score-calculator-modal {
             display: none;
@@ -1604,6 +1627,10 @@
                 <span>📋</span>
                 Activity Log
             </button>
+            <button class="db-inspector-btn" id="dbInspectorBtn" onclick="window.location.href='/admin/database-inspector'" style="display: none;">
+                <span>🔍</span>
+                Database Inspector
+            </button>
             <button class="score-calculator-btn" id="scoreCalculatorBtn" onclick="openScoreCalculator()" style="display: none;">
                 <span>🧮</span>
                 Score Calculator
@@ -2069,7 +2096,7 @@
                         }
                     }
 
-                    // Show Email Templates and Activity Log buttons for Admin only
+                    // Show Email Templates, Activity Log, and DB Inspector buttons for Admin only
                     if (userRole === 'Admin') {
                         const emailTemplatesBtn = document.getElementById('emailTemplatesBtn');
                         if (emailTemplatesBtn) {
@@ -2080,6 +2107,11 @@
                         if (activityLogBtn) {
                             activityLogBtn.style.display = 'flex';
                             console.log('✅ Activity Log button display set to flex');
+                        }
+                        const dbInspectorBtn = document.getElementById('dbInspectorBtn');
+                        if (dbInspectorBtn) {
+                            dbInspectorBtn.style.display = 'flex';
+                            console.log('✅ Database Inspector button display set to flex');
                         }
                     }
 
@@ -2171,6 +2203,11 @@
                         const activityLogBtn = document.getElementById('activityLogBtn');
                         if (activityLogBtn) {
                             activityLogBtn.style.display = 'flex';
+                        }
+                        // Show Database Inspector button for Admin only (in fallback)
+                        const dbInspectorBtn = document.getElementById('dbInspectorBtn');
+                        if (dbInspectorBtn) {
+                            dbInspectorBtn.style.display = 'flex';
                         }
                     }
 
