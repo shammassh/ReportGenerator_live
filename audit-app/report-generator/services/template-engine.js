@@ -468,14 +468,31 @@ class TemplateEngine {
     }
 
     /**
-     * Build section items table - shows all items with good observation pictures
+     * Build section items table - shows passing items only (Yes, NA)
+     * Items with No/Partially are shown in the Findings table instead
      */
     buildSectionTable(items, pictures = {}) {
         if (!items || items.length === 0) {
             return '<p class="no-items">No items in this section.</p>';
         }
 
-        const rows = items.map(item => {
+        // Filter out findings (No/Partially) - they appear in the Findings table
+        const passingItems = items.filter(item => {
+            const choice = item.selectedChoice;
+            const isNotFinding = choice !== 'No' && choice !== 'Partially';
+            if (!isNotFinding) {
+                console.log(`   🔴 Filtering out finding: ${item.referenceValue} - ${choice}`);
+            }
+            return isNotFinding;
+        });
+        
+        console.log(`   📊 Section table: ${items.length} total items → ${passingItems.length} passing items`);
+
+        if (passingItems.length === 0) {
+            return '<p class="no-items">All items in this section have findings - see Findings table below.</p>';
+        }
+
+        const rows = passingItems.map(item => {
             // Get "Good" pictures only for main table
             const itemPictures = pictures[item.responseId] || [];
             const goodPictures = itemPictures.filter(p => {
