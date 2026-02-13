@@ -4791,27 +4791,41 @@ app.post('/api/generate-report', requireAuth, requireRole('Admin', 'Auditor'), a
             let notificationResult = null;
             if (sendNotifications) {
                 try {
-                    console.log(`📧 [API] Fetching report metadata for notifications...`);
+                    console.log(`📧 [API] Fetching report metadata from database...`);
                     
-                    // Get report metadata from SharePoint
-                    const surveyItems = await connector.getListItems('FS Survey', {
-                        filter: `Document_x0020_Number eq '${documentNumber}'`,
-                        select: 'Store_x0020_Name,Created,Auditor,Scor',
-                        top: 1
-                    });
+                    // Connect to database first
+                    const sql = require('mssql');
+                    const dbConfig = require('./config/default').database;
+                    const pool = await sql.connect(dbConfig);
                     
-                    if (surveyItems && surveyItems.length > 0) {
-                        const surveyItem = surveyItems[0];
+                    // Get report metadata from our database (NOT SharePoint)
+                    const auditResult = await pool.request()
+                        .input('documentNumber', sql.NVarChar(100), documentNumber)
+                        .query(`
+                            SELECT 
+                                DocumentNumber,
+                                StoreName,
+                                AuditDate,
+                                TotalScore,
+                                Auditors,
+                                CreatedBy
+                            FROM AuditInstances 
+                            WHERE DocumentNumber = @documentNumber
+                        `);
+                    
+                    if (auditResult.recordset && auditResult.recordset.length > 0) {
+                        const auditRecord = auditResult.recordset[0];
                         const reportData = {
                             documentNumber,
-                            storeName: surveyItem['Store_x0020_Name'] || 'Unknown Store',
-                            auditDate: surveyItem.Created || new Date().toISOString(),
-                            overallScore: parseFloat(surveyItem.Scor) || 0,
-                            auditor: surveyItem.Auditor || user.displayName || user.email,
+                            storeName: auditRecord.StoreName || 'Unknown Store',
+                            auditDate: auditRecord.AuditDate || new Date().toISOString(),
+                            overallScore: parseFloat(auditRecord.TotalScore) || 0,
+                            // Use auditor from database, fallback to current user who is SENDING the report
+                            auditor: auditRecord.Auditors || user.displayName || user.email,
                             reportUrl: absoluteReportUrl
                         };
                         
-                        console.log(`📧 [API] Report metadata:`, {
+                        console.log(`📧 [API] Report metadata from DB:`, {
                             store: reportData.storeName,
                             score: reportData.overallScore,
                             auditor: reportData.auditor
@@ -4819,11 +4833,6 @@ app.post('/api/generate-report', requireAuth, requireRole('Admin', 'Auditor'), a
                         
                         // Initialize email service
                         const emailService = new EmailNotificationService(connector);
-                        
-                        // Connect to database
-                        const sql = require('mssql');
-                        const dbConfig = require('./config/default').database;
-                        const pool = await sql.connect(dbConfig);
                         
                         // Send notifications using user's delegated token (refresh if expired)
                         const validAccessToken = await getValidAccessToken(req);
@@ -4845,7 +4854,7 @@ app.post('/api/generate-report', requireAuth, requireRole('Admin', 'Auditor'), a
                         
                         console.log(`📧 [API] ${notificationResult.message}`);
                     } else {
-                        console.warn(`⚠️  [API] No survey data found for ${documentNumber} - skipping notifications`);
+                        console.warn(`⚠️  [API] No audit data found in database for ${documentNumber} - skipping notifications`);
                     }
                 } catch (emailError) {
                     console.error('⚠️  [API] Email notification failed (report still generated):', emailError.message);
