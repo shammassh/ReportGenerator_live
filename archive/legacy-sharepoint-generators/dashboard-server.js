@@ -224,56 +224,47 @@ class DashboardServer {
         }
     }
 
-    // Fetch documents from SharePoint using existing lister
+    // Fetch documents from SQL database (FS Survey SharePoint list is deleted)
     async fetchDocumentsFromSharePoint() {
         try {
-            console.log('📊 Connecting to SharePoint to fetch documents...');
+            console.log('📊 Fetching documents from SQL database...');
             
-            // Connect once using persistent connector (same as enhanced HTML report)
-            await this.connector.connectToSharePoint();
-            
-            // Get all available lists to find FS Survey
-            const lists = await this.connector.getSharePointLists();
-            const fsSurveyList = lists.find(list => list.Title === 'FS Survey');
-            
-            if (!fsSurveyList) {
-                throw new Error('FS Survey list not found');
-            }
-
-            // Get survey data using the same method as enhanced HTML report
+            // Get survey data from database
             const surveyData = await this.getSurveyDataForAllDocuments();
 
             console.log(`✅ Processed ${surveyData.length} unique documents`);
             return surveyData;
 
         } catch (error) {
-            console.error('❌ Error fetching from SharePoint:', error);
+            console.error('❌ Error fetching from database:', error);
             throw error;
         }
-        // Note: We keep the persistent connection alive for subsequent requests
     }
 
     /**
-     * Get survey data for all documents using the same approach as enhanced HTML report
+     * Get survey data for all documents from AuditInstances table
      */
     async getSurveyDataForAllDocuments() {
         try {
-            // Get all survey items from FS Survey list
-            const surveyItems = await this.connector.getListItems('FS Survey', {
-                select: 'ID,Document_x0020_Number,Store_x0020_Name,Created,Auditor,Author/Title,Scor,Cycle',
-                expand: 'Author',
-                orderby: 'Created desc',
-                top: 1000
-            });
+            const sql = require('mssql');
+            const dbConfig = require('./config/default').database;
+            const pool = await sql.connect(dbConfig);
+            
+            const result = await pool.request().query(`
+                SELECT 
+                    DocumentNumber, StoreName, StoreCode, AuditDate,
+                    Auditors, TotalScore, Cycle, Year, Status,
+                    CreatedAt, CreatedBy
+                FROM AuditInstances 
+                ORDER BY CreatedAt DESC
+            `);
 
             // Process and format the documents
             const documents = [];
             const processedDocNumbers = new Set();
 
-            surveyItems.forEach((item, index) => {
-                const docNum = item['Document_x0020_Number'] || 
-                              item['DocumentNumber'] || 
-                              item['Document_Number'];
+            result.recordset.forEach((item, index) => {
+                const docNum = item.DocumentNumber;
                               
                 if (!docNum || !docNum.trim() || processedDocNumbers.has(docNum)) {
                     return; // Skip invalid or duplicate documents
@@ -281,24 +272,21 @@ class DashboardServer {
 
                 processedDocNumbers.add(docNum);
 
-                const storeName = item['Store_x0020_Name'] || item['StoreName'] || 'Unknown Store';
-                const created = item.Created || new Date().toISOString();
+                const storeName = item.StoreName || 'Unknown Store';
+                const created = item.CreatedAt || new Date().toISOString();
                 
-                // Use Author (Created By) field as the auditor
-                let auditor = (item.Author && item.Author.Title) || 
-                             item.Auditor || 
-                             'System Generated';
+                let auditor = item.Auditors || item.CreatedBy || 'System Generated';
                 
-                const score = parseFloat(item.Scor) || 0;
+                const score = parseFloat(item.TotalScore) || 0;
                 
                 // Debug logging for the first few items
                 if (documents.length < 3) {
-                    console.log(`🔍 Debug - Document ${docNum}: Raw Scor field = "${item.Scor}", parsed score = ${score}`);
-                    console.log(`🔍 Debug - Document ${docNum}: Author field = "${item.Author ? item.Author.Title : 'null'}", Auditor field = "${item.Auditor}"`);
-                    console.log(`🔍 Debug - Document ${docNum}: Cycle field = "${item.Cycle}"`);
+                    console.log(`🔍 Debug - Document ${docNum}: TotalScore = "${item.TotalScore}", parsed score = ${score}`);
+                    console.log(`🔍 Debug - Document ${docNum}: Auditors = "${item.Auditors}"`);
+                    console.log(`🔍 Debug - Document ${docNum}: Cycle = "${item.Cycle}"`);
                 }
 
-                // Use the Cycle column from SharePoint
+                // Use the Cycle column from database
                 const cycle = item.Cycle || 'Unknown Cycle';
                 
                 // Determine status based on score and recent activity
@@ -311,22 +299,7 @@ class DashboardServer {
                     auditor: auditor,
                     created: created,
                     score: score,
-                    status: status,
-                    sections: {
-                        foodStorage: item.FoodScore || 0,
-                        fridges: item.FridgesScore || 0,
-                        utensils: item.UtensilsScore || 0,
-                        foodHandling: item.FoodHScore || 0,
-                        cleaning: item.CNDScore || 0,
-                        hygiene: item.HygScore || 0,
-                        restrooms: item.RestroomScore || 0,
-                        garbage: item.GarScore || 0,
-                        maintenance: item.MaintScore || 0,
-                        chemicals: item.ChemScore || 0,
-                        monitoring: item.MonitScore || 0,
-                        culture: item.CultScore || 0,
-                        policies: item.PolScore || 0
-                    }
+                    status: item.Status || status
                 });
             });
 
@@ -336,7 +309,7 @@ class DashboardServer {
             return documents;
 
         } catch (error) {
-            console.error('❌ Error getting survey data from FS Survey:', error);
+            console.error('❌ Error getting survey data from database:', error);
             throw error;
         }
     }

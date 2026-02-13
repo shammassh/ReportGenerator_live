@@ -4925,19 +4925,19 @@ app.get('/reports/:filename', requireAuth, async (req, res) => {
         if (user.role === 'StoreManager' && documentNumber) {
             // Store Managers can only view reports for their assigned stores
             try {
-                // Connect to SharePoint to get the store name for this document
-                if (!connector.isConnected) {
-                    await connector.connectToSharePoint();
-                }
+                // Get store name from our database (NOT SharePoint - FS Survey is deleted)
+                const dbConfig = require('./config/default').database;
+                const pool = await sql.connect(dbConfig);
                 
-                const surveyItems = await connector.getListItems('FS Survey', {
-                    filter: `Document_x0020_Number eq '${documentNumber}'`,
-                    select: 'Store_x0020_Name',
-                    top: 1
-                });
+                const auditResult = await pool.request()
+                    .input('documentNumber', sql.NVarChar(100), documentNumber)
+                    .query(`
+                        SELECT StoreName FROM AuditInstances 
+                        WHERE DocumentNumber = @documentNumber
+                    `);
                 
-                if (surveyItems && surveyItems.length > 0) {
-                    const reportStore = surveyItems[0]['Store_x0020_Name'];
+                if (auditResult.recordset.length > 0) {
+                    const reportStore = auditResult.recordset[0].StoreName;
                     
                     // Check if user is assigned to this store
                     const assignedStores = user.assignedStores || [];

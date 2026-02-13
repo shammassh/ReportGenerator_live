@@ -356,66 +356,53 @@ class EnhancedHTMLReportGenerator {
     }
 
     /**
-     * Get survey data from FS Survey list (contains scores and metadata)
+     * Get survey data from AuditInstances table (FS Survey SharePoint list is deleted)
      */
     async getSurveyData(documentNumber, lists) {
         try {
-            // Get data from FS Survey list which contains scores and metadata
-            const surveyList = lists.find(list => list.Title === 'FS Survey');
+            // Get data from our SQL database instead of SharePoint FS Survey
+            const sql = require('mssql');
+            const dbConfig = require('./config/default').database;
+            const pool = await sql.connect(dbConfig);
             
-            if (!surveyList) {
-                console.warn('FS Survey list not found');
+            const result = await pool.request()
+                .input('documentNumber', sql.NVarChar(100), documentNumber)
+                .query(`
+                    SELECT 
+                        DocumentNumber, StoreName, StoreCode, AuditDate, 
+                        Auditors, TotalScore, Cycle, Year, Status,
+                        CreatedAt, CreatedBy, AccompaniedBy
+                    FROM AuditInstances 
+                    WHERE DocumentNumber = @documentNumber
+                `);
+
+            if (result.recordset.length === 0) {
+                console.warn(`No survey data found in database for document: ${documentNumber}`);
                 return null;
             }
 
-            const surveyItems = await this.connector.getListItems(surveyList.Title, {
-                filter: `Document_x0020_Number eq '${documentNumber}'`,
-                top: 1
-            });
-
-            if (surveyItems.length === 0) {
-                console.warn(`No survey data found in FS Survey for document: ${documentNumber}`);
-                return null;
-            }
-
-            console.log(`✅ Found survey data in FS Survey for document: ${documentNumber}`);
-            console.log(`📊 FULL FS Survey item:`, JSON.stringify(surveyItems[0], null, 2));
-            console.log(`📊 Survey Data Fields: ${Object.keys(surveyItems[0]).join(', ')}`);
-            console.log(`📊 Total Score Field Value: ${surveyItems[0].Score}`);
-            console.log(`📊 Total Score Field Type: ${typeof surveyItems[0].Score}`);
+            const dbItem = result.recordset[0];
+            console.log(`✅ Found survey data in database for document: ${documentNumber}`);
+            console.log(`📊 Total Score: ${dbItem.TotalScore}%`);
+            console.log(`🏪 Store: ${dbItem.StoreName}`);
             
-            // Try different possible score field names
-            const possibleScoreFields = ['Score', 'Scor', 'TotalScore', 'OverallScore', 'FinalScore', 'Total_Score', 'Overall_Score', 'Total_x0020_Score'];
-            console.log('🔍 Looking for score fields:');
-            possibleScoreFields.forEach(field => {
-                if (surveyItems[0][field] !== undefined) {
-                    console.log(`  ✅ Found "${field}": ${surveyItems[0][field]} (type: ${typeof surveyItems[0][field]})`);
-                } else {
-                    console.log(`  ❌ "${field}": not found`);
-                }
-            });
-            // Try different possible store field names
-            const possibleStoreFields = ['Store_Name', 'StoreName', 'Store', 'StoreLocation', 'Store_x0020_Name', 'Branch'];
-            console.log('🔍 Looking for store fields:');
-            let storeField = null;
-            possibleStoreFields.forEach(field => {
-                if (surveyItems[0][field] !== undefined) {
-                    console.log(`  ✅ Found "${field}": ${surveyItems[0][field]} (type: ${typeof surveyItems[0][field]})`);
-                    storeField = surveyItems[0][field];
-                } else {
-                    console.log(`  ❌ "${field}": not found`);
-                }
-            });
-            
-            // Store name fallback - extract from document number
-            const storeName = storeField || surveyItems[0]['Store_Name'] || surveyItems[0]['StoreName'] || 
-                             (documentNumber ? documentNumber.split('-')[0] : 'N/A');
-            console.log(`🏪 Final store name: ${storeName}`);
-            
-            return surveyItems[0];
+            // Map to expected format
+            return {
+                Document_x0020_Number: dbItem.DocumentNumber,
+                Store_x0020_Name: dbItem.StoreName,
+                StoreName: dbItem.StoreName,
+                Scor: dbItem.TotalScore,
+                Score: dbItem.TotalScore,
+                TotalScore: dbItem.TotalScore,
+                Auditor: dbItem.Auditors,
+                Created: dbItem.CreatedAt,
+                Cycle: dbItem.Cycle,
+                Year: dbItem.Year,
+                Status: dbItem.Status
+            };
 
         } catch (error) {
-            console.warn('Could not get survey data from FS Survey:', error.message);
+            console.warn('Could not get survey data from database:', error.message);
             return null;
         }
     }
@@ -860,62 +847,51 @@ class EnhancedHTMLReportGenerator {
     }
 
     /**
-     * Get historical scores for the same store from SharePoint FS Survey data
+     * Get historical scores for the same store from SQL database (FS Survey is deleted)
      */
     async getHistoricalScoresForStore(storeName) {
         try {
-            if (!this.connector) {
-                console.warn('No SharePoint connector available for historical scores');
-                return [];
-            }
+            console.log(`🔍 Fetching historical scores for store: ${storeName} from database`);
+            
+            const sql = require('mssql');
+            const dbConfig = require('./config/default').database;
+            const pool = await sql.connect(dbConfig);
+            
+            const result = await pool.request()
+                .input('storeName', sql.NVarChar(255), storeName)
+                .query(`
+                    SELECT 
+                        DocumentNumber, StoreName, TotalScore as Scor, 
+                        Cycle, Year, AuditDate, CreatedAt as Created,
+                        Auditors as Auditor
+                    FROM AuditInstances 
+                    WHERE StoreName = @storeName
+                    ORDER BY CreatedAt DESC
+                `);
 
-            console.log(`🔍 Fetching historical scores for store: ${storeName}`);
-            
-            // Get all FS Survey records for this store, sorted by creation date
-            // Use exact matching for store name fields - only get records with the exact store name
-            let filterQuery = '';
-            if (storeName && storeName !== 'N/A' && !storeName.includes('-')) {
-                // Use exact store name matching - most precise approach
-                filterQuery = `Store_x0020_Name eq '${storeName}'`;
-            } else {
-                // Fallback to document number pattern if store name is not available
-                const storePrefix = storeName && storeName.includes('-') ? storeName.split('-')[0] : storeName;
-                filterQuery = `substringof('${storePrefix}', Title)`;
-            }
-            
-            console.log(`📊 Using filter query: ${filterQuery}`);
-            
-            const historicalData = await this.connector.getListItems('FS Survey', {
-                filter: filterQuery,
-                orderby: 'Created desc',
-                top: 50  // Get enough records to include all historical data
-            });
-
-            if (!historicalData || historicalData.length === 0) {
+            if (!result.recordset || result.recordset.length === 0) {
                 console.log(`No historical data found for store: ${storeName}`);
                 return [];
             }
 
-            console.log(`✅ Found ${historicalData.length} historical records for ${storeName}`);
+            console.log(`✅ Found ${result.recordset.length} historical records for ${storeName}`);
             
-            // Filter the results to only include records that actually match the store name
-            // (in case SharePoint filter didn't work properly)
-            const filteredData = historicalData.filter(record => {
-                const recordStoreName = record.Store_x0020_Name || record.Store_Name || record.StoreName || '';
-                return recordStoreName === storeName;
-            });
+            // Map to expected format
+            const historicalData = result.recordset.map(record => ({
+                Document_x0020_Number: record.DocumentNumber,
+                Store_x0020_Name: record.StoreName,
+                Scor: record.Scor,
+                Score: record.Scor,
+                Cycle: record.Cycle,
+                Year: record.Year,
+                Created: record.Created,
+                Auditor: record.Auditor
+            }));
             
-            console.log(`🔍 After filtering, found ${filteredData.length} records that actually match store: ${storeName}`);
-            
-            // Log the first few filtered records for debugging
-            filteredData.slice(0, 5).forEach((record, index) => {
-                console.log(`📊 Filtered Record ${index}: ${record.Title} | Store: ${record.Store_x0020_Name || record.Store_Name || 'N/A'} | Score: ${record.Scor || record.Score || 'N/A'} | Cycle: ${record.Cycle || 'N/A'}`);
-            });
-            
-            return filteredData;
+            return historicalData;
 
         } catch (error) {
-            console.warn('Error fetching historical scores:', error.message);
+            console.warn('Error fetching historical scores from database:', error.message);
             return [];
         }
     }
@@ -2580,11 +2556,11 @@ class EnhancedHTMLReportGenerator {
     }
 
     /**
-     * Extract audit details from debug data
+     * Extract audit details from database (FS Survey is deleted)
      */
     extractAuditDetails(listData, documentNumber) {
-        // Try to get details from Survey Responses List or FS Survey
-        const surveyData = listData['Survey Responses List'] || listData['FS Survey'] || [];
+        // Try to get details from Survey Responses List (still exists in SharePoint for section data)
+        const surveyData = listData['Survey Responses List'] || [];
         
         let auditDetails = {
             documentNumber: documentNumber,

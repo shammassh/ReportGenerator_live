@@ -1692,7 +1692,7 @@ class ActionPlanReportGenerator {
                 throw new Error(`No data found for document number ${documentNumber}. Please verify the document number exists in SharePoint.`);
             }
             
-            // Extract metadata from FS Survey list
+            // Extract metadata from database (FS Survey SharePoint list is deleted)
             let metadata = {
                 documentNumber: documentNumber,
                 storeName: 'Unknown Store',
@@ -1701,36 +1701,43 @@ class ActionPlanReportGenerator {
                 overallScore: 0
             };
             
-            // Fetch metadata from FS Survey list
+            // Fetch metadata from AuditInstances table
             try {
-                console.log('📊 Fetching metadata from FS Survey list...');
-                const surveyItems = await connector.getListItems('FS Survey', {
-                    filter: `Document_x0020_Number eq '${documentNumber}'`,
-                    select: 'Store_x0020_Name,Created,Auditor,Scor',
-                    top: 1
-                });
+                console.log('📊 Fetching metadata from AuditInstances table...');
+                const sql = require('mssql');
+                const dbConfig = require('./config/default').database;
+                const pool = await sql.connect(dbConfig);
                 
-                if (surveyItems && surveyItems.length > 0) {
-                    const surveyItem = surveyItems[0];
-                    metadata.storeName = surveyItem['Store_x0020_Name'] || metadata.storeName;
-                    metadata.auditor = surveyItem.Auditor || metadata.auditor;
-                    metadata.overallScore = parseFloat(surveyItem.Scor) || 0;
+                const result = await pool.request()
+                    .input('documentNumber', sql.NVarChar(100), documentNumber)
+                    .query(`
+                        SELECT StoreName, Auditors, TotalScore, AuditDate, CreatedAt
+                        FROM AuditInstances 
+                        WHERE DocumentNumber = @documentNumber
+                    `);
+                
+                if (result.recordset.length > 0) {
+                    const dbItem = result.recordset[0];
+                    metadata.storeName = dbItem.StoreName || metadata.storeName;
+                    metadata.auditor = dbItem.Auditors || metadata.auditor;
+                    metadata.overallScore = parseFloat(dbItem.TotalScore) || 0;
                     
-                    if (surveyItem.Created) {
+                    const dateToUse = dbItem.AuditDate || dbItem.CreatedAt;
+                    if (dateToUse) {
                         try {
-                            const createdDate = new Date(surveyItem.Created);
+                            const createdDate = new Date(dateToUse);
                             if (!isNaN(createdDate.getTime())) {
                                 metadata.auditDate = createdDate.toISOString().split('T')[0];
                             }
                         } catch (error) {
-                            console.warn('Could not parse Created date:', surveyItem.Created);
+                            console.warn('Could not parse date:', dateToUse);
                         }
                     }
                     
-                    console.log('✅ Metadata from FS Survey:', metadata);
+                    console.log('✅ Metadata from database:', metadata);
                 }
-            } catch (surveyError) {
-                console.warn('⚠️  Could not fetch FS Survey metadata:', surveyError.message);
+            } catch (dbError) {
+                console.warn('⚠️  Could not fetch database metadata:', dbError.message);
                 // Continue with default metadata
             }
             

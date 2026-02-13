@@ -19,40 +19,55 @@ class DataService {
     }
 
     /**
-     * Get survey data from FS Survey list
+     * Get survey data from AuditInstances table (FS Survey SharePoint list is deleted)
      * @param {string} documentNumber - Document number to fetch
-     * @param {Array} lists - Available SharePoint lists
+     * @param {Array} lists - Available SharePoint lists (not used anymore)
      * @returns {Object} - Survey data object
      */
     async getSurveyData(documentNumber, lists) {
         try {
-            console.log(`📊 Fetching survey data for ${documentNumber}...`);
+            console.log(`📊 Fetching survey data for ${documentNumber} from database...`);
             
-            const fsSurveyList = lists.find(list => 
-                list.Title === 'FS Survey' || 
-                list.Title === 'Survey' ||
-                list.name === 'FS Survey' ||
-                list.name === 'Survey'
-            );
+            const sql = require('mssql');
+            const dbConfig = require('../../config/default').database;
+            const pool = await sql.connect(dbConfig);
+            
+            const result = await pool.request()
+                .input('documentNumber', sql.NVarChar(100), documentNumber)
+                .query(`
+                    SELECT 
+                        DocumentNumber, StoreName, StoreCode, AuditDate, 
+                        Auditors, TotalScore, Cycle, Year, Status,
+                        CreatedAt, CreatedBy, AccompaniedBy
+                    FROM AuditInstances 
+                    WHERE DocumentNumber = @documentNumber
+                `);
 
-            if (!fsSurveyList) {
-                throw new Error('FS Survey list not found');
-            }
-
-            const items = await this.connector.getListItems('FS Survey', {
-                filter: `Document_x0020_Number eq '${documentNumber}'`
-            });
-
-            if (items && items.length > 0) {
-                console.log(`✅ Found survey data with ${Object.keys(items[0]).length} fields`);
-                return items[0];
+            if (result.recordset.length > 0) {
+                const dbItem = result.recordset[0];
+                console.log(`✅ Found survey data in database with ${Object.keys(dbItem).length} fields`);
+                
+                // Map to expected format
+                return {
+                    Document_x0020_Number: dbItem.DocumentNumber,
+                    Store_x0020_Name: dbItem.StoreName,
+                    StoreName: dbItem.StoreName,
+                    Scor: dbItem.TotalScore,
+                    Score: dbItem.TotalScore,
+                    TotalScore: dbItem.TotalScore,
+                    Auditor: dbItem.Auditors,
+                    Created: dbItem.CreatedAt,
+                    Cycle: dbItem.Cycle,
+                    Year: dbItem.Year,
+                    Status: dbItem.Status
+                };
             }
 
             console.warn('⚠️ No survey data found for document number:', documentNumber);
             return null;
 
         } catch (error) {
-            console.error('Error fetching survey data:', error.message);
+            console.error('Error fetching survey data from database:', error.message);
             return null;
         }
     }
@@ -181,64 +196,53 @@ class DataService {
     }
 
     /**
-     * Get historical scores for a store (COMPLETE VERSION from lines 867-928)
+     * Get historical scores for a store from database (FS Survey is deleted)
      * @param {string} storeName - Store name
      * @returns {Array} - Historical data records
      */
     async getHistoricalScoresForStore(storeName) {
         try {
-            if (!this.connector) {
-                console.warn('No SharePoint connector available for historical scores');
-                return [];
-            }
+            console.log(`🔍 Fetching historical scores for store: ${storeName} from database`);
+            
+            const sql = require('mssql');
+            const dbConfig = require('../../config/default').database;
+            const pool = await sql.connect(dbConfig);
+            
+            const result = await pool.request()
+                .input('storeName', sql.NVarChar(255), storeName)
+                .query(`
+                    SELECT 
+                        DocumentNumber, StoreName, TotalScore as Scor, 
+                        Cycle, Year, AuditDate, CreatedAt as Created,
+                        Auditors as Auditor
+                    FROM AuditInstances 
+                    WHERE StoreName = @storeName
+                    ORDER BY CreatedAt DESC
+                `);
 
-            console.log(`🔍 Fetching historical scores for store: ${storeName}`);
-            
-            // Get all FS Survey records for this store, sorted by creation date
-            // Use exact matching for store name fields - only get records with the exact store name
-            let filterQuery = '';
-            if (storeName && storeName !== 'N/A' && !storeName.includes('-')) {
-                // Use exact store name matching - most precise approach
-                filterQuery = `Store_x0020_Name eq '${storeName}'`;
-            } else {
-                // Fallback to document number pattern if store name is not available
-                const storePrefix = storeName && storeName.includes('-') ? storeName.split('-')[0] : storeName;
-                filterQuery = `substringof('${storePrefix}', Title)`;
-            }
-            
-            console.log(`📊 Using filter query: ${filterQuery}`);
-            
-            const historicalData = await this.connector.getListItems('FS Survey', {
-                filter: filterQuery,
-                orderby: 'Created desc',
-                top: 50  // Get enough records to include all historical data
-            });
-
-            if (!historicalData || historicalData.length === 0) {
+            if (!result.recordset || result.recordset.length === 0) {
                 console.log(`No historical data found for store: ${storeName}`);
                 return [];
             }
 
-            console.log(`✅ Found ${historicalData.length} historical records for ${storeName}`);
+            console.log(`✅ Found ${result.recordset.length} historical records for ${storeName}`);
             
-            // Filter the results to only include records that actually match the store name
-            // (in case SharePoint filter didn't work properly)
-            const filteredData = historicalData.filter(record => {
-                const recordStoreName = record.Store_x0020_Name || record.Store_Name || record.StoreName || '';
-                return recordStoreName === storeName;
-            });
+            // Map to expected format
+            const historicalData = result.recordset.map(record => ({
+                Document_x0020_Number: record.DocumentNumber,
+                Store_x0020_Name: record.StoreName,
+                Scor: record.Scor,
+                Score: record.Scor,
+                Cycle: record.Cycle,
+                Year: record.Year,
+                Created: record.Created,
+                Auditor: record.Auditor
+            }));
             
-            console.log(`🔍 After filtering, found ${filteredData.length} records that actually match store: ${storeName}`);
-            
-            // Log the first few filtered records for debugging
-            filteredData.slice(0, 5).forEach((record, index) => {
-                console.log(`📊 Filtered Record ${index}: ${record.Title} | Store: ${record.Store_x0020_Name || record.Store_Name || 'N/A'} | Score: ${record.Scor || record.Score || 'N/A'} | Cycle: ${record.Cycle || 'N/A'}`);
-            });
-            
-            return filteredData;
+            return historicalData;
 
         } catch (error) {
-            console.warn('Error fetching historical scores:', error.message);
+            console.warn('Error fetching historical scores from database:', error.message);
             return [];
         }
     }
