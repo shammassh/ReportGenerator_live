@@ -113,7 +113,7 @@ class ReportGenerator {
 
             // 5. Fetch pictures - create images folder for large reports
             console.log('🖼️ Step 5: Fetching pictures...');
-            const reportBaseName = `Audit_Report_${auditData.documentNumber}_${new Date().toISOString().split('T')[0]}`;
+            const reportBaseName = `Audit_Report_${auditData.documentNumber}`;
             const imageDir = path.join(this.outputDir, `${reportBaseName}_images`);
             const pictures = await this.dataService.getAuditPictures(auditId, imageDir, reportBaseName);
 
@@ -255,7 +255,7 @@ class ReportGenerator {
             });
 
             // Save
-            const fileName = `Action_Plan_${auditData.documentNumber}_${new Date().toISOString().split('T')[0]}.html`;
+            const fileName = `Action_Plan_${auditData.documentNumber}.html`;
             const filePath = path.join(this.outputDir, fileName);
 
             await fs.mkdir(this.outputDir, { recursive: true });
@@ -447,7 +447,7 @@ class ReportGenerator {
             );
 
             // Create images folder for file-based storage (handles large audits)
-            const reportBaseName = `${department}_Report_${auditData.documentNumber}_${new Date().toISOString().split('T')[0]}`;
+            const reportBaseName = `${department}_Report_${auditData.documentNumber}`;
             const imageDir = path.join(this.outputDir, `${reportBaseName}_images`);
             
             const pictures = await this.dataService.getAuditPictures(auditId, imageDir, reportBaseName);
@@ -461,7 +461,7 @@ class ReportGenerator {
             });
 
             // Save
-            const fileName = `${department}_Report_${auditData.documentNumber}_${new Date().toISOString().split('T')[0]}.html`;
+            const fileName = `${department}_Report_${auditData.documentNumber}.html`;
             const filePath = path.join(this.outputDir, fileName);
 
             await fs.mkdir(this.outputDir, { recursive: true });
@@ -808,7 +808,7 @@ class ReportGenerator {
             );
 
             // Save PDF file
-            const pdfFileName = `Audit_Report_${htmlResult.data.documentNumber}_${new Date().toISOString().split('T')[0]}.pdf`;
+            const pdfFileName = `Audit_Report_${htmlResult.data.documentNumber}.pdf`;
             const pdfPath = path.join(this.outputDir, pdfFileName);
 
             await fs.mkdir(this.outputDir, { recursive: true });
@@ -861,7 +861,7 @@ class ReportGenerator {
             );
 
             // Save PDF file
-            const pdfFileName = `Audit_Summary_${htmlResult.data.documentNumber}_${new Date().toISOString().split('T')[0]}.pdf`;
+            const pdfFileName = `Audit_Summary_${htmlResult.data.documentNumber}.pdf`;
             const pdfPath = path.join(this.outputDir, pdfFileName);
 
             await fs.mkdir(this.outputDir, { recursive: true });

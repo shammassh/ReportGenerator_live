@@ -4039,6 +4039,67 @@ app.get('/api/audits/:auditId/latest-report', requireAuth, async (req, res) => {
     }
 });
 
+// Publish report WITHOUT sending email (for testing)
+app.post('/api/audits/publish-report-no-email', requireAuth, requireRole('Admin', 'SuperAuditor', 'Auditor'), async (req, res) => {
+    try {
+        const { documentNumber, auditId, fileName, storeName, totalScore } = req.body;
+        const user = req.currentUser;
+        
+        console.log(`📝 [PUBLISH-NO-EMAIL] Publishing without email - auditId: ${auditId}, doc: ${documentNumber}`);
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // Check if already saved
+        const existing = await pool.request()
+            .input('auditId', sql.Int, auditId)
+            .query('SELECT id FROM PublishedReports WHERE audit_id = @auditId');
+        
+        if (existing.recordset.length > 0) {
+            // Update existing
+            await pool.request()
+                .input('auditId', sql.Int, auditId)
+                .input('fileName', sql.NVarChar(500), fileName)
+                .input('publishedBy', sql.NVarChar(255), user.email)
+                .input('publishedByName', sql.NVarChar(255), user.displayName || user.email)
+                .query(`
+                    UPDATE PublishedReports 
+                    SET file_name = @fileName, 
+                        published_by = @publishedBy,
+                        published_by_name = @publishedByName,
+                        published_at = GETDATE()
+                    WHERE audit_id = @auditId
+                `);
+        } else {
+            // Insert new
+            await pool.request()
+                .input('auditId', sql.Int, auditId)
+                .input('documentNumber', sql.NVarChar(50), documentNumber)
+                .input('fileName', sql.NVarChar(500), fileName)
+                .input('storeName', sql.NVarChar(255), storeName)
+                .input('totalScore', sql.Decimal(5, 2), totalScore || 0)
+                .input('publishedBy', sql.NVarChar(255), user.email)
+                .input('publishedByName', sql.NVarChar(255), user.displayName || user.email)
+                .query(`
+                    INSERT INTO PublishedReports (audit_id, document_number, file_name, store_name, total_score, published_by, published_by_name)
+                    VALUES (@auditId, @documentNumber, @fileName, @storeName, @totalScore, @publishedBy, @publishedByName)
+                `);
+        }
+        
+        console.log(`✅ Report published (NO EMAIL) for: ${documentNumber}`);
+        
+        res.json({
+            success: true,
+            message: 'Report published successfully (no email sent)',
+            emailSent: false
+        });
+    } catch (error) {
+        console.error('Error publishing report:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Save report for Store Manager (Admin/Auditor saves it so SM can view)
 app.post('/api/audits/save-report-for-store-manager', requireAuth, requireRole('Admin', 'SuperAuditor', 'Auditor'), async (req, res) => {
     try {

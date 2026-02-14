@@ -1594,8 +1594,11 @@ class TemplateEngine {
         return `
             <!-- Action Bar for Admin/Auditor to save report -->
             <div class="action-bar no-print" id="actionBar">
+                <button class="action-bar-btn publish-no-email-btn" onclick="publishNoEmail()">
+                    📝 Publish (No Email)
+                </button>
                 <button class="action-bar-btn save-btn" onclick="saveReportForStoreManager()">
-                    💾 Save for Store Manager
+                    💾 Save & Email Store Manager
                 </button>
                 <button class="action-bar-btn pdf-btn" onclick="downloadPDF()">
                     📄 Download PDF
@@ -1649,6 +1652,19 @@ class TemplateEngine {
                     cursor: pointer;
                     transition: all 0.3s ease;
                     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                }
+                .publish-no-email-btn {
+                    background: linear-gradient(135deg, #6366f1, #4f46e5);
+                    color: white;
+                }
+                .publish-no-email-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+                }
+                .publish-no-email-btn:disabled {
+                    background: #9ca3af;
+                    cursor: not-allowed;
+                    transform: none;
                 }
                 .save-btn {
                     background: linear-gradient(135deg, #10b981, #059669);
@@ -1706,16 +1722,29 @@ class TemplateEngine {
             </style>
             
             <script>
-                // Check user role and hide Save button for StoreManager
+                // Check user role and hide buttons based on role
                 async function checkUserRoleAndHideButton() {
                     try {
                         const response = await fetch('/auth/session');
                         const data = await response.json();
-                        if (data.authenticated && data.user && data.user.role === 'StoreManager') {
-                            // Hide the Save for Store Manager button for StoreManager
-                            const saveBtn = document.querySelector('.save-btn');
-                            if (saveBtn) {
-                                saveBtn.style.display = 'none';
+                        if (data.authenticated && data.user) {
+                            const role = data.user.role;
+                            
+                            // Roles that should NOT see Save/Publish buttons
+                            const viewOnlyRoles = ['StoreManager', 'AreaManager', 'HeadOfOperations'];
+                            
+                            // Hide both buttons for view-only roles
+                            if (viewOnlyRoles.includes(role)) {
+                                const saveBtn = document.querySelector('.save-btn');
+                                if (saveBtn) saveBtn.style.display = 'none';
+                                const publishBtn = document.querySelector('.publish-no-email-btn');
+                                if (publishBtn) publishBtn.style.display = 'none';
+                            }
+                            
+                            // "Publish (No Email)" button is Admin-only
+                            if (role !== 'Admin') {
+                                const publishBtn = document.querySelector('.publish-no-email-btn');
+                                if (publishBtn) publishBtn.style.display = 'none';
                             }
                         }
                     } catch (error) {
@@ -1725,6 +1754,56 @@ class TemplateEngine {
                 
                 // Run on page load
                 document.addEventListener('DOMContentLoaded', checkUserRoleAndHideButton);
+                
+                // Publish report without sending email (for testing)
+                async function publishNoEmail() {
+                    const btn = document.querySelector('.publish-no-email-btn');
+                    const status = document.getElementById('saveStatus');
+                    const fileName = window.location.pathname.split('/').pop();
+                    
+                    btn.disabled = true;
+                    btn.innerHTML = '⏳ Publishing...';
+                    
+                    try {
+                        const response = await fetch('/api/audits/publish-report-no-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                documentNumber: '${data.documentNumber}',
+                                auditId: ${data.auditId},
+                                fileName: fileName,
+                                storeName: '${(data.storeName || '').replace(/'/g, "\\'")}',
+                                totalScore: ${data.totalScore || 0}
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            status.className = 'save-status success';
+                            status.innerHTML = '✅ Report published! (No email sent)';
+                            status.style.display = 'block';
+                            btn.innerHTML = '✅ Published';
+                            // Also disable the email button since it's now published
+                            const emailBtn = document.querySelector('.save-btn');
+                            if (emailBtn) {
+                                emailBtn.innerHTML = '✅ Already Published';
+                            }
+                        } else {
+                            throw new Error(result.error || 'Failed to publish');
+                        }
+                    } catch (error) {
+                        status.className = 'save-status error';
+                        status.innerHTML = '❌ ' + error.message;
+                        status.style.display = 'block';
+                        btn.disabled = false;
+                        btn.innerHTML = '📝 Publish (No Email)';
+                    }
+                    
+                    setTimeout(() => {
+                        status.style.display = 'none';
+                    }, 5000);
+                }
                 
                 async function saveReportForStoreManager() {
                     const btn = document.querySelector('.save-btn');
@@ -1758,6 +1837,12 @@ class TemplateEngine {
                                 status.innerHTML = '✅ Report saved! (No store manager email configured)';
                             }
                             btn.innerHTML = '✅ Saved';
+                            // Also disable the publish button
+                            const publishBtn = document.querySelector('.publish-no-email-btn');
+                            if (publishBtn) {
+                                publishBtn.innerHTML = '✅ Already Published';
+                                publishBtn.disabled = true;
+                            }
                         } else {
                             throw new Error(result.error || 'Failed to save');
                         }
