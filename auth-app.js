@@ -1844,6 +1844,310 @@ app.get('/api/schema-colors/defaults', requireAuth, requireRole('Admin', 'SuperA
 console.log('[APP] Schema colors API loaded');
 
 // ==========================================
+// Menu Settings API (Admin Only)
+// ==========================================
+
+// Serve menu settings page
+app.get('/admin/menu-settings', requireAuth, requireRole('Admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin', 'menu-settings.html'));
+});
+
+// Get all menu settings
+app.get('/api/menu/settings', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+        
+        const result = await pool.request().query(`
+            SELECT MenuID, ButtonID, ButtonName, Category, Icon, Url, ActionType, 
+                   AllowedRoles, IsEnabled, SortOrder, CreatedAt, ModifiedAt
+            FROM MenuPermissions
+            ORDER BY Category, SortOrder
+        `);
+        
+        res.json({ success: true, data: result.recordset });
+    } catch (error) {
+        console.error('[MenuSettings] Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Save menu settings
+app.post('/api/menu/settings', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const { settings } = req.body;
+        if (!settings || !Array.isArray(settings)) {
+            return res.status(400).json({ success: false, error: 'Invalid settings data' });
+        }
+        
+        const sql = require('mssql');
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+        
+        // Update each menu item
+        for (const item of settings) {
+            await pool.request()
+                .input('menuId', sql.Int, item.MenuID)
+                .input('allowedRoles', sql.VarChar(500), item.AllowedRoles || '')
+                .input('isEnabled', sql.Bit, item.IsEnabled ? 1 : 0)
+                .input('sortOrder', sql.Int, item.SortOrder || 0)
+                .query(`
+                    UPDATE MenuPermissions 
+                    SET AllowedRoles = @allowedRoles, 
+                        IsEnabled = @isEnabled, 
+                        SortOrder = @sortOrder,
+                        ModifiedAt = GETDATE()
+                    WHERE MenuID = @menuId
+                `);
+        }
+        
+        console.log(`[MenuSettings] Settings saved by ${req.currentUser.email}`);
+        res.json({ success: true, message: 'Settings saved' });
+    } catch (error) {
+        console.error('[MenuSettings] Save error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Reset to defaults
+app.post('/api/menu/settings/reset', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+        
+        // Reset all to default enabled state and roles
+        await pool.request().query(`
+            UPDATE MenuPermissions SET
+                AllowedRoles = CASE ButtonID
+                    WHEN 'viewAuditsBtn' THEN 'Admin,SuperAuditor,Auditor'
+                    WHEN 'startAuditBtn' THEN 'Admin,SuperAuditor,Auditor'
+                    WHEN 'calendarBtn' THEN 'Admin,SuperAuditor,Auditor'
+                    WHEN 'scoreCalculatorBtn' THEN 'Admin,SuperAuditor'
+                    WHEN 'viewReportsBtn' THEN 'Admin,SuperAuditor,Auditor'
+                    WHEN 'notificationHistoryBtn' THEN 'Admin,Auditor'
+                    WHEN 'broadcastBtn' THEN 'Admin,SuperAuditor'
+                    WHEN 'emailTemplatesBtn' THEN 'Admin'
+                    WHEN 'adminPanelBtn' THEN 'Admin'
+                    WHEN 'storeManagementBtn' THEN 'Admin,SuperAuditor'
+                    WHEN 'brandManagementBtn' THEN 'Admin,SuperAuditor'
+                    WHEN 'templateBuilderBtn' THEN 'Admin,SuperAuditor'
+                    WHEN 'systemSettingsBtn' THEN 'Admin,SuperAuditor'
+                    WHEN 'activityLogBtn' THEN 'Admin'
+                    WHEN 'dbInspectorBtn' THEN 'Admin'
+                    ELSE AllowedRoles
+                END,
+                IsEnabled = 1,
+                ModifiedAt = GETDATE()
+        `);
+        
+        console.log(`[MenuSettings] Reset to defaults by ${req.currentUser.email}`);
+        res.json({ success: true, message: 'Reset to defaults' });
+    } catch (error) {
+        console.error('[MenuSettings] Reset error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+console.log('[APP] Menu settings API loaded');
+
+// ==========================================
+// Role Management API
+// ==========================================
+
+// Serve role management page
+app.get('/admin/role-management', requireAuth, requireRole('Admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin', 'role-management.html'));
+});
+
+// Get all roles with user counts
+app.get('/api/roles', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+        
+        // Get roles
+        const rolesResult = await pool.request().query(`
+            SELECT RoleID, RoleName, Description, CreatedDate
+            FROM UserRoles
+            ORDER BY RoleID
+        `);
+        
+        // Get total users count
+        const usersResult = await pool.request().query(`SELECT COUNT(*) as total FROM Users`);
+        
+        console.log(`[Roles] Loaded ${rolesResult.recordset.length} roles`);
+        
+        res.json({ 
+            success: true, 
+            roles: rolesResult.recordset,
+            totalUsers: usersResult.recordset[0].total
+        });
+    } catch (error) {
+        console.error('[Roles] Load error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Add new role
+app.post('/api/roles', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const { roleName, description } = req.body;
+        
+        if (!roleName || !/^[A-Za-z][A-Za-z0-9]*$/.test(roleName)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Role name must start with a letter and contain only letters/numbers' 
+            });
+        }
+        
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+        
+        // Check if role already exists
+        const existing = await pool.request()
+            .input('roleName', sql.NVarChar, roleName)
+            .query(`SELECT RoleID FROM UserRoles WHERE RoleName = @roleName`);
+        
+        if (existing.recordset.length > 0) {
+            return res.status(400).json({ success: false, error: 'Role already exists' });
+        }
+        
+        // Insert new role
+        const result = await pool.request()
+            .input('roleName', sql.NVarChar, roleName)
+            .input('description', sql.NVarChar, description || '')
+            .query(`
+                INSERT INTO UserRoles (RoleName, Description, CreatedDate)
+                VALUES (@roleName, @description, GETDATE());
+                SELECT SCOPE_IDENTITY() as newId;
+            `);
+        
+        console.log(`[Roles] Created role "${roleName}" by ${req.currentUser.email}`);
+        
+        res.json({ success: true, roleId: result.recordset[0].newId });
+    } catch (error) {
+        console.error('[Roles] Create error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Update role (description only)
+app.put('/api/roles/:roleId', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const roleId = parseInt(req.params.roleId);
+        const { description } = req.body;
+        
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+        
+        await pool.request()
+            .input('roleId', sql.Int, roleId)
+            .input('description', sql.NVarChar, description || '')
+            .query(`UPDATE UserRoles SET Description = @description WHERE RoleID = @roleId`);
+        
+        console.log(`[Roles] Updated role ID ${roleId} by ${req.currentUser.email}`);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[Roles] Update error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Delete role (with safety checks)
+app.delete('/api/roles/:roleId', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const roleId = parseInt(req.params.roleId);
+        
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+        
+        // Check if it's a protected role
+        const roleResult = await pool.request()
+            .input('roleId', sql.Int, roleId)
+            .query(`SELECT RoleName FROM UserRoles WHERE RoleID = @roleId`);
+        
+        if (roleResult.recordset.length === 0) {
+            return res.status(404).json({ success: false, error: 'Role not found' });
+        }
+        
+        const roleName = roleResult.recordset[0].RoleName;
+        const protectedRoles = ['Admin', 'Auditor', 'SuperAuditor', 'StoreManager'];
+        
+        if (protectedRoles.includes(roleName)) {
+            return res.status(400).json({ success: false, error: 'Protected roles cannot be deleted' });
+        }
+        
+        // Check if any users have this role
+        const usersWithRole = await pool.request()
+            .input('roleName', sql.NVarChar, roleName)
+            .query(`SELECT COUNT(*) as count FROM Users WHERE Role = @roleName`);
+        
+        if (usersWithRole.recordset[0].count > 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: `Cannot delete: ${usersWithRole.recordset[0].count} user(s) have this role` 
+            });
+        }
+        
+        // Delete the role
+        await pool.request()
+            .input('roleId', sql.Int, roleId)
+            .query(`DELETE FROM UserRoles WHERE RoleID = @roleId`);
+        
+        console.log(`[Roles] Deleted role "${roleName}" (ID: ${roleId}) by ${req.currentUser.email}`);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[Roles] Delete error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+console.log('[APP] Role management API loaded');
+
+// ==========================================
 // Checklist Info API
 // ==========================================
 

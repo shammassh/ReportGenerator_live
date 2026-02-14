@@ -625,6 +625,50 @@
             background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
         }
 
+        .menu-settings-btn {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .menu-settings-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        }
+
+        .role-management-btn {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+        }
+
+        .role-management-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(4, 120, 87, 0.4);
+            background: linear-gradient(135deg, #047857 0%, #059669 100%);
+        }
+
         .email-templates-btn {
             background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
             color: white;
@@ -1981,6 +2025,14 @@
                             <span>🔍</span>
                             Database Inspector
                         </button>
+                        <button class="menu-settings-btn" id="menuSettingsBtn" onclick="window.location.href='/admin/menu-settings'" style="display: none;">
+                            <span>🎛️</span>
+                            Menu Settings
+                        </button>
+                        <button class="role-management-btn" id="roleManagementBtn" onclick="window.location.href='/admin/role-management'" style="display: none;">
+                            <span>👥</span>
+                            Role Management
+                        </button>
                     </div>
                 </div>
             </div>
@@ -2498,6 +2550,18 @@
                             adminBtn.style.display = 'flex';
                             console.log('✅ Admin button display set to flex');
                         }
+                        // Show Menu Settings button for Admin only
+                        const menuSettingsBtn = document.getElementById('menuSettingsBtn');
+                        if (menuSettingsBtn) {
+                            menuSettingsBtn.style.display = 'flex';
+                            console.log('✅ Menu Settings button display set to flex');
+                        }
+                        // Show Role Management button for Admin only
+                        const roleManagementBtn = document.getElementById('roleManagementBtn');
+                        if (roleManagementBtn) {
+                            roleManagementBtn.style.display = 'flex';
+                            console.log('✅ Role Management button display set to flex');
+                        }
                     }
 
                     // Show template builder button for Admin and SuperAuditor
@@ -2649,6 +2713,16 @@
                         const dbInspectorBtn = document.getElementById('dbInspectorBtn');
                         if (dbInspectorBtn) {
                             dbInspectorBtn.style.display = 'flex';
+                        }
+                        // Show Menu Settings button for Admin only (in fallback)
+                        const menuSettingsBtn = document.getElementById('menuSettingsBtn');
+                        if (menuSettingsBtn) {
+                            menuSettingsBtn.style.display = 'flex';
+                        }
+                        // Show Role Management button for Admin only (in fallback)
+                        const roleManagementBtn = document.getElementById('roleManagementBtn');
+                        if (roleManagementBtn) {
+                            roleManagementBtn.style.display = 'flex';
                         }
                     }
 
