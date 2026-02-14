@@ -4100,6 +4100,34 @@ app.post('/api/audits/publish-report-no-email', requireAuth, requireRole('Admin'
     }
 });
 
+// Unpublish report (Admin only) - removes from PublishedReports so Store Managers can't see it
+app.post('/api/audits/unpublish-report', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const { auditId } = req.body;
+        
+        console.log(`🚫 [UNPUBLISH] Unpublishing report for audit ${auditId}`);
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // Delete from PublishedReports
+        const result = await pool.request()
+            .input('auditId', sql.Int, auditId)
+            .query('DELETE FROM PublishedReports WHERE audit_id = @auditId');
+        
+        if (result.rowsAffected[0] > 0) {
+            console.log(`✅ Report unpublished for audit ${auditId}`);
+            res.json({ success: true, message: 'Report unpublished successfully' });
+        } else {
+            res.json({ success: true, message: 'Report was not published' });
+        }
+    } catch (error) {
+        console.error('Error unpublishing report:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Save report for Store Manager (Admin/Auditor saves it so SM can view)
 app.post('/api/audits/save-report-for-store-manager', requireAuth, requireRole('Admin', 'SuperAuditor', 'Auditor'), async (req, res) => {
     try {

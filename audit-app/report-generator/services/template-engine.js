@@ -1597,6 +1597,9 @@ class TemplateEngine {
                 <button class="action-bar-btn publish-no-email-btn" onclick="publishNoEmail()">
                     📝 Publish (No Email)
                 </button>
+                <button class="action-bar-btn unpublish-btn" onclick="unpublishReport()">
+                    🚫 Unpublish
+                </button>
                 <button class="action-bar-btn save-btn" onclick="saveReportForStoreManager()">
                     💾 Save & Email Store Manager
                 </button>
@@ -1662,6 +1665,19 @@ class TemplateEngine {
                     box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
                 }
                 .publish-no-email-btn:disabled {
+                    background: #9ca3af;
+                    cursor: not-allowed;
+                    transform: none;
+                }
+                .unpublish-btn {
+                    background: linear-gradient(135deg, #f97316, #ea580c);
+                    color: white;
+                }
+                .unpublish-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
+                }
+                .unpublish-btn:disabled {
                     background: #9ca3af;
                     cursor: not-allowed;
                     transform: none;
@@ -1733,18 +1749,22 @@ class TemplateEngine {
                             // Roles that should NOT see Save/Publish buttons
                             const viewOnlyRoles = ['StoreManager', 'AreaManager', 'HeadOfOperations'];
                             
-                            // Hide both buttons for view-only roles
+                            // Hide all action buttons for view-only roles
                             if (viewOnlyRoles.includes(role)) {
                                 const saveBtn = document.querySelector('.save-btn');
                                 if (saveBtn) saveBtn.style.display = 'none';
                                 const publishBtn = document.querySelector('.publish-no-email-btn');
                                 if (publishBtn) publishBtn.style.display = 'none';
+                                const unpublishBtn = document.querySelector('.unpublish-btn');
+                                if (unpublishBtn) unpublishBtn.style.display = 'none';
                             }
                             
-                            // "Publish (No Email)" button is Admin-only
+                            // "Publish (No Email)" and "Unpublish" buttons are Admin-only
                             if (role !== 'Admin') {
                                 const publishBtn = document.querySelector('.publish-no-email-btn');
                                 if (publishBtn) publishBtn.style.display = 'none';
+                                const unpublishBtn = document.querySelector('.unpublish-btn');
+                                if (unpublishBtn) unpublishBtn.style.display = 'none';
                             }
                         }
                     } catch (error) {
@@ -1798,6 +1818,62 @@ class TemplateEngine {
                         status.style.display = 'block';
                         btn.disabled = false;
                         btn.innerHTML = '📝 Publish (No Email)';
+                    }
+                    
+                    setTimeout(() => {
+                        status.style.display = 'none';
+                    }, 5000);
+                }
+                
+                // Unpublish report (Admin only) - removes from Store Manager view
+                async function unpublishReport() {
+                    if (!confirm('Are you sure you want to unpublish this report?\\n\\nStore Managers will no longer be able to view it.')) {
+                        return;
+                    }
+                    
+                    const btn = document.querySelector('.unpublish-btn');
+                    const status = document.getElementById('saveStatus');
+                    
+                    btn.disabled = true;
+                    btn.innerHTML = '⏳ Unpublishing...';
+                    
+                    try {
+                        const response = await fetch('/api/audits/unpublish-report', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                auditId: ${data.auditId}
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            status.className = 'save-status success';
+                            status.innerHTML = '🚫 Report unpublished! Store Managers can no longer view it.';
+                            status.style.display = 'block';
+                            btn.innerHTML = '✅ Unpublished';
+                            
+                            // Re-enable the publish buttons
+                            const publishBtn = document.querySelector('.publish-no-email-btn');
+                            if (publishBtn) {
+                                publishBtn.innerHTML = '📝 Publish (No Email)';
+                                publishBtn.disabled = false;
+                            }
+                            const emailBtn = document.querySelector('.save-btn');
+                            if (emailBtn) {
+                                emailBtn.innerHTML = '💾 Save & Email Store Manager';
+                                emailBtn.disabled = false;
+                            }
+                        } else {
+                            throw new Error(result.error || 'Failed to unpublish');
+                        }
+                    } catch (error) {
+                        status.className = 'save-status error';
+                        status.innerHTML = '❌ ' + error.message;
+                        status.style.display = 'block';
+                        btn.disabled = false;
+                        btn.innerHTML = '🚫 Unpublish';
                     }
                     
                     setTimeout(() => {
