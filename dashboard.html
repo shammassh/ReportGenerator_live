@@ -674,8 +674,10 @@
             background: rgba(0, 0, 0, 0.6);
             z-index: 10000;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             backdrop-filter: blur(4px);
+            overflow: auto;
+            padding: 20px;
         }
 
         .score-calculator-modal.active {
@@ -687,9 +689,11 @@
             border-radius: 20px;
             width: 90%;
             max-width: 900px;
-            max-height: 90vh;
+            max-height: calc(100vh - 60px);
             overflow: hidden;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            display: flex;
+            flex-direction: column;
         }
 
         .score-calculator-header {
@@ -958,7 +962,7 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            padding: 30px 20px;
+            padding: 20px 20px;
         }
 
         .view-reports-content {
@@ -971,7 +975,7 @@
             box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
             display: flex;
             flex-direction: column;
-            margin: auto;
+            margin-top: 0;
         }
 
         .view-reports-header {
