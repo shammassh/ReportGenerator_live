@@ -288,6 +288,82 @@
             flex-wrap: wrap;
         }
 
+        /* Button Categories - Card Style */
+        .button-categories {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .button-category {
+            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 20px;
+            padding: 20px 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            display: none;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .button-category::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--category-color, #667eea), var(--category-color-end, #764ba2));
+        }
+
+        .button-category:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .button-category.has-visible-buttons {
+            display: block;
+        }
+
+        /* Category-specific accent colors */
+        #categoryAuditOps { --category-color: #2563eb; --category-color-end: #3b82f6; }
+        #categoryReports { --category-color: #7c3aed; --category-color-end: #8b5cf6; }
+        #categoryAdmin { --category-color: #059669; --category-color-end: #10b981; }
+        #categoryDeveloper { --category-color: #dc2626; --category-color-end: #ef4444; }
+
+        .category-title {
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .category-title.audit-ops { color: #2563eb; border-color: #dbeafe; }
+        .category-title.reports { color: #7c3aed; border-color: #ede9fe; }
+        .category-title.admin { color: #059669; border-color: #d1fae5; }
+        .category-title.developer { color: #dc2626; border-color: #fee2e2; }
+
+        .category-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .category-buttons button {
+            min-width: auto;
+            max-width: none;
+            flex: 0 0 auto;
+        }
+
         .search-container {
             flex: 1;
             position: relative;
@@ -1818,66 +1894,96 @@
         </div>
 
         <div class="controls-bar">
-            <button class="view-audits-btn" id="viewAuditsBtn" onclick="window.location.href='/auditor/audit-list'" style="display: none;">
-                <span>📊</span>
-                View Audits
-            </button>
-            <button class="start-audit-btn" id="startAuditBtn" onclick="window.location.href='/auditor/start-audit'" style="display: none;">
-                <span>🚀</span>
-                Start Audit
-            </button>
-            <button class="notification-history-btn" id="notificationHistoryBtn" onclick="window.location.href='/admin/notification-history'" style="display: none;">
-                <span>📧</span>
-                Notifications
-            </button>
-            <button class="broadcast-btn" id="broadcastBtn" onclick="window.location.href='/admin/broadcast'" style="display: none;">
-                <span>📢</span>
-                Broadcast
-            </button>
-            <button class="calendar-btn" id="calendarBtn" onclick="window.location.href='/admin/audit-calendar'" style="display: none;">
-                <span>📅</span>
-                Audit Calendar
-            </button>
-            <button class="admin-panel-btn" id="adminPanelBtn" onclick="window.location.href='/admin/users'" style="display: none;">
-                <span>👤</span>
-                User Management
-            </button>
-            <button class="template-builder-btn" id="templateBuilderBtn" onclick="window.location.href='/admin/template-builder'" style="display: none;">
-                <span>📋</span>
-                Template Builder
-            </button>
-            <button class="store-management-btn" id="storeManagementBtn" onclick="window.location.href='/admin/store-management'" style="display: none;">
-                <span>🏪</span>
-                Store Management
-            </button>
-            <button class="system-settings-btn" id="systemSettingsBtn" onclick="window.location.href='/admin/system-settings'" style="display: none;">
-                <span>⚙️</span>
-                System Settings
-            </button>
-            <button class="email-templates-btn" id="emailTemplatesBtn" onclick="window.location.href='/admin/email-templates'" style="display: none;">
-                <span>📧</span>
-                Email Templates
-            </button>
-            <button class="activity-log-btn" id="activityLogBtn" onclick="window.location.href='/admin/activity-log'" style="display: none;">
-                <span>📋</span>
-                Activity Log
-            </button>
-            <button class="db-inspector-btn" id="dbInspectorBtn" onclick="window.location.href='/admin/database-inspector'" style="display: none;">
-                <span>🔍</span>
-                Database Inspector
-            </button>
-            <button class="brand-management-btn" id="brandManagementBtn" onclick="window.location.href='/admin/brand-management'" style="display: none;">
-                <span>🏷️</span>
-                Brand Management
-            </button>
-            <button class="score-calculator-btn" id="scoreCalculatorBtn" onclick="openScoreCalculator()" style="display: none;">
-                <span>🧮</span>
-                Score Calculator
-            </button>
-            <button class="view-reports-btn" id="viewReportsBtn" onclick="openViewReportsModal()" style="display: none;">
-                <span>📁</span>
-                View Reports
-            </button>
+            <!-- Button Categories -->
+            <div class="button-categories">
+                <!-- 🔍 Audit Operations -->
+                <div class="button-category" id="categoryAuditOps">
+                    <div class="category-title audit-ops">🔍 Audit Operations</div>
+                    <div class="category-buttons">
+                        <button class="view-audits-btn" id="viewAuditsBtn" onclick="window.location.href='/auditor/audit-list'" style="display: none;">
+                            <span>📊</span>
+                            View Audits
+                        </button>
+                        <button class="start-audit-btn" id="startAuditBtn" onclick="window.location.href='/auditor/start-audit'" style="display: none;">
+                            <span>🚀</span>
+                            Start Audit
+                        </button>
+                        <button class="calendar-btn" id="calendarBtn" onclick="window.location.href='/admin/audit-calendar'" style="display: none;">
+                            <span>📅</span>
+                            Audit Calendar
+                        </button>
+                        <button class="score-calculator-btn" id="scoreCalculatorBtn" onclick="openScoreCalculator()" style="display: none;">
+                            <span>🧮</span>
+                            Score Calculator
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 📄 Reports & Communications -->
+                <div class="button-category" id="categoryReports">
+                    <div class="category-title reports">📄 Reports & Communications</div>
+                    <div class="category-buttons">
+                        <button class="view-reports-btn" id="viewReportsBtn" onclick="openViewReportsModal()" style="display: none;">
+                            <span>📁</span>
+                            View Reports
+                        </button>
+                        <button class="notification-history-btn" id="notificationHistoryBtn" onclick="window.location.href='/admin/notification-history'" style="display: none;">
+                            <span>📧</span>
+                            Notifications
+                        </button>
+                        <button class="broadcast-btn" id="broadcastBtn" onclick="window.location.href='/admin/broadcast'" style="display: none;">
+                            <span>📢</span>
+                            Broadcast
+                        </button>
+                        <button class="email-templates-btn" id="emailTemplatesBtn" onclick="window.location.href='/admin/email-templates'" style="display: none;">
+                            <span>✉️</span>
+                            Email Templates
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ⚙️ System Administration -->
+                <div class="button-category" id="categoryAdmin">
+                    <div class="category-title admin">⚙️ System Administration</div>
+                    <div class="category-buttons">
+                        <button class="admin-panel-btn" id="adminPanelBtn" onclick="window.location.href='/admin/users'" style="display: none;">
+                            <span>👤</span>
+                            User Management
+                        </button>
+                        <button class="store-management-btn" id="storeManagementBtn" onclick="window.location.href='/admin/store-management'" style="display: none;">
+                            <span>🏪</span>
+                            Store Management
+                        </button>
+                        <button class="brand-management-btn" id="brandManagementBtn" onclick="window.location.href='/admin/brand-management'" style="display: none;">
+                            <span>🏷️</span>
+                            Brand Management
+                        </button>
+                        <button class="template-builder-btn" id="templateBuilderBtn" onclick="window.location.href='/admin/template-builder'" style="display: none;">
+                            <span>📋</span>
+                            Template Builder
+                        </button>
+                        <button class="system-settings-btn" id="systemSettingsBtn" onclick="window.location.href='/admin/system-settings'" style="display: none;">
+                            <span>⚙️</span>
+                            System Settings
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 🔧 Developer Tools -->
+                <div class="button-category" id="categoryDeveloper">
+                    <div class="category-title developer">🔧 Developer Tools</div>
+                    <div class="category-buttons">
+                        <button class="activity-log-btn" id="activityLogBtn" onclick="window.location.href='/admin/activity-log'" style="display: none;">
+                            <span>📋</span>
+                            Activity Log
+                        </button>
+                        <button class="db-inspector-btn" id="dbInspectorBtn" onclick="window.location.href='/admin/database-inspector'" style="display: none;">
+                            <span>🔍</span>
+                            Database Inspector
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- View Reports Modal -->
@@ -2113,6 +2219,26 @@
     <script>
         // API Configuration
         const API_BASE_URL = 'http://localhost:3001';
+
+        // Function to update category visibility based on visible buttons
+        function updateCategoryVisibility() {
+            const categories = document.querySelectorAll('.button-category');
+            categories.forEach(category => {
+                const buttons = category.querySelectorAll('.category-buttons button');
+                let hasVisibleButton = false;
+                buttons.forEach(btn => {
+                    if (btn.style.display !== 'none') {
+                        hasVisibleButton = true;
+                    }
+                });
+                if (hasVisibleButton) {
+                    category.classList.add('has-visible-buttons');
+                } else {
+                    category.classList.remove('has-visible-buttons');
+                }
+            });
+            console.log('✅ Category visibility updated');
+        }
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
@@ -2427,6 +2553,9 @@
                         }
                     }
 
+                    // Update category visibility based on visible buttons
+                    updateCategoryVisibility();
+
                     return; // Exit early since we found user context
                 }
 
@@ -2537,6 +2666,9 @@
                             brandManagementBtn.style.display = 'flex';
                         }
                     }
+
+                    // Update category visibility based on visible buttons
+                    updateCategoryVisibility();
                 }
             } catch (error) {
                 console.error('⚠️ Error checking authentication:', error);
