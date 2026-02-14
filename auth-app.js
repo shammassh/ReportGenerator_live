@@ -4376,6 +4376,83 @@ app.get('/api/audits/:auditId/published-report', requireAuth, async (req, res) =
     }
 });
 
+// ==========================================
+// List all generated reports from disk
+// ==========================================
+app.get('/api/reports/list', requireAuth, async (req, res) => {
+    console.log('[API] /api/reports/list called by:', req.currentUser?.email);
+    try {
+        const reportsDir = path.join(__dirname, 'reports');
+        console.log('[API] Reading reports from:', reportsDir);
+        
+        if (!fs.existsSync(reportsDir)) {
+            console.log('[API] Reports directory does not exist');
+            return res.json({ success: true, data: [] });
+        }
+        
+        const files = fs.readdirSync(reportsDir);
+        console.log('[API] Found', files.length, 'items in reports folder');
+        
+        const reports = files
+            .filter(f => f.endsWith('.html') || f.endsWith('.pdf'))
+            .map(filename => {
+                const filePath = path.join(reportsDir, filename);
+                const stats = fs.statSync(filePath);
+                
+                // Determine report type
+                let type = 'Other';
+                let documentNumber = '';
+                
+                if (filename.startsWith('Audit_Report_')) {
+                    type = 'Audit Report';
+                    // Extract doc number: Audit_Report_GMRL-FSACR-0001.html
+                    const match = filename.match(/Audit_Report_(.+?)\.html/);
+                    if (match) documentNumber = match[1];
+                } else if (filename.startsWith('Action_Plan_')) {
+                    type = 'Action Plan';
+                    const match = filename.match(/Action_Plan_(.+?)\.html/);
+                    if (match) documentNumber = match[1];
+                } else if (filename.includes('_Department_Report') || filename.includes('Maintenance') || filename.includes('Procurement') || filename.includes('Cleaning')) {
+                    type = 'Department Report';
+                    // Try to extract doc number
+                    const match = filename.match(/(GMRL-[A-Z]+-\d+)/);
+                    if (match) documentNumber = match[1];
+                } else if (filename.endsWith('.pdf')) {
+                    type = 'PDF';
+                    const match = filename.match(/(GMRL-[A-Z]+-\d+)/);
+                    if (match) documentNumber = match[1];
+                }
+                
+                // Format file size
+                let sizeFormatted;
+                if (stats.size < 1024) {
+                    sizeFormatted = `${stats.size} B`;
+                } else if (stats.size < 1024 * 1024) {
+                    sizeFormatted = `${(stats.size / 1024).toFixed(1)} KB`;
+                } else {
+                    sizeFormatted = `${(stats.size / (1024 * 1024)).toFixed(2)} MB`;
+                }
+                
+                return {
+                    filename,
+                    type,
+                    documentNumber,
+                    size: stats.size,
+                    sizeFormatted,
+                    modified: stats.mtime.toISOString(),
+                    created: stats.birthtime.toISOString()
+                };
+            })
+            .sort((a, b) => new Date(b.modified) - new Date(a.modified)); // Most recent first
+        
+        console.log('[API] Returning', reports.length, 'reports');
+        res.json({ success: true, data: reports });
+    } catch (error) {
+        console.error('[API] Error listing reports:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Serve generated report HTML file
 app.get('/api/audits/reports/:fileName', requireAuth, (req, res) => {
     const fileName = req.params.fileName;

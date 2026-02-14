@@ -919,6 +919,214 @@
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
         }
 
+        /* View Reports Button */
+        .view-reports-btn {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .view-reports-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+        }
+
+        /* View Reports Modal */
+        .view-reports-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+            overflow: auto;
+        }
+
+        .view-reports-modal.active {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 30px 20px;
+        }
+
+        .view-reports-content {
+            background: white;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 900px;
+            max-height: calc(100vh - 60px);
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            margin: auto;
+        }
+
+        .view-reports-header {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .view-reports-header h2 {
+            margin: 0;
+            font-size: 1.4rem;
+        }
+
+        .view-reports-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .view-reports-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .view-reports-filters {
+            padding: 15px 25px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            gap: 15px;
+        }
+
+        .view-reports-filters input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .view-reports-filters input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+        }
+
+        .view-reports-filters select {
+            padding: 10px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+            min-width: 180px;
+        }
+
+        .view-reports-body {
+            padding: 20px 25px;
+            max-height: 55vh;
+            overflow-y: auto;
+        }
+
+        .view-reports-loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .view-reports-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .report-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: #f9fafb;
+            border-radius: 12px;
+            border: 2px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+
+        .report-item:hover {
+            border-color: #8b5cf6;
+            background: #faf5ff;
+        }
+
+        .report-item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .report-item-name {
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .report-item-meta {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .report-item-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .report-item-type.audit { background: #dbeafe; color: #1e40af; }
+        .report-item-type.action { background: #dcfce7; color: #166534; }
+        .report-item-type.maintenance { background: #fef3c7; color: #92400e; }
+        .report-item-type.procurement { background: #e0e7ff; color: #3730a3; }
+        .report-item-type.cleaning { background: #d1fae5; color: #065f46; }
+
+        .report-item-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .report-item-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+        }
+
+        .view-reports-empty {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .view-reports-empty .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
         .score-calc-reset-btn {
             background: #f3f4f6;
             color: #374151;
@@ -1662,6 +1870,55 @@
                 <span>🧮</span>
                 Score Calculator
             </button>
+            <button class="view-reports-btn" id="viewReportsBtn" onclick="openViewReportsModal()" style="display: none;">
+                <span>📁</span>
+                View Reports
+            </button>
+        </div>
+
+        <!-- View Reports Modal -->
+        <div class="view-reports-modal" id="viewReportsModal">
+            <div class="view-reports-content">
+                <div class="view-reports-header">
+                    <h2>📁 Generated Reports</h2>
+                    <button class="view-reports-close" onclick="closeViewReportsModal()">&times;</button>
+                </div>
+                <div class="view-reports-stats" style="display: flex; gap: 15px; padding: 15px 25px; background: #f0fdf4; border-bottom: 1px solid #e5e7eb;">
+                    <div style="text-align: center; flex: 1;">
+                        <div style="font-size: 24px; font-weight: 700; color: #059669;" id="totalReportsCount">0</div>
+                        <div style="font-size: 12px; color: #6b7280;">Total</div>
+                    </div>
+                    <div style="text-align: center; flex: 1;">
+                        <div style="font-size: 24px; font-weight: 700; color: #2563eb;" id="auditReportsCount">0</div>
+                        <div style="font-size: 12px; color: #6b7280;">Audits</div>
+                    </div>
+                    <div style="text-align: center; flex: 1;">
+                        <div style="font-size: 24px; font-weight: 700; color: #7c3aed;" id="actionPlansCount">0</div>
+                        <div style="font-size: 12px; color: #6b7280;">Action Plans</div>
+                    </div>
+                    <div style="text-align: center; flex: 1;">
+                        <div style="font-size: 24px; font-weight: 700; color: #ea580c;" id="deptReportsCount">0</div>
+                        <div style="font-size: 12px; color: #6b7280;">Dept Reports</div>
+                    </div>
+                    <div style="text-align: center; flex: 1;">
+                        <div style="font-size: 24px; font-weight: 700; color: #dc2626;" id="pdfReportsCount">0</div>
+                        <div style="font-size: 12px; color: #6b7280;">PDFs</div>
+                    </div>
+                </div>
+                <div class="view-reports-filters">
+                    <input type="text" id="reportSearchInput" placeholder="🔍 Search by document number..." oninput="filterReports()">
+                    <select id="reportTypeFilter" onchange="filterReports()">
+                        <option value="">All Types</option>
+                        <option value="Audit Report">📊 Audit Reports</option>
+                        <option value="Action Plan">📝 Action Plans</option>
+                        <option value="Department Report">🏢 Department Reports</option>
+                        <option value="PDF">📕 PDFs</option>
+                    </select>
+                </div>
+                <div class="view-reports-body" id="viewReportsBody" style="max-height: 400px; overflow-y: auto; padding: 15px;">
+                    <div class="view-reports-loading" style="text-align: center; padding: 40px; color: #6b7280;">Loading reports...</div>
+                </div>
+            </div>
         </div>
 
         <!-- Score Calculator Modal -->
@@ -2076,6 +2333,15 @@
                         }
                     }
 
+                    // Show View Reports button for Auditor (already shown for Admin/SuperAuditor above)
+                    if (userRole === 'Auditor') {
+                        const viewReportsBtn = document.getElementById('viewReportsBtn');
+                        if (viewReportsBtn) {
+                            viewReportsBtn.style.display = 'flex';
+                            console.log('✅ View Reports button display set to flex for Auditor');
+                        }
+                    }
+
                     // Show broadcast button for Admin and SuperAuditor
                     if (userRole === 'Admin' || userRole === 'SuperAuditor') {
                         console.log('✅ Showing broadcast button for role:', userRole);
@@ -2120,6 +2386,12 @@
                         if (scoreCalculatorBtn) {
                             scoreCalculatorBtn.style.display = 'flex';
                             console.log('✅ Score Calculator button display set to flex');
+                        }
+                        // Show View Reports button for Admin and SuperAuditor
+                        const viewReportsBtn = document.getElementById('viewReportsBtn');
+                        if (viewReportsBtn) {
+                            viewReportsBtn.style.display = 'flex';
+                            console.log('✅ View Reports button display set to flex');
                         }
                     }
 
@@ -2846,6 +3118,139 @@
                 console.error('Error loading history:', error);
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #dc2626;">Error loading history</td></tr>';
             }
+        }
+
+        // ==========================================
+        // View Reports Functions
+        // ==========================================
+        let allReports = [];
+
+        async function openViewReportsModal() {
+            const modal = document.getElementById('viewReportsModal');
+            modal.classList.add('active');
+            await loadGeneratedReports();
+        }
+
+        function closeViewReportsModal() {
+            const modal = document.getElementById('viewReportsModal');
+            modal.classList.remove('active');
+        }
+
+        async function loadGeneratedReports() {
+            const container = document.getElementById('viewReportsBody');
+            container.innerHTML = `
+                <div style="text-align: center; padding: 60px; color: #6b7280;">
+                    <div class="loading-spinner" style="margin: 0 auto 16px;"></div>
+                    <div>Loading reports...</div>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/api/reports/list');
+                const result = await response.json();
+
+                if (result.success) {
+                    allReports = result.data;
+                    renderReportsList(allReports);
+                    updateReportsStats(allReports);
+                } else {
+                    container.innerHTML = `<div style="text-align: center; padding: 60px; color: #dc2626;">Error: ${result.error}</div>`;
+                }
+            } catch (error) {
+                console.error('Error loading reports:', error);
+                container.innerHTML = '<div style="text-align: center; padding: 60px; color: #dc2626;">Error loading reports list</div>';
+            }
+        }
+
+        function updateReportsStats(reports) {
+            const totalCount = reports.length;
+            const auditReports = reports.filter(r => r.type === 'Audit Report').length;
+            const actionPlans = reports.filter(r => r.type === 'Action Plan').length;
+            const deptReports = reports.filter(r => r.type === 'Department Report').length;
+            const pdfReports = reports.filter(r => r.type === 'PDF').length;
+
+            document.getElementById('totalReportsCount').textContent = totalCount;
+            document.getElementById('auditReportsCount').textContent = auditReports;
+            document.getElementById('actionPlansCount').textContent = actionPlans;
+            document.getElementById('deptReportsCount').textContent = deptReports;
+            document.getElementById('pdfReportsCount').textContent = pdfReports;
+        }
+
+        function filterReports() {
+            const searchTerm = document.getElementById('reportSearchInput').value.toLowerCase();
+            const typeFilter = document.getElementById('reportTypeFilter').value;
+
+            let filtered = allReports;
+
+            if (searchTerm) {
+                filtered = filtered.filter(r => 
+                    r.filename.toLowerCase().includes(searchTerm) ||
+                    (r.documentNumber && r.documentNumber.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            if (typeFilter) {
+                filtered = filtered.filter(r => r.type === typeFilter);
+            }
+
+            renderReportsList(filtered);
+        }
+
+        function renderReportsList(reports) {
+            const container = document.getElementById('viewReportsBody');
+
+            if (reports.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 60px; color: #6b7280;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📄</div>
+                        <div>No reports found</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = reports.map(report => `
+                <div class="report-item" onclick="window.open('/api/audits/reports/${encodeURIComponent(report.filename)}', '_blank')">
+                    <div class="report-item-icon">${getReportIcon(report.type)}</div>
+                    <div class="report-item-info">
+                        <div class="report-item-name">${escapeHtml(report.filename)}</div>
+                        <div class="report-item-meta">
+                            <span class="report-type-badge ${getTypeBadgeClass(report.type)}">${report.type}</span>
+                            <span>${report.sizeFormatted}</span>
+                            <span>Modified: ${new Date(report.modified).toLocaleString()}</span>
+                        </div>
+                    </div>
+                    <div class="report-item-action">
+                        <span style="font-size: 20px;">→</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getReportIcon(type) {
+            switch(type) {
+                case 'Audit Report': return '📋';
+                case 'Action Plan': return '📝';
+                case 'Department Report': return '🏢';
+                case 'PDF': return '📕';
+                default: return '📄';
+            }
+        }
+
+        function getTypeBadgeClass(type) {
+            switch(type) {
+                case 'Audit Report': return 'badge-audit';
+                case 'Action Plan': return 'badge-action';
+                case 'Department Report': return 'badge-dept';
+                case 'PDF': return 'badge-pdf';
+                default: return '';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
     </script>
 </body>
