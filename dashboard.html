@@ -2428,10 +2428,72 @@
             }
         }
 
+        // ==========================================
+        // Phase 2: Database-driven menu permissions
+        // ==========================================
+        let menuPermissions = null; // Cache for menu permissions
+
+        async function loadMenuPermissions() {
+            try {
+                const response = await fetch('/api/menu/settings');
+                const data = await response.json();
+                if (data.success && data.data) {
+                    menuPermissions = data.data;
+                    console.log('✅ Loaded menu permissions from database:', menuPermissions.length, 'buttons');
+                    return true;
+                }
+            } catch (error) {
+                console.warn('⚠️ Could not load menu permissions, using hardcoded fallback:', error);
+            }
+            return false;
+        }
+
+        function hasPermission(buttonId, userRole) {
+            if (!menuPermissions) return null; // No data, let hardcoded handle it
+            
+            const button = menuPermissions.find(b => b.ButtonID === buttonId);
+            if (!button) return null; // Button not in database, let hardcoded handle it
+            
+            if (!button.IsEnabled) return false; // Button disabled
+            
+            const allowedRoles = button.AllowedRoles ? button.AllowedRoles.split(',') : [];
+            return allowedRoles.includes(userRole);
+        }
+
+        function applyDeveloperToolsPermissions(userRole) {
+            // Developer Tools buttons - use database if available, else return false to use hardcoded
+            const devToolsButtons = [
+                { id: 'activityLogBtn', elementId: 'activityLogBtn' },
+                { id: 'dbInspectorBtn', elementId: 'dbInspectorBtn' },
+                { id: 'menuSettingsBtn', elementId: 'menuSettingsBtn' },
+                { id: 'roleManagementBtn', elementId: 'roleManagementBtn' }
+            ];
+
+            let usedDatabase = false;
+
+            devToolsButtons.forEach(btn => {
+                const permission = hasPermission(btn.id, userRole);
+                if (permission !== null) {
+                    // Database has info for this button
+                    const element = document.getElementById(btn.elementId);
+                    if (element) {
+                        element.style.display = permission ? 'flex' : 'none';
+                        console.log(`🔑 [DB] ${btn.id}: ${permission ? 'SHOW' : 'HIDE'} for ${userRole}`);
+                    }
+                    usedDatabase = true;
+                }
+            });
+
+            return usedDatabase;
+        }
+
         // Check authentication and setup UI based on role
         async function checkAuthAndSetupUI() {
             try {
                 console.log('🔍 Checking authentication and setting up UI...');
+                
+                // Phase 2: Try to load menu permissions first
+                await loadMenuPermissions();
                 
                 // Try to use injected USER_CONTEXT first (from server-side injection)
                 if (window.USER_CONTEXT && window.USER_CONTEXT.role) {
@@ -2550,18 +2612,7 @@
                             adminBtn.style.display = 'flex';
                             console.log('✅ Admin button display set to flex');
                         }
-                        // Show Menu Settings button for Admin only
-                        const menuSettingsBtn = document.getElementById('menuSettingsBtn');
-                        if (menuSettingsBtn) {
-                            menuSettingsBtn.style.display = 'flex';
-                            console.log('✅ Menu Settings button display set to flex');
-                        }
-                        // Show Role Management button for Admin only
-                        const roleManagementBtn = document.getElementById('roleManagementBtn');
-                        if (roleManagementBtn) {
-                            roleManagementBtn.style.display = 'flex';
-                            console.log('✅ Role Management button display set to flex');
-                        }
+                        // Menu Settings and Role Management are now handled by applyDeveloperToolsPermissions()
                     }
 
                     // Show template builder button for Admin and SuperAuditor
@@ -2590,21 +2641,32 @@
                     }
 
                     // Show Email Templates, Activity Log, and DB Inspector buttons for Admin only
+                    // Phase 2: Try database permissions first for Developer Tools
+                    const usedDbForDevTools = applyDeveloperToolsPermissions(userRole);
+                    
+                    if (!usedDbForDevTools) {
+                        // Fallback to hardcoded if database not available
+                        console.log('⚠️ Using hardcoded permissions for Developer Tools');
+                        if (userRole === 'Admin') {
+                            const activityLogBtn = document.getElementById('activityLogBtn');
+                            if (activityLogBtn) {
+                                activityLogBtn.style.display = 'flex';
+                                console.log('✅ Activity Log button display set to flex');
+                            }
+                            const dbInspectorBtn = document.getElementById('dbInspectorBtn');
+                            if (dbInspectorBtn) {
+                                dbInspectorBtn.style.display = 'flex';
+                                console.log('✅ Database Inspector button display set to flex');
+                            }
+                        }
+                    }
+                    
+                    // Email Templates - still hardcoded (not in Developer Tools category)
                     if (userRole === 'Admin') {
                         const emailTemplatesBtn = document.getElementById('emailTemplatesBtn');
                         if (emailTemplatesBtn) {
                             emailTemplatesBtn.style.display = 'flex';
                             console.log('✅ Email Templates button display set to flex');
-                        }
-                        const activityLogBtn = document.getElementById('activityLogBtn');
-                        if (activityLogBtn) {
-                            activityLogBtn.style.display = 'flex';
-                            console.log('✅ Activity Log button display set to flex');
-                        }
-                        const dbInspectorBtn = document.getElementById('dbInspectorBtn');
-                        if (dbInspectorBtn) {
-                            dbInspectorBtn.style.display = 'flex';
-                            console.log('✅ Database Inspector button display set to flex');
                         }
                     }
 
@@ -2704,22 +2766,26 @@
                         if (adminBtn) {
                             adminBtn.style.display = 'flex';
                         }
-                        // Show Activity Log button for Admin only (in fallback)
+                    }
+                    
+                    // Phase 2: Try database permissions for Developer Tools (in fallback path)
+                    const usedDbForDevToolsFallback = applyDeveloperToolsPermissions(userRole);
+                    
+                    if (!usedDbForDevToolsFallback && userRole === 'Admin') {
+                        // Fallback to hardcoded if database not available
+                        console.log('⚠️ Using hardcoded permissions for Developer Tools (fallback path)');
                         const activityLogBtn = document.getElementById('activityLogBtn');
                         if (activityLogBtn) {
                             activityLogBtn.style.display = 'flex';
                         }
-                        // Show Database Inspector button for Admin only (in fallback)
                         const dbInspectorBtn = document.getElementById('dbInspectorBtn');
                         if (dbInspectorBtn) {
                             dbInspectorBtn.style.display = 'flex';
                         }
-                        // Show Menu Settings button for Admin only (in fallback)
                         const menuSettingsBtn = document.getElementById('menuSettingsBtn');
                         if (menuSettingsBtn) {
                             menuSettingsBtn.style.display = 'flex';
                         }
-                        // Show Role Management button for Admin only (in fallback)
                         const roleManagementBtn = document.getElementById('roleManagementBtn');
                         if (roleManagementBtn) {
                             roleManagementBtn.style.display = 'flex';
