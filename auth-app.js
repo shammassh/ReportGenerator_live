@@ -151,6 +151,8 @@ const ROLE_PAGE = '/admin/role-management';
 const STORE_PAGE = '/admin/store-management';
 const BRAND_PAGE = '/admin/brand-management';
 const SYSTEM_SETTINGS_PAGE = '/admin/system-settings';
+const NOTIFICATION_PAGE = '/admin/notification-history';
+const BROADCAST_PAGE = '/admin/broadcast';
 
 // Get all schemas
 app.get('/api/audit-templates/schemas', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
@@ -2645,7 +2647,7 @@ app.get('/admin/broadcast', requireAuth, requireAutoRole('Admin', 'SuperAuditor'
 });
 
 // Get recipient counts by role
-app.get('/api/broadcast/recipient-counts', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.get('/api/broadcast/recipient-counts', requireAuth, requirePagePermission(BROADCAST_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const sql = require('mssql');
         const dbConfig = require('./config/default').database;
@@ -2671,7 +2673,7 @@ app.get('/api/broadcast/recipient-counts', requireAuth, requireRole('Admin', 'Su
 });
 
 // Send broadcast
-app.post('/api/broadcast/send', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.post('/api/broadcast/send', requireAuth, requirePagePermission(BROADCAST_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const { title, message, type, targetRoles } = req.body;
         
@@ -2815,7 +2817,7 @@ app.post('/api/broadcast/send', requireAuth, requireRole('Admin', 'SuperAuditor'
 });
 
 // Get broadcast history
-app.get('/api/broadcast/history', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.get('/api/broadcast/history', requireAuth, requirePagePermission(BROADCAST_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const sql = require('mssql');
         const dbConfig = require('./config/default').database;
@@ -5956,6 +5958,161 @@ app.get('/api/department-reports/:department', requireAuth, async (req, res) => 
 });
 
 // ==========================================
+// Notification History Routes (Admin & Auditor Only)
+// ==========================================
+
+/**
+ * GET /api/notifications
+ * Get all notifications with filtering and pagination
+ * Protected: SQL-driven via MenuPermissions
+ */
+app.get('/api/notifications', requireAuth, requirePagePermission(NOTIFICATION_PAGE, 'Admin', 'Auditor'), async (req, res) => {
+    try {
+        const { status, dateFrom, dateTo, recipient, documentNumber, sentBy, notificationType, page, pageSize, sortBy, sortOrder } = req.query;
+
+        console.log(`📋 [API] Fetching notification history (User: ${req.currentUser.email})`);
+
+        const pool = await require('./database/db-connection').getPool();
+        const notificationService = new NotificationHistoryService();
+
+        const filters = {
+            status,
+            dateFrom,
+            dateTo,
+            recipient,
+            documentNumber,
+            sentBy,
+            notificationType
+        };
+
+        const options = {
+            page: page ? parseInt(page) : 1,
+            pageSize: pageSize ? parseInt(pageSize) : 50,
+            sortBy,
+            sortOrder
+        };
+
+        const result = await notificationService.getNotifications(pool, filters, options);
+
+        console.log(`✅ [API] Retrieved ${result.notifications.length} notifications (Total: ${result.total})`);
+
+        res.json({
+            success: true,
+            data: result.notifications,
+            pagination: {
+                page: result.page,
+                pageSize: result.pageSize,
+                total: result.total,
+                totalPages: result.totalPages
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ [API] Error fetching notifications:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch notification history',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/notifications/statistics
+ * Get notification statistics
+ * Protected: SQL-driven via MenuPermissions
+ */
+app.get('/api/notifications/statistics', requireAuth, requirePagePermission(NOTIFICATION_PAGE, 'Admin', 'Auditor'), async (req, res) => {
+    try {
+        console.log(`📊 [API] Fetching notification statistics (User: ${req.currentUser.email})`);
+
+        const pool = await require('./database/db-connection').getPool();
+        const notificationService = new NotificationHistoryService();
+
+        const stats = await notificationService.getStatistics(pool);
+
+        console.log(`✅ [API] Retrieved statistics: ${stats.total} total notifications`);
+
+        res.json({
+            success: true,
+            data: stats
+        });
+
+    } catch (error) {
+        console.error('❌ [API] Error fetching statistics:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch statistics',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/notifications/recent
+ * Get recent notifications (last 24 hours)
+ * Protected: SQL-driven via MenuPermissions
+ */
+app.get('/api/notifications/recent', requireAuth, requirePagePermission(NOTIFICATION_PAGE, 'Admin', 'Auditor'), async (req, res) => {
+    try {
+        const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+
+        console.log(`🕐 [API] Fetching ${limit} recent notifications (User: ${req.currentUser.email})`);
+
+        const pool = await require('./database/db-connection').getPool();
+        const notificationService = new NotificationHistoryService();
+
+        const notifications = await notificationService.getRecentNotifications(pool, limit);
+
+        console.log(`✅ [API] Retrieved ${notifications.length} recent notifications`);
+
+        res.json({
+            success: true,
+            data: notifications
+        });
+
+    } catch (error) {
+        console.error('❌ [API] Error fetching recent notifications:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch recent notifications',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * PATCH /api/notifications/:id/read
+ * Mark notification as read
+ * Protected: SQL-driven via MenuPermissions
+ */
+app.patch('/api/notifications/:id/read', requireAuth, requirePagePermission(NOTIFICATION_PAGE, 'Admin', 'Auditor'), async (req, res) => {
+    try {
+        const notificationId = parseInt(req.params.id);
+
+        console.log(`✅ [API] Marking notification ${notificationId} as read (User: ${req.currentUser.email})`);
+
+        const pool = await require('./database/db-connection').getPool();
+        const notificationService = new NotificationHistoryService();
+
+        await notificationService.markAsRead(pool, notificationId);
+
+        res.json({
+            success: true,
+            message: 'Notification marked as read'
+        });
+
+    } catch (error) {
+        console.error('❌ [API] Error marking notification as read:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to mark notification as read',
+            error: error.message
+        });
+    }
+});
+
+// ==========================================
 // Root Route
 // ==========================================
 
@@ -6018,161 +6175,6 @@ app.use((req, res) => {
         </body>
         </html>
     `);
-});
-
-// ==========================================
-// Notification History Routes (Admin & Auditor Only)
-// ==========================================
-
-/**
- * GET /api/notifications
- * Get all notifications with filtering and pagination
- * Protected: Admin and Auditor roles only
- */
-app.get('/api/notifications', requireAuth, requireRole('Admin', 'Auditor'), async (req, res) => {
-    try {
-        const { status, dateFrom, dateTo, recipient, documentNumber, sentBy, notificationType, page, pageSize, sortBy, sortOrder } = req.query;
-
-        console.log(`📋 [API] Fetching notification history (User: ${req.session.user.email})`);
-
-        const pool = await require('./database/db-connection').getPool();
-        const notificationService = new NotificationHistoryService();
-
-        const filters = {
-            status,
-            dateFrom,
-            dateTo,
-            recipient,
-            documentNumber,
-            sentBy,
-            notificationType
-        };
-
-        const options = {
-            page: page ? parseInt(page) : 1,
-            pageSize: pageSize ? parseInt(pageSize) : 50,
-            sortBy,
-            sortOrder
-        };
-
-        const result = await notificationService.getNotifications(pool, filters, options);
-
-        console.log(`✅ [API] Retrieved ${result.notifications.length} notifications (Total: ${result.total})`);
-
-        res.json({
-            success: true,
-            data: result.notifications,
-            pagination: {
-                page: result.page,
-                pageSize: result.pageSize,
-                total: result.total,
-                totalPages: result.totalPages
-            }
-        });
-
-    } catch (error) {
-        console.error('❌ [API] Error fetching notifications:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch notification history',
-            error: error.message
-        });
-    }
-});
-
-/**
- * GET /api/notifications/statistics
- * Get notification statistics
- * Protected: Admin and Auditor roles only
- */
-app.get('/api/notifications/statistics', requireAuth, requireRole('Admin', 'Auditor'), async (req, res) => {
-    try {
-        console.log(`📊 [API] Fetching notification statistics (User: ${req.session.user.email})`);
-
-        const pool = await require('./database/db-connection').getPool();
-        const notificationService = new NotificationHistoryService();
-
-        const stats = await notificationService.getStatistics(pool);
-
-        console.log(`✅ [API] Retrieved statistics: ${stats.total} total notifications`);
-
-        res.json({
-            success: true,
-            data: stats
-        });
-
-    } catch (error) {
-        console.error('❌ [API] Error fetching statistics:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch statistics',
-            error: error.message
-        });
-    }
-});
-
-/**
- * GET /api/notifications/recent
- * Get recent notifications (last 24 hours)
- * Protected: Admin and Auditor roles only
- */
-app.get('/api/notifications/recent', requireAuth, requireRole('Admin', 'Auditor'), async (req, res) => {
-    try {
-        const limit = req.query.limit ? parseInt(req.query.limit) : 10;
-
-        console.log(`🕐 [API] Fetching ${limit} recent notifications (User: ${req.session.user.email})`);
-
-        const pool = await require('./database/db-connection').getPool();
-        const notificationService = new NotificationHistoryService();
-
-        const notifications = await notificationService.getRecentNotifications(pool, limit);
-
-        console.log(`✅ [API] Retrieved ${notifications.length} recent notifications`);
-
-        res.json({
-            success: true,
-            data: notifications
-        });
-
-    } catch (error) {
-        console.error('❌ [API] Error fetching recent notifications:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch recent notifications',
-            error: error.message
-        });
-    }
-});
-
-/**
- * PATCH /api/notifications/:id/read
- * Mark notification as read
- * Protected: Admin and Auditor roles only
- */
-app.patch('/api/notifications/:id/read', requireAuth, requireRole('Admin', 'Auditor'), async (req, res) => {
-    try {
-        const notificationId = parseInt(req.params.id);
-
-        console.log(`✅ [API] Marking notification ${notificationId} as read (User: ${req.session.user.email})`);
-
-        const pool = await require('./database/db-connection').getPool();
-        const notificationService = new NotificationHistoryService();
-
-        await notificationService.markAsRead(pool, notificationId);
-
-        res.json({
-            success: true,
-            message: 'Notification marked as read'
-        });
-
-    } catch (error) {
-        console.error('❌ [API] Error marking notification as read:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to mark notification as read',
-            error: error.message
-        });
-    }
 });
 
 // ==========================================

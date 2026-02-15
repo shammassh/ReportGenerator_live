@@ -15,13 +15,15 @@ Audit Operations,Fill Audit,Button + Page,No,"Admin, Auditor",Hardcoded in code
 Audit Operations,Action Plan,Button + Page,No,"Admin, Auditor",Hardcoded in code
 Audit Operations,Score Calculator,Button + Page + API,No,"Admin, Auditor",Hardcoded in code
 Audit Operations,Audit Calendar,Button + Page + API,No,Admin,Hardcoded in code
-Reports & Communications,Broadcast,Button + API,No,"Admin, Auditor",Hardcoded in code
+Reports & Communications,Broadcast,Button + Page + API,Yes,,Fully SQL-driven with Read/Edit control
 Reports & Communications,Email Templates,Button + Page + API,No,Admin,Hardcoded in code
-Reports & Communications,Notification History,Button + Page,Yes,,Controlled by Menu Settings
+Reports & Communications,Notification History,Button + Page + API,Yes,,Fully SQL-driven with Read/Edit control
 Reports & Communications,Generate Reports,API only,No,"Admin, Auditor",Hardcoded in code
+Reports & Communications,Analytics,Button + Page,Yes,,Controlled by Menu Settings
 Backend APIs,/api/categories/*,API,No,Admin,Hardcoded in code
 Backend APIs,/api/admin/analytics/*,API,No,Admin,Hardcoded in code
 Backend APIs,/api/admin/activity-log/*,API,No,Admin,Hardcoded in code
 Backend APIs,/api/admin/db-inspector/*,API,No,Admin,Hardcoded in code
 Backend APIs,/api/audits/*,API,No,"Admin, Auditor",Hardcoded in code
-Backend APIs,/api/notifications/*,API,No,"Admin, Auditor",Hardcoded in code
+Backend APIs,/api/notifications/*,API,Yes,,SQL-driven via requirePagePermission
+Backend APIs,/api/broadcast/*,API,Yes,,SQL-driven via requirePagePermission (admin routes)

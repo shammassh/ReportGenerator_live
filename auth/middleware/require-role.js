@@ -346,21 +346,28 @@ function requirePagePermission(pageUrl, ...fallbackRoles) {
         const isWriteOperation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
         
         try {
+            // Use inline SQL connection
             const sql = require('mssql');
             const pool = await sql.connect({
-                server: process.env.SQL_SERVER,
-                database: process.env.SQL_DATABASE,
-                user: process.env.SQL_USER,
-                password: process.env.SQL_PASSWORD,
-                options: { encrypt: false, trustServerCertificate: true }
+                server: process.env.DB_SERVER || 'localhost',
+                database: process.env.DB_NAME || 'FoodSafetyDB_Live',
+                user: process.env.DB_USER,
+                password: process.env.DB_PASSWORD,
+                options: {
+                    encrypt: false,
+                    trustServerCertificate: true
+                }
             });
             
             const result = await pool.request()
                 .input('url', sql.NVarChar, pageUrl)
                 .query(`SELECT AllowedRoles, EditRoles, IsEnabled FROM MenuPermissions WHERE Url = @url`);
             
+            console.log(`🔍 [PagePerm] Checking ${pageUrl} for ${userRole}, found ${result.recordset.length} records`);
+            
             if (result.recordset.length > 0) {
                 const button = result.recordset[0];
+                console.log(`🔍 [PagePerm] AllowedRoles: ${button.AllowedRoles}, EditRoles: ${button.EditRoles}`);
                 
                 if (!button.IsEnabled) {
                     return res.status(403).json({ error: 'Access denied', message: 'Feature disabled' });

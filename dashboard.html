@@ -1064,6 +1064,27 @@
             box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
         }
 
+        /* Analytics Button */
+        .analytics-btn {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .analytics-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
+        }
+
         /* View Reports Modal */
         .view-reports-modal {
             display: none;
@@ -1971,6 +1992,10 @@
                             <span>📁</span>
                             View Reports
                         </button>
+                        <button class="analytics-btn" id="analyticsBtn" onclick="window.location.href='/admin/analytics'" style="display: none;">
+                            <span>📊</span>
+                            Analytics
+                        </button>
                         <button class="notification-history-btn" id="notificationHistoryBtn" onclick="window.location.href='/admin/notification-history'" style="display: none;">
                             <span>📧</span>
                             Notifications
@@ -2514,6 +2539,33 @@
             return usedDatabase;
         }
 
+        function applyReportsPermissions(userRole) {
+            // Reports & Communications buttons - use database if available
+            const reportsButtons = [
+                { id: 'viewReportsBtn', elementId: 'viewReportsBtn' },
+                { id: 'analyticsBtn', elementId: 'analyticsBtn' },
+                { id: 'notificationHistoryBtn', elementId: 'notificationHistoryBtn' },
+                { id: 'broadcastBtn', elementId: 'broadcastBtn' },
+                { id: 'emailTemplatesBtn', elementId: 'emailTemplatesBtn' }
+            ];
+
+            let usedDatabase = false;
+
+            reportsButtons.forEach(btn => {
+                const permission = hasPermission(btn.id, userRole);
+                if (permission !== null) {
+                    const element = document.getElementById(btn.elementId);
+                    if (element) {
+                        element.style.display = permission ? 'flex' : 'none';
+                        console.log(`🔑 [DB] ${btn.id}: ${permission ? 'SHOW' : 'HIDE'} for ${userRole}`);
+                    }
+                    usedDatabase = true;
+                }
+            });
+
+            return usedDatabase;
+        }
+
         // Check authentication and setup UI based on role
         async function checkAuthAndSetupUI() {
             try {
@@ -2593,33 +2645,41 @@
                         }
                     }
 
+                    // Phase 2: Try database permissions first for Reports & Communications
+                    const usedDbForReports = applyReportsPermissions(userRole);
+
                     // Show notification history button for Admin and Auditor
-                    if (userRole === 'Admin' || userRole === 'Auditor') {
-                        console.log('✅ Showing notification history button for role:', userRole);
-                        if (notificationBtn) {
-                            notificationBtn.style.display = 'flex';
-                            console.log('✅ Notification button display set to flex');
-                        } else {
-                            console.error('❌ Notification button not found in DOM!');
+                    // Only use hardcoded if database didn't handle it
+                    if (!usedDbForReports) {
+                        if (userRole === 'Admin' || userRole === 'Auditor') {
+                            console.log('✅ [Hardcoded] Showing notification history button for role:', userRole);
+                            if (notificationBtn) {
+                                notificationBtn.style.display = 'flex';
+                            }
                         }
-                    }
 
-                    // Show View Reports button for Auditor (already shown for Admin/SuperAuditor above)
-                    if (userRole === 'Auditor') {
-                        const viewReportsBtn = document.getElementById('viewReportsBtn');
-                        if (viewReportsBtn) {
-                            viewReportsBtn.style.display = 'flex';
-                            console.log('✅ View Reports button display set to flex for Auditor');
+                        // Show View Reports button for Auditor (already shown for Admin/SuperAuditor above)
+                        if (userRole === 'Auditor') {
+                            const viewReportsBtn = document.getElementById('viewReportsBtn');
+                            if (viewReportsBtn) {
+                                viewReportsBtn.style.display = 'flex';
+                            }
                         }
-                    }
 
-                    // Show broadcast button for Admin and SuperAuditor
-                    if (userRole === 'Admin' || userRole === 'SuperAuditor') {
-                        console.log('✅ Showing broadcast button for role:', userRole);
-                        const broadcastBtn = document.getElementById('broadcastBtn');
-                        if (broadcastBtn) {
-                            broadcastBtn.style.display = 'flex';
-                            console.log('✅ Broadcast button display set to flex');
+                        // Show broadcast button for Admin and SuperAuditor
+                        if (userRole === 'Admin' || userRole === 'SuperAuditor') {
+                            const broadcastBtn = document.getElementById('broadcastBtn');
+                            if (broadcastBtn) {
+                                broadcastBtn.style.display = 'flex';
+                            }
+                        }
+                        
+                        // Show View Reports for Admin and SuperAuditor
+                        if (userRole === 'Admin' || userRole === 'SuperAuditor') {
+                            const viewReportsBtn = document.getElementById('viewReportsBtn');
+                            if (viewReportsBtn) {
+                                viewReportsBtn.style.display = 'flex';
+                            }
                         }
                     }
 
@@ -2669,19 +2729,13 @@
                         }
                     }
 
-                    // Show Score Calculator and View Reports for Admin and SuperAuditor (not in System Admin category)
+                    // Show Score Calculator for Admin and SuperAuditor (not in System Admin category)
                     if (userRole === 'Admin' || userRole === 'SuperAuditor') {
                         // Show Score Calculator button for Admin and SuperAuditor
                         const scoreCalculatorBtn = document.getElementById('scoreCalculatorBtn');
                         if (scoreCalculatorBtn) {
                             scoreCalculatorBtn.style.display = 'flex';
                             console.log('✅ Score Calculator button display set to flex');
-                        }
-                        // Show View Reports button for Admin and SuperAuditor
-                        const viewReportsBtn = document.getElementById('viewReportsBtn');
-                        if (viewReportsBtn) {
-                            viewReportsBtn.style.display = 'flex';
-                            console.log('✅ View Reports button display set to flex');
                         }
                     }
 
@@ -2706,14 +2760,7 @@
                         }
                     }
                     
-                    // Email Templates - still hardcoded (not in Developer Tools category)
-                    if (userRole === 'Admin') {
-                        const emailTemplatesBtn = document.getElementById('emailTemplatesBtn');
-                        if (emailTemplatesBtn) {
-                            emailTemplatesBtn.style.display = 'flex';
-                            console.log('✅ Email Templates button display set to flex');
-                        }
-                    }
+                    // Email Templates - now handled by applyReportsPermissions()
 
                     // Brand Management is now handled by applySystemAdminPermissions()
 

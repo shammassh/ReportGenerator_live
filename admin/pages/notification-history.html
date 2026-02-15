@@ -693,13 +693,8 @@
                     return;
                 }
 
-                // Check if user has Admin or Auditor role
-                if (data.user.role !== 'Admin' && data.user.role !== 'Auditor') {
-                    alert('Access denied. This page is only accessible to Admin and Auditor roles.');
-                    window.location.href = '/dashboard';
-                    return;
-                }
-
+                // Role check is now handled by server-side SQL-driven permissions
+                // The server already verified access before serving this page
                 console.log('✅ Authentication successful, role:', data.user.role);
 
             } catch (error) {
