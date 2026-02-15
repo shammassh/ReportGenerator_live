@@ -520,11 +520,57 @@
 
     <script>
         let roles = [];
+        let menuPermissions = null;
+        let currentUserRole = null;
+        let canDeleteRoles = false;
         const protectedRoleNames = ['Admin', 'Auditor', 'SuperAuditor', 'StoreManager'];
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadUserSession();
+            await loadMenuPermissions();
+            checkDeletePermission();
             loadRoles();
         });
+
+        async function loadUserSession() {
+            try {
+                const response = await fetch('/auth/session');
+                const data = await response.json();
+                if (data.authenticated) {
+                    currentUserRole = data.user.role;
+                }
+            } catch (error) {
+                console.error('Error loading session:', error);
+            }
+        }
+
+        async function loadMenuPermissions() {
+            try {
+                const response = await fetch('/api/menu/settings');
+                const data = await response.json();
+                if (data.success) {
+                    menuPermissions = data.settings;
+                }
+            } catch (error) {
+                console.error('Error loading menu permissions:', error);
+            }
+        }
+
+        function checkDeletePermission() {
+            if (!menuPermissions || !currentUserRole) {
+                canDeleteRoles = currentUserRole === 'Admin'; // Fallback
+                return;
+            }
+            
+            const deleteBtn = menuPermissions.find(b => b.ButtonID === 'deleteRoleBtn');
+            if (deleteBtn) {
+                const allowedRoles = deleteBtn.AllowedRoles ? deleteBtn.AllowedRoles.split(',') : [];
+                canDeleteRoles = allowedRoles.includes(currentUserRole);
+                console.log(`🔑 Delete permission for ${currentUserRole}: ${canDeleteRoles}`);
+            } else {
+                canDeleteRoles = currentUserRole === 'Admin'; // Fallback if not in DB
+            }
+        }
 
         async function loadRoles() {
             try {
@@ -554,6 +600,7 @@
 
             container.innerHTML = roles.map(role => {
                 const isProtected = protectedRoleNames.includes(role.RoleName);
+                const showDeleteBtn = canDeleteRoles && !isProtected;
                 return `
                     <div class="role-item">
                         <div class="role-info">
@@ -566,11 +613,12 @@
                         <div class="role-actions">
                             <span class="role-id">ID: ${role.RoleID}</span>
                             <button class="btn btn-edit" onclick="editRole(${role.RoleID})">✏️</button>
-                            <button class="btn btn-delete" 
-                                    onclick="deleteRole(${role.RoleID}, '${role.RoleName}')"
-                                    ${isProtected ? 'disabled title="Protected roles cannot be deleted"' : ''}>
-                                🗑️
-                            </button>
+                            ${showDeleteBtn ? `
+                                <button class="btn btn-delete" 
+                                        onclick="deleteRole(${role.RoleID}, '${role.RoleName}')">
+                                    🗑️
+                                </button>
+                            ` : ''}
                         </div>
                     </div>
                 `;

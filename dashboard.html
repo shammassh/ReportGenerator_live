@@ -2487,6 +2487,33 @@
             return usedDatabase;
         }
 
+        function applySystemAdminPermissions(userRole) {
+            // System Administration buttons - use database if available
+            const sysAdminButtons = [
+                { id: 'adminPanelBtn', elementId: 'adminPanelBtn' },
+                { id: 'storeManagementBtn', elementId: 'storeManagementBtn' },
+                { id: 'brandManagementBtn', elementId: 'brandManagementBtn' },
+                { id: 'templateBuilderBtn', elementId: 'templateBuilderBtn' },
+                { id: 'systemSettingsBtn', elementId: 'systemSettingsBtn' }
+            ];
+
+            let usedDatabase = false;
+
+            sysAdminButtons.forEach(btn => {
+                const permission = hasPermission(btn.id, userRole);
+                if (permission !== null) {
+                    const element = document.getElementById(btn.elementId);
+                    if (element) {
+                        element.style.display = permission ? 'flex' : 'none';
+                        console.log(`🔑 [DB] ${btn.id}: ${permission ? 'SHOW' : 'HIDE'} for ${userRole}`);
+                    }
+                    usedDatabase = true;
+                }
+            });
+
+            return usedDatabase;
+        }
+
         // Check authentication and setup UI based on role
         async function checkAuthAndSetupUI() {
             try {
@@ -2605,27 +2632,45 @@
                         }
                     }
 
-                    // Show admin panel button for Admin only
-                    if (userRole === 'Admin') {
-                        console.log('✅ Showing admin panel button');
-                        if (adminBtn) {
-                            adminBtn.style.display = 'flex';
-                            console.log('✅ Admin button display set to flex');
+                    // Phase 2: Try database permissions first for System Administration
+                    const usedDbForSysAdmin = applySystemAdminPermissions(userRole);
+                    
+                    if (!usedDbForSysAdmin) {
+                        // Fallback to hardcoded if database not available
+                        console.log('⚠️ Using hardcoded permissions for System Administration');
+                        
+                        // Show admin panel button for Admin only
+                        if (userRole === 'Admin') {
+                            console.log('✅ Showing admin panel button');
+                            if (adminBtn) {
+                                adminBtn.style.display = 'flex';
+                                console.log('✅ Admin button display set to flex');
+                            }
                         }
-                        // Menu Settings and Role Management are now handled by applyDeveloperToolsPermissions()
+
+                        // Show template builder, system settings, store/brand management for Admin and SuperAuditor
+                        if (userRole === 'Admin' || userRole === 'SuperAuditor') {
+                            console.log('✅ Showing template builder button for role:', userRole);
+                            if (templateBtn) {
+                                templateBtn.style.display = 'flex';
+                                console.log('✅ Template button display set to flex');
+                            }
+                            if (systemSettingsBtn) {
+                                systemSettingsBtn.style.display = 'flex';
+                                console.log('✅ System Settings button display set to flex');
+                            }
+                            if (storeManagementBtn) {
+                                storeManagementBtn.style.display = 'flex';
+                            }
+                            const brandManagementBtn = document.getElementById('brandManagementBtn');
+                            if (brandManagementBtn) {
+                                brandManagementBtn.style.display = 'flex';
+                            }
+                        }
                     }
 
-                    // Show template builder button for Admin and SuperAuditor
+                    // Show Score Calculator and View Reports for Admin and SuperAuditor (not in System Admin category)
                     if (userRole === 'Admin' || userRole === 'SuperAuditor') {
-                        console.log('✅ Showing template builder button for role:', userRole);
-                        if (templateBtn) {
-                            templateBtn.style.display = 'flex';
-                            console.log('✅ Template button display set to flex');
-                        }
-                        if (systemSettingsBtn) {
-                            systemSettingsBtn.style.display = 'flex';
-                            console.log('✅ System Settings button display set to flex');
-                        }
                         // Show Score Calculator button for Admin and SuperAuditor
                         const scoreCalculatorBtn = document.getElementById('scoreCalculatorBtn');
                         if (scoreCalculatorBtn) {
@@ -2670,14 +2715,7 @@
                         }
                     }
 
-                    // Show Brand Management button for Admin and SuperAuditor
-                    if (userRole === 'Admin' || userRole === 'SuperAuditor') {
-                        const brandManagementBtn = document.getElementById('brandManagementBtn');
-                        if (brandManagementBtn) {
-                            brandManagementBtn.style.display = 'flex';
-                            console.log('✅ Brand Management button display set to flex');
-                        }
-                    }
+                    // Brand Management is now handled by applySystemAdminPermissions()
 
                     // Update category visibility based on visible buttons
                     updateCategoryVisibility();
@@ -2739,10 +2777,23 @@
                         }
                     }
 
-                    // Show Store Management button for Admin and SuperAuditor
-                    if (userRole === 'Admin' || userRole === 'SuperAuditor') {
-                        if (storeManagementBtn) {
-                            storeManagementBtn.style.display = 'flex';
+                    // Phase 2: Try database permissions for System Administration (in fallback path)
+                    const usedDbForSysAdminFallback = applySystemAdminPermissions(userRole);
+                    
+                    if (!usedDbForSysAdminFallback) {
+                        // Fallback to hardcoded if database not available
+                        console.log('⚠️ Using hardcoded permissions for System Administration (fallback path)');
+                        
+                        if (userRole === 'Admin') {
+                            if (adminBtn) {
+                                adminBtn.style.display = 'flex';
+                            }
+                        }
+                        
+                        if (userRole === 'Admin' || userRole === 'SuperAuditor') {
+                            if (storeManagementBtn) {
+                                storeManagementBtn.style.display = 'flex';
+                            }
                         }
                     }
 
@@ -2761,12 +2812,7 @@
                         }
                     }
 
-                    // Show admin panel button for Admin only
-                    if (userRole === 'Admin') {
-                        if (adminBtn) {
-                            adminBtn.style.display = 'flex';
-                        }
-                    }
+                    // System Administration buttons are now handled by applySystemAdminPermissions() above
                     
                     // Phase 2: Try database permissions for Developer Tools (in fallback path)
                     const usedDbForDevToolsFallback = applyDeveloperToolsPermissions(userRole);
@@ -2792,20 +2838,7 @@
                         }
                     }
 
-                    // Show template builder button for Admin and SuperAuditor
-                    if (userRole === 'Admin' || userRole === 'SuperAuditor') {
-                        if (templateBtn) {
-                            templateBtn.style.display = 'flex';
-                        }
-                        if (systemSettingsBtn) {
-                            systemSettingsBtn.style.display = 'flex';
-                        }
-                        // Show Brand Management button for Admin and SuperAuditor (in fallback)
-                        const brandManagementBtn = document.getElementById('brandManagementBtn');
-                        if (brandManagementBtn) {
-                            brandManagementBtn.style.display = 'flex';
-                        }
-                    }
+                    // Template builder, system settings, brand management are now handled by applySystemAdminPermissions()
 
                     // Update category visibility based on visible buttons
                     updateCategoryVisibility();

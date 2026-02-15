@@ -311,9 +311,59 @@
 
         .role-badges {
             display: flex;
-            gap: 4px;
+            gap: 6px;
             flex-wrap: wrap;
             justify-content: flex-start;
+        }
+
+        .role-permission {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .role-name {
+            font-size: 10px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .permission-toggle {
+            display: flex;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+        }
+
+        .permission-btn {
+            padding: 3px 6px;
+            font-size: 9px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            background: #f3f4f6;
+            color: #9ca3af;
+            transition: all 0.2s;
+        }
+
+        .permission-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .permission-btn.off-active {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .permission-btn.read-active {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .permission-btn.edit-active {
+            background: #dcfce7;
+            color: #166534;
         }
 
         .role-badge {
@@ -947,9 +997,17 @@
         }
 
         function renderMenuItem(item, index, categoryItems) {
-            const roles = item.AllowedRoles ? item.AllowedRoles.split(',') : [];
+            const allowedRoles = item.AllowedRoles ? item.AllowedRoles.split(',') : [];
+            const editRoles = item.EditRoles ? item.EditRoles.split(',') : [];
             const isFirst = index === 0;
             const isLast = index === categoryItems.length - 1;
+            
+            // Determine permission level for each role: 'off', 'read', or 'edit'
+            function getPermission(role) {
+                if (editRoles.includes(role)) return 'edit';
+                if (allowedRoles.includes(role)) return 'read';
+                return 'off';
+            }
             
             return `
                 <div class="menu-item" data-id="${item.MenuID}">
@@ -965,12 +1023,22 @@
                     </div>
                     <div class="menu-item-url">${item.Url || '-'}</div>
                     <div class="role-badges">
-                        ${allRoles.map(role => `
-                            <span class="role-badge ${roles.includes(role) ? 'active' : 'inactive'}" 
-                                  onclick="toggleRole(${item.MenuID}, '${role}')">
-                                ${role}
-                            </span>
-                        `).join('')}
+                        ${allRoles.map(role => {
+                            const perm = getPermission(role);
+                            return `
+                            <div class="role-permission">
+                                <span class="role-name">${role}</span>
+                                <div class="permission-toggle">
+                                    <button class="permission-btn ${perm === 'off' ? 'off-active' : ''}" 
+                                            onclick="setPermission(${item.MenuID}, '${role}', 'off')" title="No Access">✗</button>
+                                    <button class="permission-btn ${perm === 'read' ? 'read-active' : ''}" 
+                                            onclick="setPermission(${item.MenuID}, '${role}', 'read')" title="Read Only">👁</button>
+                                    <button class="permission-btn ${perm === 'edit' ? 'edit-active' : ''}" 
+                                            onclick="setPermission(${item.MenuID}, '${role}', 'edit')" title="Read & Edit">✏</button>
+                                </div>
+                            </div>
+                            `;
+                        }).join('')}
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" ${item.IsEnabled ? 'checked' : ''} 
@@ -979,6 +1047,33 @@
                     </label>
                 </div>
             `;
+        }
+
+        function setPermission(menuId, role, permission) {
+            const item = menuData.find(m => m.MenuID === menuId);
+            if (!item) return;
+            
+            let allowedRoles = item.AllowedRoles ? item.AllowedRoles.split(',').filter(r => r) : [];
+            let editRoles = item.EditRoles ? item.EditRoles.split(',').filter(r => r) : [];
+            
+            // Remove role from both lists first
+            allowedRoles = allowedRoles.filter(r => r !== role);
+            editRoles = editRoles.filter(r => r !== role);
+            
+            // Add based on permission level
+            if (permission === 'read') {
+                allowedRoles.push(role);
+            } else if (permission === 'edit') {
+                allowedRoles.push(role);
+                editRoles.push(role);
+            }
+            // 'off' = not in either list
+            
+            item.AllowedRoles = allowedRoles.join(',');
+            item.EditRoles = editRoles.join(',');
+            
+            renderCategories();
+            previewRole(currentPreviewRole);
         }
 
         function toggleRole(menuId, role) {

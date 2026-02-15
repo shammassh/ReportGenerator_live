@@ -1,0 +1,27 @@
+Category,Item,Type,SQL-Driven,Hardcoded Roles,Notes
+Developer Tools,Activity Log,Button + Page,Yes,,Controlled by Menu Settings
+Developer Tools,Database Inspector,Button + Page,Yes,,Controlled by Menu Settings
+Developer Tools,Menu Settings,Button + Page,Yes,,Controlled by Menu Settings
+Developer Tools,Role Management,Button + Page + API,Yes,,With Read/Edit control
+Developer Tools,Delete Role,Action Button,Yes,,Separate permission for delete action
+System Administration,Admin Panel (Users),Button + Page,Yes,,Controlled by Menu Settings
+System Administration,Store Management,Button + Page + API,Yes,,With Read/Edit control
+System Administration,Brand Management,Button + Page + API,Yes,,With Read/Edit control
+System Administration,Template Builder,Button + Page + API,Yes,,With Read/Edit control
+System Administration,System Settings,Button + Page + API,Yes,,With Read/Edit control
+Audit Operations,Start Audit,Button + Page,No,"Admin, Auditor",Hardcoded in code
+Audit Operations,Audit List,Button + Page,No,"Admin, Auditor",Hardcoded in code
+Audit Operations,Fill Audit,Button + Page,No,"Admin, Auditor",Hardcoded in code
+Audit Operations,Action Plan,Button + Page,No,"Admin, Auditor",Hardcoded in code
+Audit Operations,Score Calculator,Button + Page + API,No,"Admin, Auditor",Hardcoded in code
+Audit Operations,Audit Calendar,Button + Page + API,No,Admin,Hardcoded in code
+Reports & Communications,Broadcast,Button + API,No,"Admin, Auditor",Hardcoded in code
+Reports & Communications,Email Templates,Button + Page + API,No,Admin,Hardcoded in code
+Reports & Communications,Notification History,Button + Page,Yes,,Controlled by Menu Settings
+Reports & Communications,Generate Reports,API only,No,"Admin, Auditor",Hardcoded in code
+Backend APIs,/api/categories/*,API,No,Admin,Hardcoded in code
+Backend APIs,/api/admin/analytics/*,API,No,Admin,Hardcoded in code
+Backend APIs,/api/admin/activity-log/*,API,No,Admin,Hardcoded in code
+Backend APIs,/api/admin/db-inspector/*,API,No,Admin,Hardcoded in code
+Backend APIs,/api/audits/*,API,No,"Admin, Auditor",Hardcoded in code
+Backend APIs,/api/notifications/*,API,No,"Admin, Auditor",Hardcoded in code

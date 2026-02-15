@@ -12,7 +12,7 @@ const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
-const { initializeAuth, requireAuth, requireRole } = require('./auth/auth-server');
+const { initializeAuth, requireAuth, requireRole, requireAutoRole, requirePagePermission } = require('./auth/auth-server');
 const DashboardPage = require('./dashboard/pages/dashboard-page');
 const ChecklistManagementPage = require('./checklist/pages/checklist-management-page');
 const DashboardFilterService = require('./dashboard/services/dashboard-filter-service');
@@ -140,14 +140,20 @@ console.log('[APP] Checklist management system loaded');
 const AuditTemplateService = require('./src/services/audit-template-service');
 const auditTemplateService = new AuditTemplateService();
 
-// Serve the template builder page (Admin/SuperAuditor only)
-app.get('/admin/template-builder', requireAuth, requireRole('Admin', 'SuperAuditor'), (req, res) => {
+// Serve the template builder page - uses auto role from MenuPermissions
+app.get('/admin/template-builder', requireAuth, requireAutoRole('Admin', 'SuperAuditor'), (req, res) => {
     res.sendFile(path.join(__dirname, 'audit-template-builder.html'));
 });
 
-// API Routes for Audit Templates
+// API Routes for Audit Templates - all use page permission from /admin/template-builder
+const TEMPLATE_PAGE = '/admin/template-builder';
+const ROLE_PAGE = '/admin/role-management';
+const STORE_PAGE = '/admin/store-management';
+const BRAND_PAGE = '/admin/brand-management';
+const SYSTEM_SETTINGS_PAGE = '/admin/system-settings';
+
 // Get all schemas
-app.get('/api/audit-templates/schemas', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.get('/api/audit-templates/schemas', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const schemas = await auditTemplateService.getAllSchemas();
         res.json({ success: true, data: schemas });
@@ -158,7 +164,7 @@ app.get('/api/audit-templates/schemas', requireAuth, requireRole('Admin', 'Super
 });
 
 // Create schema
-app.post('/api/audit-templates/schemas', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.post('/api/audit-templates/schemas', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const { schemaName, description } = req.body;
         const result = await auditTemplateService.createSchema(schemaName, description, req.currentUser.email);
@@ -170,7 +176,7 @@ app.post('/api/audit-templates/schemas', requireAuth, requireRole('Admin', 'Supe
 });
 
 // Get full schema with sections and items
-app.get('/api/audit-templates/schemas/:schemaId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.get('/api/audit-templates/schemas/:schemaId', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const schema = await auditTemplateService.getFullSchema(parseInt(req.params.schemaId));
         res.json({ success: true, data: schema });
@@ -181,7 +187,7 @@ app.get('/api/audit-templates/schemas/:schemaId', requireAuth, requireRole('Admi
 });
 
 // Update schema (rename)
-app.put('/api/audit-templates/schemas/:schemaId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.put('/api/audit-templates/schemas/:schemaId', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const { schemaName, description } = req.body;
         if (!schemaName || schemaName.trim() === '') {
@@ -201,7 +207,7 @@ app.put('/api/audit-templates/schemas/:schemaId', requireAuth, requireRole('Admi
 });
 
 // Delete schema (soft delete)
-app.delete('/api/audit-templates/schemas/:schemaId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.delete('/api/audit-templates/schemas/:schemaId', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const result = await auditTemplateService.deleteSchema(
             parseInt(req.params.schemaId),
@@ -215,7 +221,7 @@ app.delete('/api/audit-templates/schemas/:schemaId', requireAuth, requireRole('A
 });
 
 // Get sections by schema
-app.get('/api/audit-templates/schemas/:schemaId/sections', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.get('/api/audit-templates/schemas/:schemaId/sections', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const sections = await auditTemplateService.getSectionsBySchema(parseInt(req.params.schemaId));
         res.json({ success: true, data: sections });
@@ -226,7 +232,7 @@ app.get('/api/audit-templates/schemas/:schemaId/sections', requireAuth, requireR
 });
 
 // Create section
-app.post('/api/audit-templates/schemas/:schemaId/sections', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.post('/api/audit-templates/schemas/:schemaId/sections', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const { sectionNumber, sectionName, sectionIcon } = req.body;
         const result = await auditTemplateService.createSection(
@@ -244,7 +250,7 @@ app.post('/api/audit-templates/schemas/:schemaId/sections', requireAuth, require
 });
 
 // Get items by section
-app.get('/api/audit-templates/sections/:sectionId/items', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.get('/api/audit-templates/sections/:sectionId/items', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const items = await auditTemplateService.getItemsBySection(parseInt(req.params.sectionId));
         res.json({ success: true, data: items });
@@ -255,7 +261,7 @@ app.get('/api/audit-templates/sections/:sectionId/items', requireAuth, requireRo
 });
 
 // Create item
-app.post('/api/audit-templates/sections/:sectionId/items', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.post('/api/audit-templates/sections/:sectionId/items', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const { referenceValue, title, coeff, answer, cr } = req.body;
         const result = await auditTemplateService.createItem(
@@ -275,7 +281,7 @@ app.post('/api/audit-templates/sections/:sectionId/items', requireAuth, requireR
 });
 
 // Bulk create items
-app.post('/api/audit-templates/sections/:sectionId/items/bulk', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.post('/api/audit-templates/sections/:sectionId/items/bulk', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const { items, duplicateAction = 'skip' } = req.body;
         const sectionId = parseInt(req.params.sectionId);
@@ -392,7 +398,7 @@ app.post('/api/audit-templates/sections/:sectionId/items/bulk', requireAuth, req
 });
 
 // Update item
-app.put('/api/audit-templates/items/:itemId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.put('/api/audit-templates/items/:itemId', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const { referenceValue, title, coeff, answer, cr } = req.body;
         const result = await auditTemplateService.updateItem(
@@ -412,7 +418,7 @@ app.put('/api/audit-templates/items/:itemId', requireAuth, requireRole('Admin', 
 });
 
 // Delete item
-app.delete('/api/audit-templates/items/:itemId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.delete('/api/audit-templates/items/:itemId', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const result = await auditTemplateService.deleteItem(parseInt(req.params.itemId));
         res.json({ success: true, data: result });
@@ -423,7 +429,7 @@ app.delete('/api/audit-templates/items/:itemId', requireAuth, requireRole('Admin
 });
 
 // Delete ALL items in a section
-app.delete('/api/audit-templates/sections/:sectionId/items/all', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.delete('/api/audit-templates/sections/:sectionId/items/all', requireAuth, requirePagePermission(TEMPLATE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const sectionId = parseInt(req.params.sectionId);
         const result = await auditTemplateService.deleteAllItemsInSection(sectionId);
@@ -457,8 +463,8 @@ async function initCategoryService() {
 // Delay initialization to allow AuditService to connect
 setTimeout(() => initCategoryService(), 2000);
 
-// Serve Category Management page
-app.get('/admin/category-management', requireAuth, requireRole('Admin', 'SuperAuditor'), (req, res) => {
+// Serve Category Management page - uses auto role from MenuPermissions
+app.get('/admin/category-management', requireAuth, requireAutoRole('Admin', 'SuperAuditor'), (req, res) => {
     res.sendFile(path.join(__dirname, 'audit-app/pages/category-manager.html'));
 });
 
@@ -572,8 +578,8 @@ console.log('[APP] Category management system loaded');
 // Store Management System
 // ==========================================
 
-// Serve Store Management page
-app.get('/admin/store-management', requireAuth, requireRole('Admin', 'SuperAuditor'), (req, res) => {
+// Serve Store Management page - uses auto role from MenuPermissions
+app.get('/admin/store-management', requireAuth, requireAutoRole('Admin', 'SuperAuditor'), (req, res) => {
     res.sendFile(path.join(__dirname, 'audit-app/pages/store-management.html'));
 });
 
@@ -601,7 +607,7 @@ app.get('/api/stores/active', requireAuth, async (req, res) => {
 
 // Get available store managers (users with StoreManager or Admin role)
 // MUST be before /:storeId routes
-app.get('/api/stores/available-managers', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.get('/api/stores/available-managers', requireAuth, requirePagePermission(STORE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const managers = await StoreService.getAvailableStoreManagers();
         res.json({ success: true, data: managers });
@@ -613,7 +619,7 @@ app.get('/api/stores/available-managers', requireAuth, requireRole('Admin', 'Sup
 
 // Get all store manager assignments (grouped by store)
 // MUST be before /:storeId routes
-app.get('/api/stores/manager-assignments', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.get('/api/stores/manager-assignments', requireAuth, requirePagePermission(STORE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const assignments = await StoreService.getAllStoreManagerAssignments();
         res.json({ success: true, data: assignments });
@@ -624,7 +630,7 @@ app.get('/api/stores/manager-assignments', requireAuth, requireRole('Admin', 'Su
 });
 
 // Create store
-app.post('/api/stores', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.post('/api/stores', requireAuth, requirePagePermission(STORE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const storeData = {
             ...req.body,
@@ -639,7 +645,7 @@ app.post('/api/stores', requireAuth, requireRole('Admin', 'SuperAuditor'), async
 });
 
 // Update store
-app.put('/api/stores/:storeId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.put('/api/stores/:storeId', requireAuth, requirePagePermission(STORE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const result = await StoreService.updateStore(parseInt(req.params.storeId), req.body);
         res.json({ success: true, data: result });
@@ -650,7 +656,7 @@ app.put('/api/stores/:storeId', requireAuth, requireRole('Admin', 'SuperAuditor'
 });
 
 // Delete store
-app.delete('/api/stores/:storeId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.delete('/api/stores/:storeId', requireAuth, requirePagePermission(STORE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const result = await StoreService.deleteStore(parseInt(req.params.storeId));
         res.json({ success: true, data: result });
@@ -661,7 +667,7 @@ app.delete('/api/stores/:storeId', requireAuth, requireRole('Admin', 'SuperAudit
 });
 
 // Get store managers for a specific store
-app.get('/api/stores/:storeId/managers', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.get('/api/stores/:storeId/managers', requireAuth, requirePagePermission(STORE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const managers = await StoreService.getStoreManagers(parseInt(req.params.storeId));
         res.json({ success: true, data: managers });
@@ -672,7 +678,7 @@ app.get('/api/stores/:storeId/managers', requireAuth, requireRole('Admin', 'Supe
 });
 
 // Assign store managers to a store
-app.post('/api/stores/:storeId/managers', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.post('/api/stores/:storeId/managers', requireAuth, requirePagePermission(STORE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const { userIds } = req.body;
         console.log(`📝 [STORE-MGMT] User ${req.currentUser?.email} (${req.currentUser?.role}) assigning managers to store ${req.params.storeId}:`, userIds);
@@ -694,7 +700,7 @@ app.post('/api/stores/:storeId/managers', requireAuth, requireRole('Admin', 'Sup
 });
 
 // Remove a store manager from a store
-app.delete('/api/stores/:storeId/managers/:userId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.delete('/api/stores/:storeId/managers/:userId', requireAuth, requirePagePermission(STORE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const result = await StoreService.removeStoreManager(
             parseInt(req.params.storeId),
@@ -825,7 +831,7 @@ app.get('/api/brands', requireAuth, async (req, res) => {
 });
 
 // Get single brand
-app.get('/api/brands/:brandId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.get('/api/brands/:brandId', requireAuth, requirePagePermission(BRAND_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const brand = await BrandService.getBrandById(parseInt(req.params.brandId));
         if (!brand) {
@@ -839,7 +845,7 @@ app.get('/api/brands/:brandId', requireAuth, requireRole('Admin', 'SuperAuditor'
 });
 
 // Create new brand
-app.post('/api/brands', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.post('/api/brands', requireAuth, requirePagePermission(BRAND_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const brand = await BrandService.createBrand(req.body, req.currentUser.email);
         console.log(`🏷️ [BRAND] Created brand "${brand.BrandName}" by ${req.currentUser.email}`);
@@ -851,7 +857,7 @@ app.post('/api/brands', requireAuth, requireRole('Admin', 'SuperAuditor'), async
 });
 
 // Update brand
-app.put('/api/brands/:brandId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.put('/api/brands/:brandId', requireAuth, requirePagePermission(BRAND_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const brand = await BrandService.updateBrand(parseInt(req.params.brandId), req.body);
         console.log(`🏷️ [BRAND] Updated brand "${brand.BrandName}" by ${req.currentUser.email}`);
@@ -863,7 +869,7 @@ app.put('/api/brands/:brandId', requireAuth, requireRole('Admin', 'SuperAuditor'
 });
 
 // Delete/deactivate brand
-app.delete('/api/brands/:brandId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.delete('/api/brands/:brandId', requireAuth, requirePagePermission(BRAND_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const result = await BrandService.deleteBrand(parseInt(req.params.brandId));
         console.log(`🏷️ [BRAND] Deactivated brand ID ${req.params.brandId} by ${req.currentUser.email}`);
@@ -1174,8 +1180,8 @@ console.log('[APP] Admin database tools loaded');
 
 const AnalyticsPage = require('./admin/pages/analytics-page');
 
-// Serve analytics page
-app.get('/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'), (req, res) => {
+// Serve analytics page - uses auto role from MenuPermissions
+app.get('/admin/analytics', requireAuth, requireAutoRole('Admin', 'SuperAuditor'), (req, res) => {
     AnalyticsPage.render(req, res);
 });
 
@@ -1741,18 +1747,18 @@ console.log('[APP] Advanced analytics loaded');
 
 const SystemSettingsService = require('./audit-app/services/system-settings-service');
 
-// Serve System Settings page
-app.get('/admin/system-settings', requireAuth, requireRole('Admin', 'SuperAuditor'), (req, res) => {
+// Serve System Settings page - uses auto role from MenuPermissions
+app.get('/admin/system-settings', requireAuth, requireAutoRole('Admin', 'SuperAuditor'), (req, res) => {
     res.sendFile(path.join(__dirname, 'audit-app/pages/system-settings.html'));
 });
 
-// Brand Management Page
-app.get('/admin/brand-management', requireAuth, requireRole('Admin', 'SuperAuditor'), (req, res) => {
+// Brand Management Page - uses auto role from MenuPermissions
+app.get('/admin/brand-management', requireAuth, requireAutoRole('Admin', 'SuperAuditor'), (req, res) => {
     res.sendFile(path.join(__dirname, 'admin/pages/brand-management.html'));
 });
 
 // Get all schemas with settings
-app.get('/api/system-settings/schemas', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.get('/api/system-settings/schemas', requireAuth, requirePagePermission(SYSTEM_SETTINGS_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const schemas = await SystemSettingsService.getSchemasWithSettings();
         res.json({ success: true, schemas });
@@ -1763,7 +1769,7 @@ app.get('/api/system-settings/schemas', requireAuth, requireRole('Admin', 'Super
 });
 
 // Get settings for a specific schema
-app.get('/api/system-settings/schema/:schemaId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.get('/api/system-settings/schema/:schemaId', requireAuth, requirePagePermission(SYSTEM_SETTINGS_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const settings = await SystemSettingsService.getSchemaSettings(parseInt(req.params.schemaId));
         res.json({ success: true, settings });
@@ -1774,7 +1780,7 @@ app.get('/api/system-settings/schema/:schemaId', requireAuth, requireRole('Admin
 });
 
 // Save settings for a schema
-app.post('/api/system-settings/schema/:schemaId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+app.post('/api/system-settings/schema/:schemaId', requireAuth, requirePagePermission(SYSTEM_SETTINGS_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
         const result = await SystemSettingsService.saveSchemaSettings(
             parseInt(req.params.schemaId),
@@ -1847,13 +1853,13 @@ console.log('[APP] Schema colors API loaded');
 // Menu Settings API (Admin Only)
 // ==========================================
 
-// Serve menu settings page
-app.get('/admin/menu-settings', requireAuth, requireRole('Admin'), (req, res) => {
+// Serve menu settings page - uses auto role from MenuPermissions
+app.get('/admin/menu-settings', requireAuth, requireAutoRole('Admin'), (req, res) => {
     res.sendFile(path.join(__dirname, 'admin', 'menu-settings.html'));
 });
 
-// Get all menu settings
-app.get('/api/menu/settings', requireAuth, requireRole('Admin'), async (req, res) => {
+// Get all menu settings (all authenticated users can read - needed for dashboard permissions)
+app.get('/api/menu/settings', requireAuth, async (req, res) => {
     try {
         const sql = require('mssql');
         const pool = await sql.connect({
@@ -1866,7 +1872,7 @@ app.get('/api/menu/settings', requireAuth, requireRole('Admin'), async (req, res
         
         const result = await pool.request().query(`
             SELECT MenuID, ButtonID, ButtonName, Category, Icon, Url, ActionType, 
-                   AllowedRoles, IsEnabled, SortOrder, CreatedAt, ModifiedAt
+                   AllowedRoles, EditRoles, IsEnabled, SortOrder, CreatedAt, ModifiedAt
             FROM MenuPermissions
             ORDER BY Category, SortOrder
         `);
@@ -1900,11 +1906,13 @@ app.post('/api/menu/settings', requireAuth, requireRole('Admin'), async (req, re
             await pool.request()
                 .input('menuId', sql.Int, item.MenuID)
                 .input('allowedRoles', sql.VarChar(500), item.AllowedRoles || '')
+                .input('editRoles', sql.VarChar(500), item.EditRoles || '')
                 .input('isEnabled', sql.Bit, item.IsEnabled ? 1 : 0)
                 .input('sortOrder', sql.Int, item.SortOrder || 0)
                 .query(`
                     UPDATE MenuPermissions 
                     SET AllowedRoles = @allowedRoles, 
+                        EditRoles = @editRoles,
                         IsEnabled = @isEnabled, 
                         SortOrder = @sortOrder,
                         ModifiedAt = GETDATE()
@@ -1971,13 +1979,13 @@ console.log('[APP] Menu settings API loaded');
 // Role Management API
 // ==========================================
 
-// Serve role management page
-app.get('/admin/role-management', requireAuth, requireRole('Admin'), (req, res) => {
+// Serve role management page - uses auto role from MenuPermissions
+app.get('/admin/role-management', requireAuth, requireAutoRole('Admin'), (req, res) => {
     res.sendFile(path.join(__dirname, 'admin', 'role-management.html'));
 });
 
 // Get all roles with user counts
-app.get('/api/roles', requireAuth, requireRole('Admin'), async (req, res) => {
+app.get('/api/roles', requireAuth, requirePagePermission(ROLE_PAGE, 'Admin'), async (req, res) => {
     try {
         const sql = require('mssql');
         const pool = await sql.connect({
@@ -2012,7 +2020,7 @@ app.get('/api/roles', requireAuth, requireRole('Admin'), async (req, res) => {
 });
 
 // Add new role
-app.post('/api/roles', requireAuth, requireRole('Admin'), async (req, res) => {
+app.post('/api/roles', requireAuth, requirePagePermission(ROLE_PAGE, 'Admin'), async (req, res) => {
     try {
         const sql = require('mssql');
         const { roleName, description } = req.body;
@@ -2061,7 +2069,7 @@ app.post('/api/roles', requireAuth, requireRole('Admin'), async (req, res) => {
 });
 
 // Update role (description only)
-app.put('/api/roles/:roleId', requireAuth, requireRole('Admin'), async (req, res) => {
+app.put('/api/roles/:roleId', requireAuth, requirePagePermission(ROLE_PAGE, 'Admin'), async (req, res) => {
     try {
         const sql = require('mssql');
         const roleId = parseInt(req.params.roleId);
@@ -2090,7 +2098,7 @@ app.put('/api/roles/:roleId', requireAuth, requireRole('Admin'), async (req, res
 });
 
 // Delete role (with safety checks)
-app.delete('/api/roles/:roleId', requireAuth, requireRole('Admin'), async (req, res) => {
+app.delete('/api/roles/:roleId', requireAuth, requirePagePermission(ROLE_PAGE, 'Admin'), async (req, res) => {
     try {
         const sql = require('mssql');
         const roleId = parseInt(req.params.roleId);
@@ -2631,8 +2639,8 @@ app.post('/api/audits/notification-statuses', requireAuth, requireRole('Admin', 
 // Broadcast Feature API
 // ==========================================
 
-// Serve broadcast page
-app.get('/admin/broadcast', requireAuth, requireRole('Admin', 'SuperAuditor'), (req, res) => {
+// Serve broadcast page - uses auto role from MenuPermissions
+app.get('/admin/broadcast', requireAuth, requireAutoRole('Admin', 'SuperAuditor'), (req, res) => {
     res.sendFile(path.join(__dirname, 'audit-app', 'pages', 'broadcast.html'));
 });
 
@@ -3481,8 +3489,8 @@ app.delete('/api/calendar/recurring/:id', requireAuth, requireRole('Admin', 'Sup
 
 const emailTemplateService = require('./services/email-template-service');
 
-// Serve email templates management page
-app.get('/admin/email-templates', requireAuth, requireRole('Admin'), (req, res) => {
+// Serve email templates management page - uses auto role from MenuPermissions
+app.get('/admin/email-templates', requireAuth, requireAutoRole('Admin'), (req, res) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
@@ -3640,8 +3648,8 @@ app.post('/api/admin/email-templates/test', requireAuth, requireRole('Admin'), a
 // ACTIVITY LOG MANAGEMENT API ROUTES (Admin Only)
 // ==========================================
 
-// Serve activity log page
-app.get('/admin/activity-log', requireAuth, requireRole('Admin'), (req, res) => {
+// Serve activity log page - uses auto role from MenuPermissions
+app.get('/admin/activity-log', requireAuth, requireAutoRole('Admin'), (req, res) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
@@ -3745,8 +3753,8 @@ app.post('/api/admin/activity-log/cleanup', requireAuth, requireRole('Admin'), a
 // ==========================================
 const DatabaseInspectorService = require('./admin/services/database-inspector-service');
 
-// Serve database inspector page
-app.get('/admin/database-inspector', requireAuth, requireRole('Admin'), (req, res) => {
+// Serve database inspector page - uses auto role from MenuPermissions
+app.get('/admin/database-inspector', requireAuth, requireAutoRole('Admin'), (req, res) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');

@@ -17,6 +17,7 @@ const LogoutHandler = require('./services/logout-handler');
 const SessionManager = require('./services/session-manager');
 const requireAuth = require('./middleware/require-auth');
 const requireRole = require('./middleware/require-role');
+const { requireDynamicRole, requireAutoRole, requirePagePermission } = require('./middleware/require-role');
 
 // Import admin modules
 const UserManagementPage = require('../admin/pages/user-management');
@@ -280,18 +281,18 @@ class AuthServer {
         // Admin-only Routes
         // ==========================================
         
-        // Admin user management page
-        this.app.get('/admin/users', requireAuth, requireRole('Admin'), (req, res) => {
+        // Admin user management page - uses auto role from MenuPermissions
+        this.app.get('/admin/users', requireAuth, requireAutoRole('Admin'), (req, res) => {
             UserManagementPage.render(req, res);
         });
         
         // Alias: /admin/user-management -> /admin/users
-        this.app.get('/admin/user-management', requireAuth, requireRole('Admin'), (req, res) => {
+        this.app.get('/admin/user-management', requireAuth, requireAutoRole('Admin'), (req, res) => {
             res.redirect('/admin/users');
         });
 
-        // Admin notification history page (Admin & Auditor)
-        this.app.get('/admin/notification-history', requireAuth, requireRole('Admin', 'Auditor'), (req, res) => {
+        // Admin notification history page - uses auto role from MenuPermissions
+        this.app.get('/admin/notification-history', requireAuth, requireAutoRole('Admin', 'Auditor'), (req, res) => {
             try {
                 const filePath = path.join(__dirname, '../admin/pages/notification-history.html');
                 console.log(`📧 Serving notification history page: ${filePath}`);
@@ -675,8 +676,8 @@ class AuthServer {
             }
         });
         
-        // Store Management Page
-        this.app.get('/admin/stores', requireAuth, requireRole('Admin'), (req, res) => {
+        // Store Management Page - uses auto role from MenuPermissions
+        this.app.get('/admin/stores', requireAuth, requireAutoRole('Admin'), (req, res) => {
             const StoresManagementPage = require('../admin/pages/stores-management');
             StoresManagementPage.render(req, res);
         });
@@ -685,8 +686,8 @@ class AuthServer {
         // Auditor Routes
         // ==========================================
         
-        // Auditor selection page
-        this.app.get('/auditor/select', requireAuth, requireRole('Admin', 'Auditor'), (req, res) => {
+        // Auditor selection page - uses auto role from MenuPermissions
+        this.app.get('/auditor/select', requireAuth, requireAutoRole('Admin', 'Auditor'), (req, res) => {
             AuditorSelectionPage.render(req, res);
         });
         
@@ -832,4 +833,4 @@ function initializeAuth(app) {
     return authServer;
 }
 
-module.exports = { AuthServer, initializeAuth, requireAuth, requireRole };
+module.exports = { AuthServer, initializeAuth, requireAuth, requireRole, requireDynamicRole, requireAutoRole, requirePagePermission };
