@@ -409,6 +409,20 @@ body.summary-mode .container::after {
     background: #fafafa;
 }
 
+/* Finding rows (No/Partially answers) - subtle highlight */
+.section-table tbody tr.finding-row {
+    background: #fef2f2;
+}
+
+.section-table tbody tr.finding-row:hover {
+    background: #fee2e2;
+}
+
+.section-table tbody tr.finding-row td.answer-col {
+    color: #dc2626;
+    font-weight: 600;
+}
+
 .ref-col {
     width: 70px;
     font-weight: 600;

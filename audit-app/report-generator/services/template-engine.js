@@ -468,31 +468,18 @@ class TemplateEngine {
     }
 
     /**
-     * Build section items table - shows passing items only (Yes, NA)
-     * Items with No/Partially are shown in the Findings table instead
+     * Build section items table - shows ALL items (Yes, NA, Partially, No)
+     * Comments column shows only the comment field, NOT findings (findings shown in Findings table)
      */
     buildSectionTable(items, pictures = {}) {
         if (!items || items.length === 0) {
             return '<p class="no-items">No items in this section.</p>';
         }
 
-        // Filter out findings (No/Partially) - they appear in the Findings table
-        const passingItems = items.filter(item => {
-            const choice = item.selectedChoice;
-            const isNotFinding = choice !== 'No' && choice !== 'Partially';
-            if (!isNotFinding) {
-                console.log(`   🔴 Filtering out finding: ${item.referenceValue} - ${choice}`);
-            }
-            return isNotFinding;
-        });
-        
-        console.log(`   📊 Section table: ${items.length} total items → ${passingItems.length} passing items`);
+        // Show ALL items - no filtering
+        console.log(`   📊 Section table: ${items.length} total items`);
 
-        if (passingItems.length === 0) {
-            return '<p class="no-items">All items in this section have findings - see Findings table below.</p>';
-        }
-
-        const rows = passingItems.map(item => {
+        const rows = items.map(item => {
             // Get "Good" pictures only for main table
             const itemPictures = pictures[item.responseId] || [];
             const goodPictures = itemPictures.filter(p => {
@@ -514,13 +501,21 @@ class TemplateEngine {
             // Coefficient display - blank for NA
             const coeffDisplay = item.selectedChoice === 'NA' ? '' : (item.coeff || '-');
 
+            // Row class for visual indication of No/Partially items
+            const rowClass = (item.selectedChoice === 'No' || item.selectedChoice === 'Partially') ? 'finding-row' : '';
+
+            // For finding rows (No/Partially), don't show comment in this table - it goes in Findings table
+            // Only show comment for passing items (Yes/NA)
+            const isFinding = item.selectedChoice === 'No' || item.selectedChoice === 'Partially';
+            const commentDisplay = isFinding ? '' : escapeHtml(item.comment || '');
+
             return `
-                <tr>
+                <tr class="${rowClass}">
                     <td class="ref-col">${escapeHtml(item.referenceValue || '')}</td>
                     <td class="criteria-col">${escapeHtml(item.title || '')}</td>
                     <td class="coeff-col">${coeffDisplay}</td>
                     <td class="answer-col">${answerDisplay}</td>
-                    <td class="comments-col">${escapeHtml(item.comment || '')}</td>
+                    <td class="comments-col">${commentDisplay}</td>
                     <td class="pictures-col">${picturesHtml}</td>
                 </tr>
             `;
