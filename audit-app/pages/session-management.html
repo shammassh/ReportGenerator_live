@@ -285,6 +285,7 @@
                         <div>
                             <div class="stats-number" id="duplicateSessions">-</div>
                             <div class="text-muted">Duplicate Users</div>
+                            <div class="small text-muted mt-1">Tokens: <span id="duplicateTokens">-</span></div>
                         </div>
                     </div>
                 </div>
@@ -353,6 +354,7 @@
                         <th>User</th>
                         <th>Role</th>
                         <th>Session Token</th>
+                        <th>Azure Token</th>
                         <th>Created</th>
                         <th>Expires</th>
                         <th>Last Activity</th>
@@ -362,7 +364,7 @@
                 </thead>
                 <tbody id="sessionsTableBody">
                     <tr>
-                        <td colspan="8" class="text-center py-4">
+                        <td colspan="9" class="text-center py-4">
                             <div class="spinner-border text-primary" role="status">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
@@ -441,7 +443,7 @@
                 console.error('Error loading sessions:', error);
                 document.getElementById('sessionsTableBody').innerHTML = `
                     <tr>
-                        <td colspan="8" class="text-center py-4 text-danger">
+                        <td colspan="9" class="text-center py-4 text-danger">
                             <i class="bi bi-exclamation-triangle me-2"></i>
                             Error loading sessions: ${error.message}
                         </td>
@@ -456,6 +458,7 @@
             document.getElementById('totalSessions').textContent = data.stats.total;
             document.getElementById('activeSessions').textContent = data.stats.active;
             document.getElementById('duplicateSessions').textContent = data.stats.duplicateUsers;
+            document.getElementById('duplicateTokens').textContent = data.stats.duplicateTokens || 0;
             document.getElementById('expiredSessions').textContent = data.stats.expired;
         }
         
@@ -513,7 +516,7 @@
             if (sessions.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">
+                        <td colspan="9" class="text-center py-4 text-muted">
                             <i class="bi bi-inbox me-2"></i>No sessions found
                         </td>
                     </tr>
@@ -572,6 +575,17 @@
                             </button>
                         </td>
                         <td>
+                            ${session.azure_token_preview ? `
+                                <code class="token-preview ${session.hasDuplicateToken ? 'bg-danger text-white' : ''}" style="font-size: 0.7rem;" title="${session.hasDuplicateToken ? 'DUPLICATE TOKEN!' : 'Unique token'}">
+                                    ${session.azure_token_preview.substring(0, 20)}...
+                                </code>
+                                <button class="btn btn-link btn-sm p-0 ms-1" onclick="copyAzureToken('${session.azure_token_full?.replace(/'/g, "\\'")}')" title="Copy full Azure token">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                                ${session.hasDuplicateToken ? '<span class="badge bg-danger ms-1">DUP!</span>' : ''}
+                            ` : '<span class="text-muted">-</span>'}
+                        </td>
+                        <td>
                             <small>${created ? formatDate(created) : '-'}</small>
                         </td>
                         <td>
@@ -620,9 +634,23 @@
             // Show brief notification
             const toast = document.createElement('div');
             toast.className = 'position-fixed bottom-0 start-50 translate-middle-x mb-3 p-2 bg-dark text-white rounded';
-            toast.textContent = 'Token copied!';
+            toast.textContent = 'Session token copied!';
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 2000);
+        }
+        
+        function copyAzureToken(token) {
+            if (!token || token === 'null' || token === 'undefined') {
+                alert('No Azure token available for this session');
+                return;
+            }
+            navigator.clipboard.writeText(token);
+            // Show brief notification
+            const toast = document.createElement('div');
+            toast.className = 'position-fixed bottom-0 start-50 translate-middle-x mb-3 p-2 bg-success text-white rounded';
+            toast.innerHTML = `<i class="bi bi-check-circle me-1"></i>Azure token copied! (${token.length} chars)`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
         }
         
         async function terminateSession(sessionId, email) {

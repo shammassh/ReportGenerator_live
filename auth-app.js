@@ -3672,6 +3672,7 @@ app.get('/api/admin/sessions', requireAuth, requireRole('Admin'), async (req, re
             SELECT 
                 s.id,
                 s.session_token,
+                s.azure_access_token,
                 s.user_id,
                 u.email,
                 u.display_name,
@@ -3692,7 +3693,8 @@ app.get('/api/admin/sessions', requireAuth, requireRole('Admin'), async (req, re
             total: sessions.length,
             active: sessions.filter(s => new Date(s.expires_at) > now).length,
             expired: sessions.filter(s => new Date(s.expires_at) <= now).length,
-            duplicateUsers: 0
+            duplicateUsers: 0,
+            duplicateTokens: 0
         };
         
         // Count users with multiple sessions
@@ -3701,6 +3703,35 @@ app.get('/api/admin/sessions', requireAuth, requireRole('Admin'), async (req, re
             emailCounts[s.email] = (emailCounts[s.email] || 0) + 1;
         });
         stats.duplicateUsers = Object.values(emailCounts).filter(c => c > 1).length;
+        
+        // Count duplicate azure tokens (truncate to last 100 chars for comparison)
+        const tokenCounts = {};
+        sessions.forEach(s => {
+            if (s.azure_access_token) {
+                // Use last 100 chars of token for comparison (unique part)
+                const tokenKey = s.azure_access_token.slice(-100);
+                tokenCounts[tokenKey] = (tokenCounts[tokenKey] || 0) + 1;
+            }
+        });
+        stats.duplicateTokens = Object.values(tokenCounts).filter(c => c > 1).length;
+        
+        // Mark sessions with duplicate tokens
+        sessions.forEach(s => {
+            if (s.azure_access_token) {
+                const tokenKey = s.azure_access_token.slice(-100);
+                s.hasDuplicateToken = tokenCounts[tokenKey] > 1;
+                // Store last 50 chars for display preview
+                s.azure_token_preview = '...' + s.azure_access_token.slice(-50);
+                // Store full token for copy button (admin only)
+                s.azure_token_full = s.azure_access_token;
+            } else {
+                s.hasDuplicateToken = false;
+                s.azure_token_preview = null;
+                s.azure_token_full = null;
+            }
+            // Remove the original field name
+            delete s.azure_access_token;
+        });
         
         res.json({
             success: true,
