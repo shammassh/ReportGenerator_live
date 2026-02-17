@@ -12,9 +12,20 @@ const config = require('../../config/default');
 class SessionManager {
     /**
      * Create a new session for user
+     * SECURITY: Only allow ONE session per user - delete all existing sessions first
      */
     static async createSession(userId, azureTokens) {
         const pool = await sql.connect(config.database);
+        
+        // SECURITY FIX: Delete ALL existing sessions for this user before creating new one
+        // This prevents session confusion and token mixup
+        const deleteResult = await pool.request()
+            .input('userId', sql.Int, userId)
+            .query('DELETE FROM Sessions WHERE user_id = @userId');
+        
+        if (deleteResult.rowsAffected[0] > 0) {
+            console.log(`🔒 [SESSION] Deleted ${deleteResult.rowsAffected[0]} old session(s) for user ${userId}`);
+        }
         
         const sessionToken = this.generateSessionToken();
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours

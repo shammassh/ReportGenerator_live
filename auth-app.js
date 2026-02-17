@@ -3649,6 +3649,138 @@ app.post('/api/admin/email-templates/test', requireAuth, requireRole('Admin'), a
 // ==========================================
 
 // ==========================================
+// SESSION MANAGEMENT API ROUTES (Admin Only)
+// ==========================================
+
+// Serve session management page
+app.get('/admin/session-management', requireAuth, requireRole('Admin'), (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.sendFile(path.join(__dirname, 'audit-app', 'pages', 'session-management.html'));
+});
+
+// Get all sessions with stats
+app.get('/api/admin/sessions', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // Get all sessions with user info
+        const result = await pool.request().query(`
+            SELECT 
+                s.id,
+                s.session_token,
+                s.user_id,
+                u.email,
+                u.display_name,
+                u.role,
+                s.expires_at,
+                s.created_at,
+                s.last_activity
+            FROM Sessions s
+            JOIN Users u ON s.user_id = u.id
+            ORDER BY s.created_at DESC
+        `);
+        
+        const now = new Date();
+        const sessions = result.recordset;
+        
+        // Calculate stats
+        const stats = {
+            total: sessions.length,
+            active: sessions.filter(s => new Date(s.expires_at) > now).length,
+            expired: sessions.filter(s => new Date(s.expires_at) <= now).length,
+            duplicateUsers: 0
+        };
+        
+        // Count users with multiple sessions
+        const emailCounts = {};
+        sessions.forEach(s => {
+            emailCounts[s.email] = (emailCounts[s.email] || 0) + 1;
+        });
+        stats.duplicateUsers = Object.values(emailCounts).filter(c => c > 1).length;
+        
+        res.json({
+            success: true,
+            sessions: sessions,
+            stats: stats
+        });
+        
+    } catch (error) {
+        console.error('Error fetching sessions:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Terminate single session
+app.delete('/api/admin/sessions/:sessionId', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request()
+            .input('sessionId', sql.Int, sessionId)
+            .query('DELETE FROM Sessions WHERE id = @sessionId');
+        
+        console.log(`🔒 [SESSION] Admin ${req.currentUser.email} terminated session ${sessionId}`);
+        
+        res.json({ success: true, deleted: result.rowsAffected[0] });
+        
+    } catch (error) {
+        console.error('Error terminating session:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Terminate all expired sessions
+app.delete('/api/admin/sessions/expired', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request().query(`
+            DELETE FROM Sessions WHERE expires_at < GETDATE()
+        `);
+        
+        console.log(`🔒 [SESSION] Admin ${req.currentUser.email} cleared ${result.rowsAffected[0]} expired sessions`);
+        
+        res.json({ success: true, deleted: result.rowsAffected[0] });
+        
+    } catch (error) {
+        console.error('Error clearing expired sessions:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Terminate all sessions (nuclear option)
+app.delete('/api/admin/sessions/all', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request().query('DELETE FROM Sessions');
+        
+        console.log(`🔒 [SESSION] Admin ${req.currentUser.email} TERMINATED ALL ${result.rowsAffected[0]} sessions`);
+        
+        res.json({ success: true, deleted: result.rowsAffected[0] });
+        
+    } catch (error) {
+        console.error('Error terminating all sessions:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ==========================================
+// END SESSION MANAGEMENT API ROUTES
+// ==========================================
+
+// ==========================================
 // ACTIVITY LOG MANAGEMENT API ROUTES (Admin Only)
 // ==========================================
 

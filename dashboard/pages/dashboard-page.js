@@ -59,6 +59,13 @@ class DashboardPage {
             // Insert before closing </head> tag
             dashboardHtml = dashboardHtml.replace('</head>', `${userContextScript}</head>`);
 
+            // SECURITY: Strong cache prevention headers to avoid session mixup
+            res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+            res.set('Pragma', 'no-cache');
+            res.set('Expires', '0');
+            res.set('Surrogate-Control', 'no-store');
+            res.set('Vary', 'Cookie');
+            
             // Send the modified HTML
             res.send(dashboardHtml);
 

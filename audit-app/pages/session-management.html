@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Management - Food Safety Audit System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c5282;
+            --sidebar-width: 250px;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            background: linear-gradient(180deg, #1a365d 0%, #2c5282 100%);
+            color: white;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .sidebar-brand {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.2s;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .stats-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .session-table {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .session-table th {
+            background: #f1f5f9;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+            padding: 1rem;
+        }
+        
+        .session-table td {
+            padding: 0.875rem 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .badge-role {
+            padding: 0.35rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .badge-admin { background: #fef3c7; color: #92400e; }
+        .badge-superauditor { background: #ddd6fe; color: #5b21b6; }
+        .badge-auditor { background: #dbeafe; color: #1e40af; }
+        .badge-storemanager { background: #d1fae5; color: #065f46; }
+        .badge-areamanager { background: #fce7f3; color: #9d174d; }
+        .badge-pending { background: #f3f4f6; color: #6b7280; }
+        
+        .badge-status {
+            padding: 0.35rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .badge-active { background: #d1fae5; color: #065f46; }
+        .badge-expired { background: #fee2e2; color: #991b1b; }
+        .badge-stale { background: #fef3c7; color: #92400e; }
+        
+        .token-preview {
+            font-family: monospace;
+            font-size: 0.8rem;
+            background: #f1f5f9;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            color: #64748b;
+        }
+        
+        .duplicate-warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .btn-terminate {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        .search-box {
+            background: white;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .filter-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .refresh-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .refresh-btn.spinning i {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-brand">
+            <h5 class="mb-0"><i class="bi bi-shield-check me-2"></i>FS Audit</h5>
+            <small class="text-white-50">Admin Panel</small>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/dashboard" class="nav-link">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            <a href="/admin/users" class="nav-link">
+                <i class="bi bi-people"></i> User Management
+            </a>
+            <a href="/admin/activity-log" class="nav-link">
+                <i class="bi bi-clock-history"></i> Activity Log
+            </a>
+            <a href="/admin/session-management" class="nav-link active">
+                <i class="bi bi-person-badge"></i> Session Management
+            </a>
+            <a href="/admin/checklist-management" class="nav-link">
+                <i class="bi bi-list-check"></i> Checklist Management
+            </a>
+            <a href="/admin/checklist-templates" class="nav-link">
+                <i class="bi bi-file-earmark-text"></i> Templates
+            </a>
+            <hr class="my-2 mx-3 border-white-50">
+            <a href="/auth/logout" class="nav-link text-danger">
+                <i class="bi bi-box-arrow-left"></i> Logout
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1">Session Management</h2>
+                <p class="text-muted mb-0">Monitor active user sessions and tokens</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-danger" onclick="terminateExpired()">
+                    <i class="bi bi-trash me-1"></i> Clear Expired
+                </button>
+                <button class="btn btn-outline-warning" onclick="terminateAll()">
+                    <i class="bi bi-x-circle me-1"></i> Terminate All
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="bi bi-people-fill text-primary" style="font-size: 2rem;"></i>
+                        </div>
+                        <div>
+                            <div class="stats-number" id="totalSessions">-</div>
+                            <div class="text-muted">Total Sessions</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="bi bi-check-circle-fill text-success" style="font-size: 2rem;"></i>
+                        </div>
+                        <div>
+                            <div class="stats-number" id="activeSessions">-</div>
+                            <div class="text-muted">Active</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 2rem;"></i>
+                        </div>
+                        <div>
+                            <div class="stats-number" id="duplicateSessions">-</div>
+                            <div class="text-muted">Duplicate Users</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="bi bi-x-circle-fill text-danger" style="font-size: 2rem;"></i>
+                        </div>
+                        <div>
+                            <div class="stats-number" id="expiredSessions">-</div>
+                            <div class="text-muted">Expired</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-section">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="searchInput" placeholder="Search by email or name...">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="roleFilter">
+                        <option value="">All Roles</option>
+                        <option value="Admin">Admin</option>
+                        <option value="SuperAuditor">SuperAuditor</option>
+                        <option value="Auditor">Auditor</option>
+                        <option value="StoreManager">StoreManager</option>
+                        <option value="AreaManager">AreaManager</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="expired">Expired</option>
+                        <option value="stale">Stale (>1hr)</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="duplicatesOnly">
+                        <label class="form-check-label" for="duplicatesOnly">
+                            Duplicates Only
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-2 text-end">
+                    <span class="text-muted" id="resultCount">0 sessions</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions Table -->
+        <div class="session-table">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Session Token</th>
+                        <th>Created</th>
+                        <th>Expires</th>
+                        <th>Last Activity</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="sessionsTableBody">
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Session Best Practices Info -->
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-info-circle me-2"></i>Session Best Practices
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-clock me-2"></i>Recommended Session Timeouts</h6>
+                        <ul class="mb-0">
+                            <li><strong>Access Token:</strong> 1 hour (auto-refreshed)</li>
+                            <li><strong>Session Cookie:</strong> 24 hours (current)</li>
+                            <li><strong>Idle Timeout:</strong> 2 hours recommended</li>
+                            <li><strong>Absolute Timeout:</strong> 8-12 hours for workday</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-shield-check me-2"></i>Security Guidelines</h6>
+                        <ul class="mb-0">
+                            <li>Terminate duplicate sessions for same user</li>
+                            <li>Clear expired sessions regularly</li>
+                            <li>Monitor stale sessions (no activity)</li>
+                            <li>Force re-login after password change</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refresh Button -->
+    <button class="refresh-btn" onclick="loadSessions()" title="Refresh">
+        <i class="bi bi-arrow-clockwise"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allSessions = [];
+        
+        // Load sessions on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSessions();
+            
+            // Add filter listeners
+            document.getElementById('searchInput').addEventListener('input', filterSessions);
+            document.getElementById('roleFilter').addEventListener('change', filterSessions);
+            document.getElementById('statusFilter').addEventListener('change', filterSessions);
+            document.getElementById('duplicatesOnly').addEventListener('change', filterSessions);
+        });
+        
+        async function loadSessions() {
+            const refreshBtn = document.querySelector('.refresh-btn');
+            refreshBtn.classList.add('spinning');
+            
+            try {
+                const response = await fetch('/api/admin/sessions');
+                const data = await response.json();
+                
+                if (data.success) {
+                    allSessions = data.sessions;
+                    updateStats(data);
+                    filterSessions();
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                console.error('Error loading sessions:', error);
+                document.getElementById('sessionsTableBody').innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Error loading sessions: ${error.message}
+                        </td>
+                    </tr>
+                `;
+            } finally {
+                refreshBtn.classList.remove('spinning');
+            }
+        }
+        
+        function updateStats(data) {
+            document.getElementById('totalSessions').textContent = data.stats.total;
+            document.getElementById('activeSessions').textContent = data.stats.active;
+            document.getElementById('duplicateSessions').textContent = data.stats.duplicateUsers;
+            document.getElementById('expiredSessions').textContent = data.stats.expired;
+        }
+        
+        function filterSessions() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const role = document.getElementById('roleFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            const duplicatesOnly = document.getElementById('duplicatesOnly').checked;
+            
+            // Find duplicate user emails
+            const emailCounts = {};
+            allSessions.forEach(s => {
+                emailCounts[s.email] = (emailCounts[s.email] || 0) + 1;
+            });
+            
+            let filtered = allSessions.filter(session => {
+                // Search filter
+                if (search && !session.email.toLowerCase().includes(search) && 
+                    !session.display_name?.toLowerCase().includes(search)) {
+                    return false;
+                }
+                
+                // Role filter
+                if (role && session.role !== role) {
+                    return false;
+                }
+                
+                // Status filter
+                if (status) {
+                    const now = new Date();
+                    const expires = new Date(session.expires_at);
+                    const lastActivity = session.last_activity ? new Date(session.last_activity) : null;
+                    const hourAgo = new Date(now - 60 * 60 * 1000);
+                    
+                    if (status === 'active' && expires <= now) return false;
+                    if (status === 'expired' && expires > now) return false;
+                    if (status === 'stale' && lastActivity && lastActivity > hourAgo) return false;
+                }
+                
+                // Duplicates filter
+                if (duplicatesOnly && emailCounts[session.email] <= 1) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            document.getElementById('resultCount').textContent = `${filtered.length} sessions`;
+            renderSessions(filtered, emailCounts);
+        }
+        
+        function renderSessions(sessions, emailCounts) {
+            const tbody = document.getElementById('sessionsTableBody');
+            
+            if (sessions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox me-2"></i>No sessions found
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = sessions.map(session => {
+                const now = new Date();
+                const expires = new Date(session.expires_at);
+                const created = session.created_at ? new Date(session.created_at) : null;
+                const lastActivity = session.last_activity ? new Date(session.last_activity) : null;
+                const isExpired = expires <= now;
+                const isStale = lastActivity && (now - lastActivity) > 60 * 60 * 1000;
+                const isDuplicate = emailCounts[session.email] > 1;
+                
+                const initials = (session.display_name || session.email)
+                    .split(/[\s@]/)
+                    .slice(0, 2)
+                    .map(n => n[0]?.toUpperCase() || '')
+                    .join('');
+                
+                const roleClass = session.role.toLowerCase().replace(/\s+/g, '');
+                
+                let statusBadge, statusClass;
+                if (isExpired) {
+                    statusBadge = 'Expired';
+                    statusClass = 'badge-expired';
+                } else if (isStale) {
+                    statusBadge = 'Stale';
+                    statusClass = 'badge-stale';
+                } else {
+                    statusBadge = 'Active';
+                    statusClass = 'badge-active';
+                }
+                
+                return `
+                    <tr class="${isDuplicate ? 'duplicate-warning' : ''}">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="user-avatar me-2">${initials}</div>
+                                <div>
+                                    <div class="fw-medium">${session.display_name || '-'}</div>
+                                    <small class="text-muted">${session.email}</small>
+                                    ${isDuplicate ? '<span class="badge bg-warning text-dark ms-1">Duplicate</span>' : ''}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge badge-role badge-${roleClass}">${session.role}</span>
+                        </td>
+                        <td>
+                            <code class="token-preview">${session.session_token.substring(0, 12)}...</code>
+                            <button class="btn btn-link btn-sm p-0 ms-1" onclick="copyToken('${session.session_token}')" title="Copy full token">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </td>
+                        <td>
+                            <small>${created ? formatDate(created) : '-'}</small>
+                        </td>
+                        <td>
+                            <small class="${isExpired ? 'text-danger' : ''}">${formatDate(expires)}</small>
+                        </td>
+                        <td>
+                            <small>${lastActivity ? formatRelativeTime(lastActivity) : 'Never'}</small>
+                        </td>
+                        <td>
+                            <span class="badge badge-status ${statusClass}">${statusBadge}</span>
+                        </td>
+                        <td>
+                            <button class="btn btn-outline-danger btn-terminate" onclick="terminateSession(${session.id}, '${session.email}')">
+                                <i class="bi bi-x-lg"></i> End
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function formatDate(date) {
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        function formatRelativeTime(date) {
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            
+            if (minutes < 1) return 'Just now';
+            if (minutes < 60) return `${minutes}m ago`;
+            if (hours < 24) return `${hours}h ago`;
+            return `${days}d ago`;
+        }
+        
+        function copyToken(token) {
+            navigator.clipboard.writeText(token);
+            // Show brief notification
+            const toast = document.createElement('div');
+            toast.className = 'position-fixed bottom-0 start-50 translate-middle-x mb-3 p-2 bg-dark text-white rounded';
+            toast.textContent = 'Token copied!';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+        
+        async function terminateSession(sessionId, email) {
+            if (!confirm(`Terminate session for ${email}?`)) return;
+            
+            try {
+                const response = await fetch(`/api/admin/sessions/${sessionId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    loadSessions();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error terminating session: ' + error.message);
+            }
+        }
+        
+        async function terminateExpired() {
+            if (!confirm('Delete all expired sessions?')) return;
+            
+            try {
+                const response = await fetch('/api/admin/sessions/expired', {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`Deleted ${data.deleted} expired sessions`);
+                    loadSessions();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function terminateAll() {
+            if (!confirm('⚠️ This will log out ALL users! Are you sure?')) return;
+            if (!confirm('Really? This cannot be undone.')) return;
+            
+            try {
+                const response = await fetch('/api/admin/sessions/all', {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`Terminated ${data.deleted} sessions. All users will need to log in again.`);
+                    window.location.href = '/auth/logout';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

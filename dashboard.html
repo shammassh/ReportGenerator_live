@@ -714,6 +714,29 @@
             background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
         }
 
+        /* Session Management Button */
+        .session-management-btn {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+        }
+
+        .session-management-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(234, 88, 12, 0.4);
+            background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+        }
+
         /* Score Calculator Button */
         .score-calculator-btn {
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
@@ -2046,6 +2069,10 @@
                             <span>📋</span>
                             Activity Log
                         </button>
+                        <button class="session-management-btn" id="sessionManagementBtn" onclick="window.location.href='/admin/session-management'" style="display: none;">
+                            <span>🔑</span>
+                            Session Management
+                        </button>
                         <button class="db-inspector-btn" id="dbInspectorBtn" onclick="window.location.href='/admin/database-inspector'" style="display: none;">
                             <span>🔍</span>
                             Database Inspector
@@ -2489,6 +2516,7 @@
             // Developer Tools buttons - use database if available, else return false to use hardcoded
             const devToolsButtons = [
                 { id: 'activityLogBtn', elementId: 'activityLogBtn' },
+                { id: 'sessionManagementBtn', elementId: 'sessionManagementBtn' },
                 { id: 'dbInspectorBtn', elementId: 'dbInspectorBtn' },
                 { id: 'menuSettingsBtn', elementId: 'menuSettingsBtn' },
                 { id: 'roleManagementBtn', elementId: 'roleManagementBtn' }
