@@ -59,12 +59,18 @@ async function requireAuth(req, res, next) {
             accessToken: session.azure_access_token // Add user's Azure access token
         };
         
+        // DEBUG: Log the actual role from database
+        console.log(`🔍 [AUTH DEBUG] User: ${session.email}, DB Role: ${session.role}`);
+        
         // Check for impersonation cookie
         // Use SESSION role (from database) to check if Admin, not currentUser.role
         const impersonationCookie = req.cookies.impersonation;
+        console.log(`🔍 [AUTH DEBUG] Impersonation cookie exists: ${!!impersonationCookie}`);
+        
         if (impersonationCookie && session.role === 'Admin') {
             try {
                 const impersonationData = JSON.parse(impersonationCookie);
+                console.log(`🔍 [AUTH DEBUG] Impersonation data:`, JSON.stringify(impersonationData));
                 if (impersonationData.active && impersonationData.originalRole === 'Admin') {
                     currentUser = ImpersonationService.applyImpersonation(currentUser, impersonationData);
                     if (currentUser._isImpersonating) {
@@ -75,6 +81,8 @@ async function requireAuth(req, res, next) {
                 console.warn('⚠️ Invalid impersonation cookie - ignoring');
             }
         }
+        
+        console.log(`🔍 [AUTH DEBUG] Final role sent to client: ${currentUser.role}`);
         
         req.currentUser = currentUser;
         req.sessionToken = sessionToken;

@@ -38,6 +38,8 @@ class DashboardPage {
             email: user.email,
             name: user.displayName || user.email,
             role: user.role,
+            isImpersonating: user._isImpersonating || false,
+            originalRole: user._originalRole || null,
             permissions: permissions
         })};
     </script>

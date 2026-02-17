@@ -283,11 +283,115 @@
     outline-offset: 2px;
 }
 
+/* Impersonation Warning Banner */
+.impersonation-warning-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 99999;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    padding: 12px 20px;
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+    animation: bannerPulse 3s ease-in-out infinite;
+}
+
+@keyframes bannerPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.9; }
+}
+
+.impersonation-warning-banner .banner-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.impersonation-warning-banner .banner-icon {
+    font-size: 24px;
+    animation: wiggle 1s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-10deg); }
+    75% { transform: rotate(10deg); }
+}
+
+.impersonation-warning-banner .banner-text {
+    font-size: 14px;
+}
+
+.impersonation-warning-banner .banner-text strong {
+    font-weight: 700;
+}
+
+.impersonation-warning-banner .banner-stop-btn {
+    background: white;
+    color: #dc2626;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.impersonation-warning-banner .banner-stop-btn:hover {
+    background: #fef2f2;
+    transform: scale(1.05);
+}
+
+/* Impersonation Role Badge */
+.role-badge.role-impersonating {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    animation: impersonatePulse 2s ease-in-out infinite;
+}
+
+@keyframes impersonatePulse {
+    0%, 100% { box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); }
+    50% { box-shadow: 0 2px 16px rgba(239, 68, 68, 0.6); }
+}
+
+/* Stop Impersonation Button (inline) */
+.stop-impersonation-btn {
+    background: white;
+    color: #dc2626;
+    border: 2px solid #dc2626;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: 8px;
+    transition: all 0.3s ease;
+}
+
+.stop-impersonation-btn:hover {
+    background: #dc2626;
+    color: white;
+}
+
+/* Adjust body padding when banner is shown */
+body:has(.impersonation-warning-banner) {
+    padding-top: 60px !important;
+}
+
 /* Print Styles */
 @media print {
     .user-info-header,
     .store-assignment-info,
-    .department-info {
+    .department-info,
+    .impersonation-warning-banner {
         display: none;
     }
 }

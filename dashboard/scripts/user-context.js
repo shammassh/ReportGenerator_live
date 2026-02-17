@@ -20,6 +20,14 @@
     function createUserInfoHeader() {
         const userInfo = document.createElement('div');
         userInfo.className = 'user-info-header';
+        
+        // Check if impersonating
+        const isImpersonating = userContext.isImpersonating || false;
+        const roleBadgeClass = isImpersonating ? 'role-badge role-impersonating' : `role-badge role-${userContext.role.toLowerCase()}`;
+        const roleLabel = isImpersonating 
+            ? `🎭 Impersonating: ${getRoleLabel(userContext.role)}` 
+            : getRoleLabel(userContext.role);
+        
         userInfo.innerHTML = `
             <div class="user-details">
                 <div class="user-avatar">
@@ -28,7 +36,8 @@
                 <div class="user-text">
                     <div class="user-name">${userContext.name}</div>
                     <div class="user-role">
-                        <span class="role-badge role-${userContext.role.toLowerCase()}">${getRoleLabel(userContext.role)}</span>
+                        <span class="${roleBadgeClass}">${roleLabel}</span>
+                        ${isImpersonating ? '<button class="stop-impersonation-btn" onclick="stopImpersonationNow()">⛔ Stop</button>' : ''}
                     </div>
                 </div>
             </div>
@@ -110,6 +119,46 @@
     };
 
     /**
+     * Stop impersonation immediately
+     */
+    window.stopImpersonationNow = async function() {
+        try {
+            const response = await fetch('/api/impersonation/stop', { method: 'POST' });
+            const data = await response.json();
+            if (data.success) {
+                alert('Impersonation stopped. Returning to Admin role.');
+                window.location.reload();
+            } else {
+                alert('Failed to stop impersonation: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('❌ Stop impersonation error:', error);
+            alert('Failed to stop impersonation. Please clear cookies manually.');
+        }
+    };
+
+    /**
+     * Create impersonation warning banner
+     */
+    function createImpersonationBanner() {
+        if (!userContext.isImpersonating) return;
+        
+        const banner = document.createElement('div');
+        banner.className = 'impersonation-warning-banner';
+        banner.innerHTML = `
+            <div class="banner-content">
+                <span class="banner-icon">🎭</span>
+                <span class="banner-text">
+                    <strong>IMPERSONATION ACTIVE:</strong> You are viewing the system as <strong>${userContext.role}</strong>. 
+                    Your real role is <strong>${userContext.originalRole || 'Admin'}</strong>.
+                </span>
+                <button class="banner-stop-btn" onclick="stopImpersonationNow()">⛔ Stop Impersonation</button>
+            </div>
+        `;
+        document.body.insertBefore(banner, document.body.firstChild);
+    }
+
+    /**
      * Insert user info header into dashboard
      */
     function insertUserInfoHeader() {
@@ -177,11 +226,13 @@
     function init() {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
+                createImpersonationBanner();
                 insertUserInfoHeader();
                 addStoreAssignmentInfo();
                 addDepartmentInfo();
             });
         } else {
+            createImpersonationBanner();
             insertUserInfoHeader();
             addStoreAssignmentInfo();
             addDepartmentInfo();

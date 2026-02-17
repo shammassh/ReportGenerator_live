@@ -241,12 +241,12 @@ class AuthServer {
                     assignedBrands
                 });
                 
-                // Set impersonation cookie (24 hours)
+                // Set impersonation cookie (2 hours - short timeout for safety)
                 res.cookie('impersonation', JSON.stringify(impersonationData), {
                     httpOnly: true,
                     secure: process.env.NODE_ENV === 'production',
                     sameSite: 'lax',
-                    maxAge: 24 * 60 * 60 * 1000
+                    maxAge: 2 * 60 * 60 * 1000  // 2 hours (was 24 hours)
                 });
                 
                 res.json({
@@ -275,6 +275,14 @@ class AuthServer {
                 success: true,
                 message: 'Impersonation stopped. You are now back to Admin role.'
             });
+        });
+        
+        // Stop impersonation via GET (for easy URL access)
+        this.app.get('/auth/stop-impersonation', (req, res) => {
+            // Clear impersonation cookie - no auth required
+            res.clearCookie('impersonation');
+            console.log(`🎭 Impersonation cookie cleared via GET`);
+            res.redirect('/dashboard');
         });
         
         // ==========================================
