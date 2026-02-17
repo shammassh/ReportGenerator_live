@@ -5772,8 +5772,9 @@ app.post('/api/action-plan/submit-to-auditor', requireAuth, async (req, res) => 
             });
         }
         
-        // Initialize email service (pass null since we're using user's delegated token)
-        const emailService = new EmailNotificationService(null);
+        // Initialize email service with connector for fallback capability
+        const connector = req.app.locals.sharePointConnector;
+        const emailService = new EmailNotificationService(connector);
         
         // Use dynamic email template
         const emailTemplateService = require('./services/email-template-service');

@@ -16,53 +16,47 @@ class EmailNotificationService {
 
     /**
      * Send email via Microsoft Graph API
-     * Can use either user's token (delegated) or app token (application)
+     * Uses user's session access token (delegated permission)
      * @param {Array} to - Array of recipient emails
      * @param {String} subject - Email subject
      * @param {String} htmlBody - HTML email body
      * @param {Array} ccRecipients - CC recipients array (optional)
-     * @param {String} userAccessToken - User's access token from session (optional)
+     * @param {String} userAccessToken - User's access token from session
+     * @param {Object} senderInfo - Expected sender info {email, name} for logging
      */
     async sendEmail(to, subject, htmlBody, ccRecipients = null, userAccessToken = null, senderInfo = null) {
         try {
-            // Use user's token if provided, otherwise use application token
-            const token = userAccessToken || await this.connector.getGraphToken();
+            // Must have user access token
+            if (!userAccessToken) {
+                throw new Error('No access token provided - user must be logged in');
+            }
             
-            // Determine endpoint based on token type
-            let endpoint;
-            if (userAccessToken) {
-                // Use /me endpoint for user's own mailbox (delegated permission)
-                endpoint = 'https://graph.microsoft.com/v1.0/me/sendMail';
-                
-                // CRITICAL: Verify token owner before sending
+            // Use /me endpoint for user's own mailbox (delegated permission)
+            const endpoint = 'https://graph.microsoft.com/v1.0/me/sendMail';
+            
+            // Verify token is valid by checking who owns it
+            let actualSender = 'unknown';
+            try {
                 const meResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
                     headers: { 'Authorization': `Bearer ${userAccessToken}` }
                 });
                 
                 if (meResponse.ok) {
                     const meData = await meResponse.json();
-                    const tokenOwner = meData.mail || meData.userPrincipalName;
-                    console.log(`📧 [EMAIL] Token owner verified: ${tokenOwner} (${meData.displayName})`);
+                    actualSender = meData.mail || meData.userPrincipalName;
+                    console.log(`📧 [EMAIL] Sending from: ${actualSender} (${meData.displayName})`);
                     
-                    // If senderInfo provided, verify it matches
-                    if (senderInfo && senderInfo.email && tokenOwner.toLowerCase() !== senderInfo.email.toLowerCase()) {
-                        console.error(`🚨 [EMAIL] TOKEN MISMATCH! Expected: ${senderInfo.email}, Got: ${tokenOwner}`);
-                        // Fall back to service account
-                        console.log(`📧 [EMAIL] Falling back to service account due to mismatch`);
-                        const senderEmail = process.env.NOTIFICATION_SENDER_EMAIL || 'muhammad.shammas@gmrlgroup.com';
-                        const appToken = await this.connector.getGraphToken();
-                        endpoint = `https://graph.microsoft.com/v1.0/users/${senderEmail}/sendMail`;
-                        // Use app token instead
-                        return await this._sendWithToken(to, subject, htmlBody, ccRecipients, appToken, endpoint);
+                    // Log if there's a mismatch (for debugging) but still send - token owner is correct
+                    if (senderInfo && senderInfo.email && actualSender.toLowerCase() !== senderInfo.email.toLowerCase()) {
+                        console.warn(`⚠️ [EMAIL] Note: Token owner (${actualSender}) differs from senderInfo (${senderInfo.email})`);
                     }
                 } else {
-                    console.error(`📧 [EMAIL] Failed to verify token owner, status: ${meResponse.status}`);
+                    console.error(`📧 [EMAIL] Token verification failed, status: ${meResponse.status}`);
+                    throw new Error(`Token invalid or expired (status: ${meResponse.status})`);
                 }
-            } else {
-                // Use /users/{email} endpoint for application permission
-                const senderEmail = process.env.NOTIFICATION_SENDER_EMAIL || 'muhammad.shammas@gmrlgroup.com';
-                endpoint = `https://graph.microsoft.com/v1.0/users/${senderEmail}/sendMail`;
-                console.log(`📧 [EMAIL] Using service account: ${senderEmail}`);
+            } catch (verifyError) {
+                console.error(`📧 [EMAIL] Token error:`, verifyError.message);
+                throw new Error(`Cannot send email: ${verifyError.message}`);
             }
             
             const emailPayload = {
@@ -87,11 +81,11 @@ class EmailNotificationService {
                 console.log(`📧 [EMAIL] CC recipients: ${ccRecipients.join(', ')}`);
             }
 
-            // Send email using the determined endpoint
+            // Send email using user's session token
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
+                    'Authorization': `Bearer ${userAccessToken}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(emailPayload)
