@@ -23,7 +23,7 @@ class EmailNotificationService {
      * @param {Array} ccRecipients - CC recipients array (optional)
      * @param {String} userAccessToken - User's access token from session (optional)
      */
-    async sendEmail(to, subject, htmlBody, ccRecipients = null, userAccessToken = null) {
+    async sendEmail(to, subject, htmlBody, ccRecipients = null, userAccessToken = null, senderInfo = null) {
         try {
             // Use user's token if provided, otherwise use application token
             const token = userAccessToken || await this.connector.getGraphToken();
@@ -33,7 +33,31 @@ class EmailNotificationService {
             if (userAccessToken) {
                 // Use /me endpoint for user's own mailbox (delegated permission)
                 endpoint = 'https://graph.microsoft.com/v1.0/me/sendMail';
-                console.log('📧 [EMAIL] Using logged-in user\'s mailbox (delegated)');
+                
+                // CRITICAL: Verify token owner before sending
+                const meResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
+                    headers: { 'Authorization': `Bearer ${userAccessToken}` }
+                });
+                
+                if (meResponse.ok) {
+                    const meData = await meResponse.json();
+                    const tokenOwner = meData.mail || meData.userPrincipalName;
+                    console.log(`📧 [EMAIL] Token owner verified: ${tokenOwner} (${meData.displayName})`);
+                    
+                    // If senderInfo provided, verify it matches
+                    if (senderInfo && senderInfo.email && tokenOwner.toLowerCase() !== senderInfo.email.toLowerCase()) {
+                        console.error(`🚨 [EMAIL] TOKEN MISMATCH! Expected: ${senderInfo.email}, Got: ${tokenOwner}`);
+                        // Fall back to service account
+                        console.log(`📧 [EMAIL] Falling back to service account due to mismatch`);
+                        const senderEmail = process.env.NOTIFICATION_SENDER_EMAIL || 'muhammad.shammas@gmrlgroup.com';
+                        const appToken = await this.connector.getGraphToken();
+                        endpoint = `https://graph.microsoft.com/v1.0/users/${senderEmail}/sendMail`;
+                        // Use app token instead
+                        return await this._sendWithToken(to, subject, htmlBody, ccRecipients, appToken, endpoint);
+                    }
+                } else {
+                    console.error(`📧 [EMAIL] Failed to verify token owner, status: ${meResponse.status}`);
+                }
             } else {
                 // Use /users/{email} endpoint for application permission
                 const senderEmail = process.env.NOTIFICATION_SENDER_EMAIL || 'muhammad.shammas@gmrlgroup.com';
@@ -85,6 +109,48 @@ class EmailNotificationService {
             console.error(`❌ [EMAIL] Failed to send to ${to.join(', ')}:`, error.message);
             return { success: false, error: error.message };
         }
+    }
+
+    /**
+     * Helper method to send email with specific token and endpoint
+     */
+    async _sendWithToken(to, subject, htmlBody, ccRecipients, token, endpoint) {
+        const emailPayload = {
+            message: {
+                subject: subject,
+                body: {
+                    contentType: 'HTML',
+                    content: htmlBody
+                },
+                toRecipients: to.map(email => ({
+                    emailAddress: { address: email }
+                }))
+            },
+            saveToSentItems: true
+        };
+        
+        if (ccRecipients && ccRecipients.length > 0) {
+            emailPayload.message.ccRecipients = ccRecipients.map(email => ({
+                emailAddress: { address: email }
+            }));
+        }
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(emailPayload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Graph API error: ${response.status} - ${errorText}`);
+        }
+
+        console.log(`✅ [EMAIL] Sent successfully to: ${to.join(', ')}`);
+        return { success: true };
     }
 
     /**

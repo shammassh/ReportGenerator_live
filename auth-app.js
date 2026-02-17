@@ -2763,7 +2763,8 @@ app.post('/api/broadcast/send', requireAuth, requirePagePermission(BROADCAST_PAG
                     emailSubject,       // subject
                     emailBody,          // htmlBody
                     null,               // ccRecipients
-                    validAccessToken    // Use refreshed token
+                    validAccessToken,   // Use refreshed token
+                    { email: currentUser.email, name: currentUser.displayName } // Sender verification
                 );
                 
                 emailSent = true;
@@ -3628,7 +3629,8 @@ app.post('/api/admin/email-templates/test', requireAuth, requireRole('Admin'), a
             `[TEST] ${testSubject}`,
             testBody,
             null,
-            req.currentUser?.accessToken
+            req.currentUser?.accessToken,
+            { email: req.currentUser?.email, name: req.currentUser?.displayName } // Sender verification
         );
         
         if (result.success) {
@@ -4622,7 +4624,8 @@ app.post('/api/audits/save-report-for-store-manager', requireAuth, requireRole('
                             emailSubject,
                             emailHtml,
                             null, // CC recipients
-                            validAccessToken
+                            validAccessToken,
+                            { email: user.email, name: user.displayName } // Sender verification
                         );
                         
                         if (result.success) {
@@ -5537,13 +5540,14 @@ app.post('/api/action-plan/send-email', requireAuth, async (req, res) => {
             });
         }
         
-        // Send email using refreshed token
+        // Send email using refreshed token with sender verification
         const result = await emailService.sendEmail(
             recipientEmails,
             subject,
             htmlBody,
             null,
-            validAccessToken
+            validAccessToken,
+            { email: user.email, name: user.displayName } // Pass sender info for verification
         );
         
         if (result.success) {
@@ -5662,13 +5666,14 @@ app.post('/api/action-plan/submit-to-auditor', requireAuth, async (req, res) => 
             });
         }
         
-        // Send email using refreshed token
+        // Send email using refreshed token with sender verification
         const result = await emailService.sendEmail(
             recipientEmails,
             subject,
             htmlBody,
             ccEmails.length > 0 ? ccEmails : null,
-            validAccessToken
+            validAccessToken,
+            { email: user.email, name: user.displayName } // Pass sender info for verification
         );
         
         if (result.success) {
