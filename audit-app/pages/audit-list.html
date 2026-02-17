@@ -1280,6 +1280,13 @@
                     </div>
                 ` : '';
                 
+                // Delete button for Admin/SuperAuditor only on completed audits
+                const deleteCompletedHtml = (currentUserRole === 'Admin' || currentUserRole === 'SuperAuditor') ? `
+                    <button class="action-btn delete" onclick="deleteCompletedAudit(${audit.AuditID}, '${audit.DocumentNumber}'); event.stopPropagation();" title="Delete Audit">
+                        🗑️
+                    </button>
+                ` : '';
+                
                 return `
                     ${currentUserRole !== 'StoreManager' ? `
                     <button class="action-btn view" onclick="viewAudit(${audit.AuditID}); event.stopPropagation();">
@@ -1292,15 +1299,21 @@
                         🎯 Action Plan
                     </button>
                     ${deptReportsHtml}
+                    ${deleteCompletedHtml}
                 `;
             } else {
+                // Delete button for In Progress - Admin/SuperAuditor/Auditor can delete
+                const canDeleteInProgress = (currentUserRole === 'Admin' || currentUserRole === 'SuperAuditor' || currentUserRole === 'Auditor');
+                
                 return `
                     <button class="action-btn continue" onclick="continueAudit(${audit.AuditID}); event.stopPropagation();">
                         ✏️ Continue
                     </button>
-                    <button class="action-btn delete" onclick="deleteAudit(${audit.AuditID}); event.stopPropagation();">
+                    ${canDeleteInProgress ? `
+                    <button class="action-btn delete" onclick="deleteAudit(${audit.AuditID}, '${audit.DocumentNumber}'); event.stopPropagation();">
                         🗑️
                     </button>
+                    ` : ''}
                 `;
             }
         }
@@ -2006,8 +2019,8 @@
             window.location.href = `/auditor/fill-audit?id=${auditId}`;
         }
 
-        async function deleteAudit(auditId) {
-            if (!confirm('Are you sure you want to delete this audit? This action cannot be undone.')) {
+        async function deleteAudit(auditId, documentNumber) {
+            if (!confirm(`Are you sure you want to delete this audit?\n\nDocument: ${documentNumber || auditId}\n\nThis action cannot be undone.`)) {
                 return;
             }
 
@@ -2015,9 +2028,44 @@
                 const response = await fetch(`/api/audits/${auditId}`, {
                     method: 'DELETE'
                 });
+                
+                const data = await response.json();
 
-                if (!response.ok) throw new Error('Failed to delete audit');
+                if (!response.ok) throw new Error(data.error || 'Failed to delete audit');
 
+                alert(`Audit ${documentNumber || ''} deleted successfully.`);
+                await loadAudits();
+            } catch (error) {
+                console.error('Error deleting audit:', error);
+                alert('Failed to delete audit: ' + error.message);
+            }
+        }
+
+        // Delete completed audit - requires double confirmation
+        async function deleteCompletedAudit(auditId, documentNumber) {
+            // First confirmation
+            if (!confirm(`⚠️ WARNING: You are about to delete a COMPLETED audit!\n\nDocument: ${documentNumber}\n\nThis will permanently delete:\n• All audit responses\n• All pictures\n• All section scores\n• Published reports references\n\nThis action CANNOT be undone.`)) {
+                return;
+            }
+            
+            // Second confirmation - type document number
+            const confirmInput = prompt(`To confirm deletion, please type the document number:\n\n${documentNumber}`);
+            
+            if (confirmInput !== documentNumber) {
+                alert('Document number did not match. Deletion cancelled.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/audits/${auditId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+
+                if (!response.ok) throw new Error(data.error || 'Failed to delete audit');
+
+                alert(`✅ Audit ${documentNumber} has been permanently deleted.`);
                 await loadAudits();
             } catch (error) {
                 console.error('Error deleting audit:', error);

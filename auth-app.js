@@ -3895,6 +3895,30 @@ app.delete('/api/audits/pictures/:pictureId', requireAuth, requireRole('Admin', 
     }
 });
 
+// Delete audit (Admin and SuperAuditor only)
+app.delete('/api/audits/:auditId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const auditId = parseInt(req.params.auditId);
+        
+        // Get audit info for logging
+        const audit = await AuditService.getAudit(auditId);
+        if (!audit) {
+            return res.status(404).json({ success: false, error: 'Audit not found' });
+        }
+        
+        console.log(`[DELETE AUDIT] User ${req.currentUser.email} (${req.currentUser.role}) deleting audit ${audit.DocumentNumber}`);
+        
+        const result = await AuditService.deleteAudit(auditId);
+        
+        console.log(`[DELETE AUDIT] Successfully deleted audit ${audit.DocumentNumber}`);
+        
+        res.json({ success: true, data: result, deletedDocument: audit.DocumentNumber });
+    } catch (error) {
+        console.error('Error deleting audit:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ==========================================
 // Fridge Temperature Readings API
 // ==========================================
