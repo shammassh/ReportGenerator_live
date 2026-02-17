@@ -22,6 +22,11 @@ class DashboardPage {
                 return res.redirect('/login');
             }
 
+            // DEBUG: Log exactly what we're injecting into USER_CONTEXT
+            console.log(`📊 [DASHBOARD] Serving dashboard to: ${user.email}`);
+            console.log(`📊 [DASHBOARD] User role from req.currentUser: ${user.role}`);
+            console.log(`📊 [DASHBOARD] isImpersonating: ${user._isImpersonating || false}`);
+
             // Get user permissions
             const permissions = DashboardFilterService.getUserPermissions(user);
 
