@@ -103,8 +103,13 @@ async function requireAuth(req, res, next) {
 
 /**
  * Redirect to login page
+ * SECURITY: Also clear any invalid cookies
  */
 function redirectToLogin(req, res) {
+    // Clear invalid auth cookie to prevent confusion
+    res.clearCookie('auth_token');
+    res.clearCookie('impersonation');
+    
     // For API requests, return JSON
     if (req.path.startsWith('/api/')) {
         return res.status(401).json({

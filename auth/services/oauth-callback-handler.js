@@ -250,12 +250,26 @@ class OAuthCallbackHandler {
     
     /**
      * Create session for user (24 hours)
+     * SECURITY: Only allow ONE session per user - delete all existing sessions first
      */
     async createSession(user, tokenResponse) {
         const pool = await sql.connect(config.database);
         
-        const sessionToken = this.generateSessionToken();
+        // SECURITY FIX: Delete ALL existing sessions for this user before creating new one
+        // This prevents session confusion and token mixup
+        const deleteResult = await pool.request()
+            .input('userId', sql.Int, user.id)
+            .query('DELETE FROM Sessions WHERE user_id = @userId');
+        
+        if (deleteResult.rowsAffected[0] > 0) {
+            console.log(`🔒 [SESSION] Deleted ${deleteResult.rowsAffected[0]} old session(s) for user ${user.id} (${user.email})`);
+        }
+        
+        // Generate unique session token with userId embedded for guaranteed uniqueness
+        const sessionToken = this.generateSessionToken(user.id);
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        
+        console.log(`🔐 [SESSION] Creating new session for user ${user.id} (${user.email})`);
         
         const result = await pool.request()
             .input('sessionToken', sql.NVarChar, sessionToken)
@@ -279,11 +293,14 @@ class OAuthCallbackHandler {
     }
     
     /**
-     * Generate random session token
+     * Generate unique session token
+     * Format: timestamp_userId_randomBytes to guarantee uniqueness
      */
-    generateSessionToken() {
+    generateSessionToken(userId) {
         const crypto = require('crypto');
-        return crypto.randomBytes(32).toString('hex');
+        const timestamp = Date.now().toString(36); // Base36 timestamp
+        const random = crypto.randomBytes(24).toString('hex'); // 48 chars random
+        return `${timestamp}_${userId}_${random}`;
     }
     
     /**

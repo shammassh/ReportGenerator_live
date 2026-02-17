@@ -27,8 +27,11 @@ class SessionManager {
             console.log(`🔒 [SESSION] Deleted ${deleteResult.rowsAffected[0]} old session(s) for user ${userId}`);
         }
         
-        const sessionToken = this.generateSessionToken();
+        // Generate unique session token with userId embedded for guaranteed uniqueness
+        const sessionToken = this.generateSessionToken(userId);
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        
+        console.log(`🔐 [SESSION] Creating new session for user ${userId}`);
         
         const result = await pool.request()
             .input('sessionToken', sql.NVarChar, sessionToken)
@@ -140,18 +143,33 @@ class SessionManager {
     }
     
     /**
-     * Generate secure random session token
+     * Generate unique session token
+     * Format: timestamp_userId_randomBytes to guarantee uniqueness
+     * This ensures NO two sessions can ever have the same token
      */
-    static generateSessionToken() {
-        return crypto.randomBytes(32).toString('hex');
+    static generateSessionToken(userId) {
+        const timestamp = Date.now().toString(36); // Base36 timestamp
+        const random = crypto.randomBytes(24).toString('hex'); // 48 chars random
+        return `${timestamp}_${userId}_${random}`;
     }
     
     /**
      * Validate session token format
+     * Accepts both old format (64 hex chars) and new format (timestamp_userId_random)
      */
     static isValidTokenFormat(token) {
-        return typeof token === 'string' && token.length === 64 && /^[0-9a-f]+$/.test(token);
+        if (typeof token !== 'string' || token.length < 20) {
+            return false;
+        }
+        // Old format: 64 hex characters
+        if (token.length === 64 && /^[0-9a-f]+$/.test(token)) {
+            return true;
+        }
+        // New format: timestamp_userId_random (contains underscores)
+        if (token.includes('_') && token.length >= 50) {
+            return true;
+        }
+        return false;
     }
 }
-
 module.exports = SessionManager;
