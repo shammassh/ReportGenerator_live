@@ -26,6 +26,7 @@ const ScoreCalculatorService = require('./audit-app/services/score-calculator-se
 const TokenRefreshService = require('./auth/services/token-refresh-service');
 const SessionManager = require('./auth/services/session-manager');
 const { activityLogService, logLogin, logLogout, logReportGenerated, logEmailSent, logBroadcast, logActionPlanSaved, logActionPlanSubmitted, logUserRoleChanged, logTemplateUpdated } = require('./services/activity-log-service');
+const FileStorageService = require('./services/file-storage-service');
 
 /**
  * Helper function to get a valid access token, refreshing if expired
@@ -4060,6 +4061,81 @@ app.delete('/api/audits/pictures/:pictureId', requireAuth, requireRole('Admin', 
     }
 });
 
+// ==========================================
+// Picture File Serving API (for file-based storage)
+// ==========================================
+
+// Serve picture by ID (from SQL or file system)
+app.get('/api/pictures/:pictureId', requireAuth, async (req, res) => {
+    try {
+        const pictureId = parseInt(req.params.pictureId);
+        const picture = await AuditService.getPictureById(pictureId);
+        
+        if (!picture) {
+            return res.status(404).json({ success: false, error: 'Picture not found' });
+        }
+        
+        // Check if picture has file path (file-based storage)
+        if (picture.filePath) {
+            try {
+                const { buffer, contentType } = await FileStorageService.readPicture(picture.filePath);
+                res.set('Content-Type', contentType);
+                res.set('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+                return res.send(buffer);
+            } catch (fileError) {
+                console.warn(`📁 [API] File not found for picture ${pictureId}, falling back to SQL`);
+                // Fall through to SQL data if file not found
+            }
+        }
+        
+        // Serve from SQL binary data
+        if (picture.fileData) {
+            const buffer = Buffer.isBuffer(picture.fileData) ? picture.fileData : Buffer.from(picture.fileData, 'base64');
+            res.set('Content-Type', picture.contentType || 'image/jpeg');
+            res.set('Cache-Control', 'public, max-age=86400');
+            return res.send(buffer);
+        }
+        
+        res.status(404).json({ success: false, error: 'Picture data not found' });
+    } catch (error) {
+        console.error('Error serving picture:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Serve picture from file path (for URL-based references)
+app.get('/api/pictures/file/*', requireAuth, async (req, res) => {
+    try {
+        const relativePath = req.params[0];
+        
+        if (!relativePath) {
+            return res.status(400).json({ success: false, error: 'File path required' });
+        }
+        
+        const { buffer, contentType } = await FileStorageService.readPicture(relativePath);
+        res.set('Content-Type', contentType);
+        res.set('Cache-Control', 'public, max-age=86400');
+        res.send(buffer);
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            return res.status(404).json({ success: false, error: 'File not found' });
+        }
+        console.error('Error serving picture file:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get storage statistics (Admin only)
+app.get('/api/storage/stats', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const stats = await FileStorageService.getStorageStats();
+        res.json({ success: true, data: stats });
+    } catch (error) {
+        console.error('Error getting storage stats:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Delete audit (Admin and SuperAuditor only)
 app.delete('/api/audits/:auditId', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
     try {
@@ -4120,26 +4196,40 @@ app.get('/api/audits/:auditId/fridge-readings', requireAuth, async (req, res) =>
 // Department Report API
 // ==========================================
 
-// Get department report for an audit (and save it)
+// Get department report for an audit (check cache first, then generate if needed)
 app.get('/api/audits/:auditId/department-report/:department', requireAuth, async (req, res) => {
     try {
         const auditId = parseInt(req.params.auditId);
         const department = req.params.department;
+        const forceRegenerate = req.query.regenerate === 'true';
         
         if (!['Maintenance', 'Procurement', 'Cleaning'].includes(department)) {
             return res.status(400).json({ success: false, error: 'Invalid department' });
         }
         
-        const report = await AuditService.getDepartmentReport(auditId, department);
-        
-        // Save the report to SQL for later viewing by department heads
-        if (report.items.length > 0) {
-            const generatedBy = req.session?.user?.email || 'Unknown';
-            await AuditService.saveDepartmentReport(auditId, department, report, generatedBy);
-            console.log(`📋 [API] Saved ${department} report for audit ${auditId}`);
+        // Check cache first (unless force regenerate is requested)
+        if (!forceRegenerate) {
+            const cached = await AuditService.getCachedDepartmentReport(auditId, department);
+            if (cached) {
+                console.log(`📋 [API] Serving cached ${department} report for audit ${auditId}`);
+                return res.json({ success: true, data: cached.reportData, cached: true, generatedAt: cached.generatedAt });
+            }
         }
         
-        res.json({ success: true, data: report });
+        // Generate fresh report
+        console.log(`📋 [API] Generating fresh ${department} report for audit ${auditId}`);
+        const report = await AuditService.getDepartmentReport(auditId, department);
+        
+        // Save the report to SQL (with pictures stripped for cache efficiency)
+        if (report.items.length > 0) {
+            const generatedBy = req.currentUser?.email || 'Unknown';
+            // Strip base64 from pictures before caching
+            const cacheData = FileStorageService.stripPicturesForCache(report);
+            await AuditService.saveDepartmentReport(auditId, department, cacheData, generatedBy);
+            console.log(`📋 [API] Saved ${department} report cache for audit ${auditId}`);
+        }
+        
+        res.json({ success: true, data: report, cached: false });
     } catch (error) {
         console.error('Error getting department report:', error);
         res.status(500).json({ success: false, error: error.message });

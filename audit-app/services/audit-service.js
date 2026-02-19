@@ -659,32 +659,63 @@ class AuditService {
 
     /**
      * Upload picture for a response
+     * Saves to file system and stores path in database (no BLOB storage)
      */
     async uploadPicture(pictureData) {
         try {
+            const FileStorageService = require('../../services/file-storage-service');
             const pool = await this.getPool();
             
+            // Ensure FilePath column exists
+            await pool.request().query(`
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('AuditPictures') AND name = 'FilePath')
+                ALTER TABLE AuditPictures ADD FilePath NVARCHAR(500) NULL;
+            `);
+            
+            // First insert record to get PictureID
             const result = await pool.request()
                 .input('ResponseID', sql.Int, pictureData.responseId)
                 .input('AuditID', sql.Int, pictureData.auditId)
                 .input('FileName', sql.NVarChar(255), pictureData.fileName)
-                .input('FileData', sql.VarBinary(sql.MAX), Buffer.from(pictureData.fileData, 'base64'))
                 .input('ContentType', sql.NVarChar(100), pictureData.contentType)
                 .input('PictureType', sql.NVarChar(50), pictureData.pictureType)
                 .query(`
-                    INSERT INTO AuditPictures (ResponseID, AuditID, FileName, FileData, ContentType, PictureType)
-                    VALUES (@ResponseID, @AuditID, @FileName, @FileData, @ContentType, @PictureType);
+                    INSERT INTO AuditPictures (ResponseID, AuditID, FileName, ContentType, PictureType)
+                    VALUES (@ResponseID, @AuditID, @FileName, @ContentType, @PictureType);
                     SELECT SCOPE_IDENTITY() AS PictureID;
                 `);
 
             const pictureId = result.recordset[0].PictureID;
+            
+            // Save picture to file system
+            const fileResult = await FileStorageService.savePicture({
+                pictureId,
+                auditId: pictureData.auditId,
+                responseId: pictureData.responseId,
+                fileName: pictureData.fileName,
+                fileData: pictureData.fileData, // base64 string
+                contentType: pictureData.contentType,
+                pictureType: pictureData.pictureType
+            });
+            
+            // Update record with file path (no FileData stored)
+            await pool.request()
+                .input('PictureID', sql.Int, pictureId)
+                .input('FilePath', sql.NVarChar(500), fileResult.relativePath)
+                .query(`UPDATE AuditPictures SET FilePath = @FilePath WHERE PictureID = @PictureID`);
 
             // Update HasPicture flag on response
             await pool.request()
                 .input('ResponseID', sql.Int, pictureData.responseId)
                 .query(`UPDATE AuditResponses SET HasPicture = 1 WHERE ResponseID = @ResponseID`);
 
-            return { pictureId };
+            console.log(`📁 [AuditService] Uploaded picture ${pictureId} to file: ${fileResult.relativePath}`);
+            
+            return { 
+                pictureId,
+                filePath: fileResult.relativePath,
+                url: fileResult.url
+            };
         } catch (error) {
             console.error('Error uploading picture:', error);
             throw error;
@@ -717,6 +748,43 @@ class AuditService {
             }));
         } catch (error) {
             console.error('Error getting pictures:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get a single picture by ID (for serving via API)
+     */
+    async getPictureById(pictureId) {
+        try {
+            const pool = await this.getPool();
+            
+            const result = await pool.request()
+                .input('PictureID', sql.Int, pictureId)
+                .query(`
+                    SELECT PictureID, ResponseID, AuditID, FileName, FileData, FilePath, ContentType, PictureType, CreatedAt
+                    FROM AuditPictures
+                    WHERE PictureID = @PictureID
+                `);
+
+            if (result.recordset.length === 0) {
+                return null;
+            }
+
+            const row = result.recordset[0];
+            return {
+                pictureId: row.PictureID,
+                responseId: row.ResponseID,
+                auditId: row.AuditID,
+                fileName: row.FileName,
+                fileData: row.FileData, // Keep as Buffer for serving
+                filePath: row.FilePath, // File path if stored on disk
+                contentType: row.ContentType,
+                pictureType: row.PictureType,
+                createdAt: row.CreatedAt
+            };
+        } catch (error) {
+            console.error('Error getting picture by ID:', error);
             throw error;
         }
     }
@@ -1208,12 +1276,12 @@ class AuditService {
             // Get all response IDs for batch picture fetch
             const responseIds = responsesResult.recordset.map(r => r.ResponseID);
             
-            // Fetch all pictures in one query (much faster than N+1 queries)
+            // Fetch all pictures in one query (return URLs, not base64)
             let picturesByResponse = {};
             if (responseIds.length > 0) {
                 const picturesResult = await pool.request()
                     .query(`
-                        SELECT PictureID, ResponseID, FileName, FileData, ContentType, PictureType
+                        SELECT PictureID, ResponseID, FileName, FilePath, ContentType, PictureType
                         FROM AuditPictures
                         WHERE ResponseID IN (${responseIds.join(',')})
                           AND PictureType IN ('Finding', 'finding', 'Corrective', 'corrective', 'Good', 'good')
@@ -1224,7 +1292,7 @@ class AuditService {
                             CreatedAt DESC
                     `);
                 
-                // Group pictures by ResponseID
+                // Group pictures by ResponseID (with URLs, not base64)
                 for (const pic of picturesResult.recordset) {
                     if (!picturesByResponse[pic.ResponseID]) {
                         picturesByResponse[pic.ResponseID] = [];
@@ -1232,7 +1300,8 @@ class AuditService {
                     picturesByResponse[pic.ResponseID].push({
                         pictureId: pic.PictureID,
                         fileName: pic.FileName,
-                        base64: pic.FileData.toString('base64'),
+                        filePath: pic.FilePath,
+                        url: pic.FilePath ? `/api/pictures/file/${pic.FilePath}` : `/api/pictures/${pic.PictureID}`,
                         contentType: pic.ContentType,
                         pictureType: pic.PictureType
                     });
@@ -1470,6 +1539,39 @@ class AuditService {
             };
         } catch (error) {
             console.error('Error getting department report by ID:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get cached department report by audit ID and department
+     * Returns null if no cache exists
+     */
+    async getCachedDepartmentReport(auditId, department) {
+        try {
+            const pool = await this.getPool();
+            
+            const result = await pool.request()
+                .input('AuditID', sql.Int, auditId)
+                .input('Department', sql.NVarChar(50), department)
+                .query(`
+                    SELECT ReportID, ReportData, GeneratedAt
+                    FROM DepartmentReports 
+                    WHERE AuditID = @AuditID AND Department = @Department
+                `);
+            
+            if (result.recordset.length === 0) {
+                return null;
+            }
+            
+            const row = result.recordset[0];
+            return {
+                reportId: row.ReportID,
+                reportData: row.ReportData ? JSON.parse(row.ReportData) : null,
+                generatedAt: row.GeneratedAt
+            };
+        } catch (error) {
+            console.error('Error getting cached department report:', error);
             throw error;
         }
     }

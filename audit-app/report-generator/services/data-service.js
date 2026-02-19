@@ -200,43 +200,32 @@ class DataService {
     }
 
     /**
-     * Get all pictures for an audit - saves to files for large reports
+     * Get all pictures for an audit - uses file-based storage with URLs
      * @param {number} auditId - Audit ID
-     * @param {string} imageDir - Directory to save images (optional, for file-based mode)
-     * @param {string} reportBaseName - Base name for URL path generation
+     * @param {string} imageDir - (DEPRECATED) No longer used, images served via API
+     * @param {string} reportBaseName - (DEPRECATED) No longer used
      * @returns {Promise<Object>} - Pictures grouped by responseId
      */
     async getAuditPictures(auditId, imageDir = null, reportBaseName = null) {
         try {
             console.log(`🖼️ Fetching pictures for audit: ${auditId}`);
 
+            // Query only metadata, not FileData (which may be NULL after migration)
             const result = await this.pool.request()
                 .input('AuditID', sql.Int, auditId)
                 .query(`
-                    SELECT PictureID, ResponseID, FileName, FileData, ContentType, PictureType, CreatedAt,
-                           DATALENGTH(FileData) as FileSize
+                    SELECT PictureID, ResponseID, FileName, FilePath, ContentType, PictureType, CreatedAt,
+                           CASE WHEN FileData IS NOT NULL THEN DATALENGTH(FileData) ELSE 0 END as FileSize,
+                           CASE WHEN FilePath IS NOT NULL AND FilePath != '' THEN 1 ELSE 0 END as HasFilePath
                     FROM AuditPictures
                     WHERE AuditID = @AuditID
                     ORDER BY ResponseID, CreatedAt
                 `);
 
             // Calculate total size to decide strategy
-            let totalSize = 0;
-            for (const row of result.recordset) {
-                totalSize += row.FileSize || 0;
-            }
-            const totalSizeMB = totalSize / 1024 / 1024;
-            console.log(`   📊 Total image data: ${totalSizeMB.toFixed(2)} MB (${result.recordset.length} pictures)`);
+            console.log(`   📊 Found ${result.recordset.length} pictures`);
 
-            // Use file-based approach if total size > 50MB or more than 100 images
-            const useFileMode = imageDir && (totalSizeMB > 50 || result.recordset.length > 100);
-            
-            if (useFileMode) {
-                console.log(`   📁 Using file-based mode (saving images to ${imageDir})`);
-                await fs.mkdir(imageDir, { recursive: true });
-            }
-
-            // Group by responseId
+            // Group by responseId - use URLs instead of base64 or duplicating files
             const pictures = {};
             let totalPictures = 0;
 
@@ -247,29 +236,13 @@ class DataService {
                     pictures[responseId] = [];
                 }
 
-                const fileSize = row.FileSize || (row.FileData ? row.FileData.length : 0);
+                // Use URL-based approach - pictures served via /api/pictures/:id endpoint
+                // If FilePath exists, use file-based URL; otherwise fallback to picture ID
                 let dataUrl;
-
-                if (useFileMode) {
-                    // Save to file and use relative path
-                    const ext = this.getExtensionFromContentType(row.ContentType);
-                    const fileName = `pic_${row.PictureID}${ext}`;
-                    const filePath = path.join(imageDir, fileName);
-                    
-                    try {
-                        await fs.writeFile(filePath, row.FileData);
-                        // Use full API path that matches server route
-                        // Server route adds '_images' to folderName, so use reportBaseName directly
-                        dataUrl = `/api/audits/reports/images/${reportBaseName}/${fileName}`;
-                        console.log(`   💾 Saved: ${fileName} (${(fileSize / 1024).toFixed(1)} KB)`);
-                    } catch (err) {
-                        console.error(`   ❌ Failed to save ${fileName}:`, err.message);
-                        // Fallback to base64 for this image
-                        dataUrl = `data:${row.ContentType};base64,${row.FileData.toString('base64')}`;
-                    }
+                if (row.FilePath) {
+                    dataUrl = `/api/pictures/file/${row.FilePath}`;
                 } else {
-                    // Use base64 inline
-                    dataUrl = `data:${row.ContentType};base64,${row.FileData.toString('base64')}`;
+                    dataUrl = `/api/pictures/${row.PictureID}`;
                 }
 
                 const pic = {
@@ -278,19 +251,16 @@ class DataService {
                     contentType: row.ContentType,
                     pictureType: row.PictureType,
                     createdAt: row.CreatedAt,
-                    fileSize: fileSize,
+                    fileSize: row.FileSize || 0,
                     dataUrl: dataUrl,
-                    isFileBased: useFileMode
+                    isFileBased: !!row.FilePath
                 };
                 
                 pictures[responseId].push(pic);
                 totalPictures++;
             }
 
-            console.log(`   ✅ Processed ${totalPictures} pictures for ${Object.keys(pictures).length} responses`);
-            if (useFileMode) {
-                console.log(`   📁 Images saved to: ${imageDir}`);
-            }
+            console.log(`   ✅ Processed ${totalPictures} pictures for ${Object.keys(pictures).length} responses (URL-based)`);
 
             return pictures;
         } catch (error) {

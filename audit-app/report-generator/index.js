@@ -111,11 +111,9 @@ class ReportGenerator {
                 }
             }
 
-            // 5. Fetch pictures - create images folder for large reports
+            // 5. Fetch pictures (URL-based, no file duplication)
             console.log('🖼️ Step 5: Fetching pictures...');
-            const reportBaseName = `Audit_Report_${auditData.documentNumber}`;
-            const imageDir = path.join(this.outputDir, `${reportBaseName}_images`);
-            const pictures = await this.dataService.getAuditPictures(auditId, imageDir, reportBaseName);
+            const pictures = await this.dataService.getAuditPictures(auditId);
 
             // 6. Fetch findings
             console.log('🔍 Step 6: Fetching findings...');
@@ -190,6 +188,7 @@ class ReportGenerator {
 
             // 10. Save report
             console.log('💾 Step 10: Saving report...');
+            const reportBaseName = `Audit_Report_${auditData.documentNumber}`;
             const fileName = `${reportBaseName}.html`;
             const filePath = path.join(this.outputDir, fileName);
 
@@ -199,15 +198,9 @@ class ReportGenerator {
             // Write file
             await fs.writeFile(filePath, html, 'utf8');
 
-            // Check if images were saved to separate folder
-            const hasImageFolder = Object.values(pictures).flat().some(p => p.isFileBased);
-
             console.log(`\n${'='.repeat(60)}`);
             console.log(`✅ Report generated successfully!`);
             console.log(`📄 File: ${filePath}`);
-            if (hasImageFolder) {
-                console.log(`📁 Images: ${imageDir}`);
-            }
             console.log(`📊 Score: ${auditData.totalScore}% (${auditData.totalScore >= threshold ? 'PASS ✅' : 'FAIL ❌'})`);
             console.log(`🏪 Store: ${auditData.storeName}`);
             console.log(`${'='.repeat(60)}\n`);
@@ -216,7 +209,6 @@ class ReportGenerator {
                 success: true,
                 filePath,
                 fileName,
-                imageDir: hasImageFolder ? imageDir : null,
                 html,
                 data: reportData
             };
@@ -446,11 +438,8 @@ class ReportGenerator {
                 f.department && f.department.toLowerCase().includes(department.toLowerCase())
             );
 
-            // Create images folder for file-based storage (handles large audits)
-            const reportBaseName = `${department}_Report_${auditData.documentNumber}`;
-            const imageDir = path.join(this.outputDir, `${reportBaseName}_images`);
-            
-            const pictures = await this.dataService.getAuditPictures(auditId, imageDir, reportBaseName);
+            // Fetch pictures (URL-based, no file duplication)
+            const pictures = await this.dataService.getAuditPictures(auditId);
 
             // Build department report HTML (similar to action plan but filtered)
             const html = this.buildDepartmentReportHtml({

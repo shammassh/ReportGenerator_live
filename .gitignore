@@ -18,5 +18,8 @@ node_modules/
 # Reports output
 reports/
 
+# File storage (pictures on disk)
+storage/
+
 # Logs
 *.log
