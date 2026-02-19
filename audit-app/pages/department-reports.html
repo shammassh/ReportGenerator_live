@@ -572,7 +572,7 @@
                     picturesHTML = `
                         <div class="pic-container">
                             ${item.pictures.map(pic => `
-                                <img class="pic-thumb" src="data:${pic.contentType};base64,${pic.base64}" alt="${pic.fileName}" />
+                                <img class="pic-thumb" src="${pic.url}" alt="${pic.fileName}" onerror="this.style.display='none'" />
                             `).join('')}
                         </div>
                     `;
@@ -952,7 +952,7 @@
                             title: item.title,
                             priority: item.priority,
                             finding: item.finding,
-                            base64: pic.base64,
+                            url: pic.url,
                             contentType: pic.contentType,
                             fileName: pic.fileName,
                             pictureType: pic.pictureType
@@ -985,12 +985,13 @@
                             <a href="#ref-${pic.referenceValue.replace(/\./g, '-')}" onclick="scrollToRef('${pic.referenceValue.replace(/\./g, '-')}'); return false;" style="background: #dc2626; color: white; font-weight: bold; font-size: 1rem; padding: 5px 12px; border-radius: 20px; text-decoration: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">#${pic.referenceValue}</a>
                         </div>
                         <div style="width: 100%; text-align: center; background: #f5f5f5; padding: 10px;">
-                            <img src="data:${pic.contentType};base64,${pic.base64}" 
+                            <img src="${pic.url}" 
                                  alt="Finding ${pic.referenceValue}" 
                                  onclick="openImageModal(this.src)"
                                  style="max-width: 100%; max-height: 350px; width: auto; height: auto; border-radius: 6px; cursor: pointer; transition: transform 0.2s;" 
                                  onmouseover="this.style.transform='scale(1.02)'" 
-                                 onmouseout="this.style.transform='scale(1)'" />
+                                 onmouseout="this.style.transform='scale(1)'"
+                                 onerror="this.style.display='none'" />
                         </div>
                     </div>
                 `;
@@ -1025,7 +1026,7 @@
                             title: item.title,
                             priority: item.priority,
                             comment: item.comment || '',
-                            base64: pic.base64,
+                            url: pic.url,
                             contentType: pic.contentType,
                             fileName: pic.fileName,
                             pictureType: pic.pictureType
@@ -1052,12 +1053,13 @@
                             <a href="#ref-${pic.referenceValue.replace(/\./g, '-')}" onclick="scrollToRef('${pic.referenceValue.replace(/\./g, '-')}'); return false;" style="background: #059669; color: white; font-weight: bold; font-size: 1rem; padding: 5px 12px; border-radius: 20px; text-decoration: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">#${pic.referenceValue}</a>
                         </div>
                         <div style="width: 100%; text-align: center; background: #f0fdf4; padding: 10px;">
-                            <img src="data:${pic.contentType};base64,${pic.base64}" 
+                            <img src="${pic.url}" 
                                  alt="Good Observation ${pic.referenceValue}" 
                                  onclick="openImageModal(this.src)"
                                  style="max-width: 100%; max-height: 350px; width: auto; height: auto; border-radius: 6px; cursor: pointer; transition: transform 0.2s;" 
                                  onmouseover="this.style.transform='scale(1.02)'" 
-                                 onmouseout="this.style.transform='scale(1)'" />
+                                 onmouseout="this.style.transform='scale(1)'"
+                                 onerror="this.style.display='none'" />
                         </div>
                     </div>
                 `;
@@ -1093,7 +1095,7 @@
                             priority: item.priority,
                             finding: item.finding,
                             correctiveAction: item.correctiveAction,
-                            base64: pic.base64,
+                            url: pic.url,
                             contentType: pic.contentType,
                             fileName: pic.fileName,
                             pictureType: pic.pictureType
@@ -1126,12 +1128,13 @@
                             <a href="#ref-${pic.referenceValue.replace(/\./g, '-')}" onclick="scrollToRef('${pic.referenceValue.replace(/\./g, '-')}'); return false;" style="background: #2563eb; color: white; font-weight: bold; font-size: 1rem; padding: 5px 12px; border-radius: 20px; text-decoration: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">#${pic.referenceValue}</a>
                         </div>
                         <div style="width: 100%; text-align: center; background: #eff6ff; padding: 10px;">
-                            <img src="data:${pic.contentType};base64,${pic.base64}" 
+                            <img src="${pic.url}" 
                                  alt="Corrective Action ${pic.referenceValue}" 
                                  onclick="openImageModal(this.src)"
                                  style="max-width: 100%; max-height: 350px; width: auto; height: auto; border-radius: 6px; cursor: pointer; transition: transform 0.2s;" 
                                  onmouseover="this.style.transform='scale(1.02)'" 
-                                 onmouseout="this.style.transform='scale(1)'" />
+                                 onmouseout="this.style.transform='scale(1)'"
+                                 onerror="this.style.display='none'" />
                         </div>
                     </div>
                 `;

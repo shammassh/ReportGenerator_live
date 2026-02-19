@@ -4,6 +4,7 @@
  */
 
 const sql = require('mssql');
+const FileStorageService = require('../../services/file-storage-service');
 require('dotenv').config();
 
 class AuditService {
@@ -732,20 +733,42 @@ class AuditService {
             const result = await pool.request()
                 .input('ResponseID', sql.Int, responseId)
                 .query(`
-                    SELECT PictureID, FileName, FileData, ContentType, PictureType, CreatedAt
+                    SELECT PictureID, FileName, FileData, FilePath, ContentType, PictureType, CreatedAt
                     FROM AuditPictures
                     WHERE ResponseID = @ResponseID
                     ORDER BY CreatedAt DESC
                 `);
 
-            return result.recordset.map(row => ({
-                pictureId: row.PictureID,
-                fileName: row.FileName,
-                fileData: row.FileData.toString('base64'),
-                contentType: row.ContentType,
-                pictureType: row.PictureType,
-                createdAt: row.CreatedAt
-            }));
+            const pictures = [];
+            for (const row of result.recordset) {
+                let fileData = null;
+                
+                // Try to get data from file storage first, then fall back to SQL BLOB
+                if (row.FilePath) {
+                    try {
+                        const fileResult = await FileStorageService.readPicture(row.FilePath);
+                        fileData = fileResult.buffer.toString('base64');
+                    } catch (err) {
+                        console.warn(`Could not read file ${row.FilePath}, trying BLOB:`, err.message);
+                    }
+                }
+                
+                // Fall back to SQL BLOB if file not found
+                if (!fileData && row.FileData) {
+                    fileData = row.FileData.toString('base64');
+                }
+                
+                pictures.push({
+                    pictureId: row.PictureID,
+                    fileName: row.FileName,
+                    fileData: fileData,
+                    contentType: row.ContentType,
+                    pictureType: row.PictureType,
+                    createdAt: row.CreatedAt
+                });
+            }
+            
+            return pictures;
         } catch (error) {
             console.error('Error getting pictures:', error);
             throw error;
@@ -796,18 +819,30 @@ class AuditService {
         try {
             const pool = await this.getPool();
             
-            // Get response ID before deleting
+            // Get picture info before deleting (including FilePath for file cleanup)
             const picResult = await pool.request()
                 .input('PictureID', sql.Int, pictureId)
-                .query(`SELECT ResponseID FROM AuditPictures WHERE PictureID = @PictureID`);
+                .query(`SELECT ResponseID, FilePath FROM AuditPictures WHERE PictureID = @PictureID`);
 
             if (picResult.recordset.length === 0) {
                 throw new Error('Picture not found');
             }
 
             const responseId = picResult.recordset[0].ResponseID;
+            const filePath = picResult.recordset[0].FilePath;
 
-            // Delete picture
+            // Delete file from storage if it exists
+            if (filePath) {
+                try {
+                    await FileStorageService.deletePicture(filePath);
+                    console.log(`📁 [AuditService] Deleted picture file: ${filePath}`);
+                } catch (fileError) {
+                    console.warn(`📁 [AuditService] Could not delete file ${filePath}:`, fileError.message);
+                    // Continue with DB deletion even if file deletion fails
+                }
+            }
+
+            // Delete picture from database
             await pool.request()
                 .input('PictureID', sql.Int, pictureId)
                 .query(`DELETE FROM AuditPictures WHERE PictureID = @PictureID`);
@@ -1000,9 +1035,13 @@ class AuditService {
     }
 
     /**
-     * Save fridge temperature readings
+     * Save fridge temperature readings (with file-based picture storage)
      */
     async saveFridgeReadings(auditId, documentNumber, goodReadings, badReadings, enabledSections) {
+        const fs = require('fs').promises;
+        const path = require('path');
+        const FRIDGE_STORAGE_BASE = path.join(__dirname, '..', '..', 'storage', 'fridge-pictures');
+        
         try {
             const pool = await this.getPool();
             
@@ -1022,6 +1061,7 @@ class AuditService {
                         ProbeTemp NVARCHAR(50),
                         Issue NVARCHAR(500),
                         Picture NVARCHAR(MAX),
+                        PicturePath NVARCHAR(500),
                         CreatedAt DATETIME DEFAULT GETDATE()
                     )
                 END
@@ -1035,6 +1075,11 @@ class AuditService {
                     IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FridgeReadings') AND name = 'ProbeTemp' AND system_type_id = 106)
                     BEGIN
                         ALTER TABLE FridgeReadings ALTER COLUMN ProbeTemp NVARCHAR(50);
+                    END
+                    -- Ensure PicturePath column exists
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FridgeReadings') AND name = 'PicturePath')
+                    BEGIN
+                        ALTER TABLE FridgeReadings ADD PicturePath NVARCHAR(500) NULL;
                     END
                 END;
                 
@@ -1050,6 +1095,30 @@ class AuditService {
                     )
                 END
             `);
+            
+            // Helper function to save fridge picture to file
+            const saveFridgePicture = async (readingId, auditId, base64DataUrl) => {
+                if (!base64DataUrl || !base64DataUrl.startsWith('data:image')) {
+                    return null;
+                }
+                
+                const match = base64DataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+                if (!match) return null;
+                
+                const extension = match[1] === 'jpeg' ? 'jpg' : match[1];
+                const base64Data = match[2];
+                const buffer = Buffer.from(base64Data, 'base64');
+                
+                const dirPath = path.join(FRIDGE_STORAGE_BASE, 'audits', String(auditId), 'fridges');
+                await fs.mkdir(dirPath, { recursive: true });
+                
+                const fileName = `fridge_${readingId}.${extension}`;
+                const fullPath = path.join(dirPath, fileName);
+                const relativePath = path.relative(FRIDGE_STORAGE_BASE, fullPath).replace(/\\/g, '/');
+                
+                await fs.writeFile(fullPath, buffer);
+                return relativePath;
+            };
             
             // Delete existing readings for this audit
             await pool.request()
@@ -1077,9 +1146,10 @@ class AuditService {
                 }
             }
             
-            // Insert good readings
+            // Insert good readings (with file-based picture storage)
             for (const reading of (goodReadings || [])) {
-                await pool.request()
+                // First insert the reading to get the ReadingID
+                const insertResult = await pool.request()
                     .input('AuditID', sql.Int, auditId)
                     .input('DocumentNumber', sql.NVarChar(50), documentNumber)
                     .input('ResponseID', sql.Int, reading.responseId)
@@ -1089,21 +1159,35 @@ class AuditService {
                     .input('DisplayTemp', sql.NVarChar(50), String(reading.displayTemp))
                     .input('ProbeTemp', sql.NVarChar(50), String(reading.probeTemp))
                     .input('Issue', sql.NVarChar(500), null)
-                    .input('Picture', sql.NVarChar(sql.MAX), reading.picture || null)
                     .query(`
                         INSERT INTO FridgeReadings (
                             AuditID, DocumentNumber, ResponseID, ReadingType,
-                            Section, Unit, DisplayTemp, ProbeTemp, Issue, Picture
+                            Section, Unit, DisplayTemp, ProbeTemp, Issue
                         ) VALUES (
                             @AuditID, @DocumentNumber, @ResponseID, @ReadingType,
-                            @Section, @Unit, @DisplayTemp, @ProbeTemp, @Issue, @Picture
-                        )
+                            @Section, @Unit, @DisplayTemp, @ProbeTemp, @Issue
+                        );
+                        SELECT SCOPE_IDENTITY() as ReadingID;
                     `);
+                
+                const readingId = insertResult.recordset[0].ReadingID;
+                
+                // Save picture to file if present
+                if (reading.picture) {
+                    const picturePath = await saveFridgePicture(readingId, auditId, reading.picture);
+                    if (picturePath) {
+                        await pool.request()
+                            .input('ReadingID', sql.Int, readingId)
+                            .input('PicturePath', sql.NVarChar(500), picturePath)
+                            .query(`UPDATE FridgeReadings SET PicturePath = @PicturePath WHERE ReadingID = @ReadingID`);
+                    }
+                }
             }
             
-            // Insert bad readings
+            // Insert bad readings (with file-based picture storage)
             for (const reading of (badReadings || [])) {
-                await pool.request()
+                // First insert the reading to get the ReadingID
+                const insertResult = await pool.request()
                     .input('AuditID', sql.Int, auditId)
                     .input('DocumentNumber', sql.NVarChar(50), documentNumber)
                     .input('ResponseID', sql.Int, reading.responseId)
@@ -1113,16 +1197,29 @@ class AuditService {
                     .input('DisplayTemp', sql.NVarChar(50), String(reading.displayTemp))
                     .input('ProbeTemp', sql.NVarChar(50), String(reading.probeTemp))
                     .input('Issue', sql.NVarChar(500), reading.issue)
-                    .input('Picture', sql.NVarChar(sql.MAX), reading.picture || null)
                     .query(`
                         INSERT INTO FridgeReadings (
                             AuditID, DocumentNumber, ResponseID, ReadingType,
-                            Section, Unit, DisplayTemp, ProbeTemp, Issue, Picture
+                            Section, Unit, DisplayTemp, ProbeTemp, Issue
                         ) VALUES (
                             @AuditID, @DocumentNumber, @ResponseID, @ReadingType,
-                            @Section, @Unit, @DisplayTemp, @ProbeTemp, @Issue, @Picture
-                        )
+                            @Section, @Unit, @DisplayTemp, @ProbeTemp, @Issue
+                        );
+                        SELECT SCOPE_IDENTITY() as ReadingID;
                     `);
+                
+                const readingId = insertResult.recordset[0].ReadingID;
+                
+                // Save picture to file if present
+                if (reading.picture) {
+                    const picturePath = await saveFridgePicture(readingId, auditId, reading.picture);
+                    if (picturePath) {
+                        await pool.request()
+                            .input('ReadingID', sql.Int, readingId)
+                            .input('PicturePath', sql.NVarChar(500), picturePath)
+                            .query(`UPDATE FridgeReadings SET PicturePath = @PicturePath WHERE ReadingID = @ReadingID`);
+                    }
+                }
             }
             
             console.log(`✅ Saved ${(goodReadings || []).length} good and ${(badReadings || []).length} bad fridge readings for audit ${auditId}`);
@@ -1138,7 +1235,7 @@ class AuditService {
     }
 
     /**
-     * Get fridge temperature readings
+     * Get fridge temperature readings (with file-based picture URLs)
      */
     async getFridgeReadings(auditId) {
         try {
@@ -1183,12 +1280,18 @@ class AuditService {
                         DisplayTemp as displayTemp,
                         ProbeTemp as probeTemp,
                         Issue as issue,
-                        Picture as picture,
+                        PicturePath as picturePath,
                         CreatedAt
                     FROM FridgeReadings
                     WHERE AuditID = @AuditID
                     ORDER BY ReadingID
                 `);
+            
+            // Convert PicturePath to URL
+            const getPictureUrl = (picturePath) => {
+                if (!picturePath) return null;
+                return `/api/fridge-pictures/file/${picturePath}`;
+            };
             
             const goodReadings = result.recordset
                 .filter(r => r.readingType === 'Good')
@@ -1198,7 +1301,7 @@ class AuditService {
                     unit: r.unit,
                     displayTemp: r.displayTemp,
                     probeTemp: r.probeTemp,
-                    picture: r.picture
+                    picture: getPictureUrl(r.picturePath)
                 }));
             
             const badReadings = result.recordset
@@ -1210,7 +1313,7 @@ class AuditService {
                     displayTemp: r.displayTemp,
                     probeTemp: r.probeTemp,
                     issue: r.issue,
-                    picture: r.picture
+                    picture: getPictureUrl(r.picturePath)
                 }));
             
             return { goodReadings, badReadings, enabledSections };

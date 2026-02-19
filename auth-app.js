@@ -4125,6 +4125,40 @@ app.get('/api/pictures/file/*', requireAuth, async (req, res) => {
     }
 });
 
+// Serve fridge picture from file path
+app.get('/api/fridge-pictures/file/*', requireAuth, async (req, res) => {
+    try {
+        const relativePath = req.params[0];
+        
+        if (!relativePath) {
+            return res.status(400).json({ success: false, error: 'File path required' });
+        }
+        
+        const FRIDGE_STORAGE_BASE = require('path').join(__dirname, 'storage', 'fridge-pictures');
+        const fullPath = require('path').join(FRIDGE_STORAGE_BASE, relativePath);
+        const buffer = require('fs').readFileSync(fullPath);
+        
+        const extension = require('path').extname(fullPath).toLowerCase().slice(1);
+        const mimeTypes = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp'
+        };
+        
+        res.set('Content-Type', mimeTypes[extension] || 'image/jpeg');
+        res.set('Cache-Control', 'public, max-age=86400');
+        res.send(buffer);
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            return res.status(404).json({ success: false, error: 'File not found' });
+        }
+        console.error('Error serving fridge picture:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Get storage statistics (Admin only)
 app.get('/api/storage/stats', requireAuth, requireRole('Admin'), async (req, res) => {
     try {

@@ -346,6 +346,10 @@ class DataService {
      * @returns {Promise<Object>} - Temperature readings grouped by type
      */
     async getTemperatureReadings(auditId) {
+        const fs = require('fs');
+        const path = require('path');
+        const FRIDGE_STORAGE_BASE = path.join(__dirname, '..', '..', '..', 'storage', 'fridge-pictures');
+        
         try {
             console.log(`🌡️ Fetching temperature readings for audit: ${auditId}`);
 
@@ -364,8 +368,33 @@ class DataService {
                 good: [],
                 bad: []
             };
+            
+            // Helper to convert PicturePath to base64 for standalone reports
+            const pictureToBase64 = (picturePath) => {
+                if (!picturePath) return null;
+                try {
+                    const fullPath = path.join(FRIDGE_STORAGE_BASE, picturePath);
+                    const buffer = fs.readFileSync(fullPath);
+                    const extension = path.extname(fullPath).toLowerCase().slice(1);
+                    const mimeTypes = {
+                        'jpg': 'image/jpeg',
+                        'jpeg': 'image/jpeg',
+                        'png': 'image/png',
+                        'gif': 'image/gif',
+                        'webp': 'image/webp'
+                    };
+                    const mimeType = mimeTypes[extension] || 'image/jpeg';
+                    return `data:${mimeType};base64,${buffer.toString('base64')}`;
+                } catch (e) {
+                    console.warn(`Warning: Could not read fridge picture: ${picturePath}`, e.message);
+                    return null;
+                }
+            };
 
             for (const row of result.recordset) {
+                // For reports, convert file to base64 for standalone HTML
+                const picture = row.PicturePath ? pictureToBase64(row.PicturePath) : null;
+                
                 const reading = {
                     readingId: row.ReadingID,
                     responseId: row.ResponseID,
@@ -376,7 +405,7 @@ class DataService {
                     displayTemp: row.DisplayTemp,
                     probeTemp: row.ProbeTemp,
                     issue: row.Issue,
-                    picture: row.Picture,
+                    picture: picture,
                     readingType: row.ReadingType,
                     createdAt: row.CreatedAt
                 };
