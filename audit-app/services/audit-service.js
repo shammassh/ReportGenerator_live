@@ -660,11 +660,12 @@ class AuditService {
 
     /**
      * Upload picture for a response
-     * Saves to file system and stores path in database (no BLOB storage)
+     * Optimizes image (resize & compress) before saving to file system
      */
     async uploadPicture(pictureData) {
         try {
             const FileStorageService = require('../../services/file-storage-service');
+            const ImageOptimizer = require('../../services/image-optimizer');
             const pool = await this.getPool();
             
             // Ensure FilePath column exists
@@ -673,12 +674,30 @@ class AuditService {
                 ALTER TABLE AuditPictures ADD FilePath NVARCHAR(500) NULL;
             `);
             
+            // Optimize the image before saving
+            const originalBuffer = Buffer.from(pictureData.fileData, 'base64');
+            const optimized = await ImageOptimizer.optimizeBuffer(originalBuffer, pictureData.fileName);
+            
+            // Update filename extension if format changed
+            let finalFileName = pictureData.fileName;
+            let finalContentType = pictureData.contentType;
+            if (optimized.converted) {
+                // PNG was converted to JPEG
+                finalFileName = pictureData.fileName.replace(/\.png$/i, '.jpg');
+                finalContentType = 'image/jpeg';
+            }
+            
+            // Log optimization result
+            if (optimized.optimized) {
+                console.log(`📸 [ImageOptimizer] Reduced ${pictureData.fileName}: ${(optimized.originalSize/1024).toFixed(0)}KB → ${(optimized.newSize/1024).toFixed(0)}KB (${optimized.savingsPercent}% saved)`);
+            }
+            
             // First insert record to get PictureID
             const result = await pool.request()
                 .input('ResponseID', sql.Int, pictureData.responseId)
                 .input('AuditID', sql.Int, pictureData.auditId)
-                .input('FileName', sql.NVarChar(255), pictureData.fileName)
-                .input('ContentType', sql.NVarChar(100), pictureData.contentType)
+                .input('FileName', sql.NVarChar(255), finalFileName)
+                .input('ContentType', sql.NVarChar(100), finalContentType)
                 .input('PictureType', sql.NVarChar(50), pictureData.pictureType)
                 .query(`
                     INSERT INTO AuditPictures (ResponseID, AuditID, FileName, ContentType, PictureType)
@@ -688,14 +707,14 @@ class AuditService {
 
             const pictureId = result.recordset[0].PictureID;
             
-            // Save picture to file system
+            // Save optimized picture to file system
             const fileResult = await FileStorageService.savePicture({
                 pictureId,
                 auditId: pictureData.auditId,
                 responseId: pictureData.responseId,
-                fileName: pictureData.fileName,
-                fileData: pictureData.fileData, // base64 string
-                contentType: pictureData.contentType,
+                fileName: finalFileName,
+                fileData: optimized.buffer.toString('base64'), // Use optimized buffer
+                contentType: finalContentType,
                 pictureType: pictureData.pictureType
             });
             
@@ -1096,7 +1115,7 @@ class AuditService {
                 END
             `);
             
-            // Helper function to save fridge picture to file
+            // Helper function to save fridge picture to file (with optimization)
             const saveFridgePicture = async (readingId, auditId, base64DataUrl) => {
                 if (!base64DataUrl || !base64DataUrl.startsWith('data:image')) {
                     return null;
@@ -1105,18 +1124,31 @@ class AuditService {
                 const match = base64DataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
                 if (!match) return null;
                 
-                const extension = match[1] === 'jpeg' ? 'jpg' : match[1];
+                const originalExtension = match[1] === 'jpeg' ? 'jpg' : match[1];
                 const base64Data = match[2];
                 const buffer = Buffer.from(base64Data, 'base64');
+                
+                // Optimize the image
+                const ImageOptimizer = require('../../services/image-optimizer');
+                const originalFileName = `fridge_${readingId}.${originalExtension}`;
+                const optimized = await ImageOptimizer.optimizeBuffer(buffer, originalFileName);
+                
+                // Determine final extension (might change if PNG converted to JPG)
+                const finalExtension = optimized.format || originalExtension;
+                const finalBuffer = optimized.buffer;
+                
+                if (optimized.optimized) {
+                    console.log(`📸 [ImageOptimizer] Fridge pic ${readingId}: ${(optimized.originalSize/1024).toFixed(0)}KB → ${(optimized.newSize/1024).toFixed(0)}KB (${optimized.savingsPercent}% saved)`);
+                }
                 
                 const dirPath = path.join(FRIDGE_STORAGE_BASE, 'audits', String(auditId), 'fridges');
                 await fs.mkdir(dirPath, { recursive: true });
                 
-                const fileName = `fridge_${readingId}.${extension}`;
+                const fileName = `fridge_${readingId}.${finalExtension}`;
                 const fullPath = path.join(dirPath, fileName);
                 const relativePath = path.relative(FRIDGE_STORAGE_BASE, fullPath).replace(/\\/g, '/');
                 
-                await fs.writeFile(fullPath, buffer);
+                await fs.writeFile(fullPath, finalBuffer);
                 return relativePath;
             };
             
