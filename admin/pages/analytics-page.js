@@ -90,6 +90,13 @@ class AnalyticsPage {
                     <p>Avg Score</p>
                 </div>
             </div>
+            <div class="summary-card">
+                <div class="card-icon">📝</div>
+                <div class="card-content">
+                    <h3 id="actionPlanCompletion">-</h3>
+                    <p>Action Plans Solved</p>
+                </div>
+            </div>
         </section>
 
         <!-- Filter Section -->
@@ -332,6 +339,16 @@ class AnalyticsPage {
             document.getElementById('totalAuditors').textContent = summary.totalAuditors || 0;
             document.getElementById('passRate').textContent = (summary.passRate || 0).toFixed(1) + '%';
             document.getElementById('avgScore').textContent = (summary.avgScore || 0).toFixed(1) + '%';
+            
+            // Action Plan Completion: show as "X/Y (Z%)"
+            const solved = summary.actionPlansSolved || 0;
+            const total = summary.actionPlansTotal || 0;
+            const percentage = summary.actionPlanCompletionRate || 0;
+            if (total > 0) {
+                document.getElementById('actionPlanCompletion').textContent = solved + '/' + total + ' (' + percentage.toFixed(1) + '%)';
+            } else {
+                document.getElementById('actionPlanCompletion').textContent = '0/0 (0%)';
+            }
         }
 
         // Render trend chart

@@ -1220,12 +1220,29 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
             AND is_active = 1
         `);
         
+        // Action Plan Completion Statistics
+        const actionPlanResult = await pool.request().query(`
+            SELECT 
+                COUNT(*) as TotalActionPlans,
+                SUM(CASE WHEN Status = 'Completed' THEN 1 ELSE 0 END) as SolvedActionPlans
+            FROM ActionPlanResponses
+        `);
+        
+        const totalActionPlans = actionPlanResult.recordset[0]?.TotalActionPlans || 0;
+        const solvedActionPlans = actionPlanResult.recordset[0]?.SolvedActionPlans || 0;
+        const actionPlanCompletionRate = totalActionPlans > 0 
+            ? (solvedActionPlans * 100.0 / totalActionPlans) 
+            : 0;
+        
         const summary = {
             totalAudits: summaryResult.recordset[0]?.TotalAudits || 0,
             avgScore: summaryResult.recordset[0]?.AvgScore || 0,
             passRate: summaryResult.recordset[0]?.PassRate || 0,
             totalStores: storesCount.recordset[0]?.cnt || 0,
-            totalAuditors: auditorsCount.recordset[0]?.cnt || 0
+            totalAuditors: auditorsCount.recordset[0]?.cnt || 0,
+            actionPlansTotal: totalActionPlans,
+            actionPlansSolved: solvedActionPlans,
+            actionPlanCompletionRate: actionPlanCompletionRate
         };
         
         // 2. Trend Data (by month/cycle)
