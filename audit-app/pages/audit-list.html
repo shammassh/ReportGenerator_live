@@ -143,6 +143,145 @@
         .stat-card.completed .number { color: #10b981; }
         .stat-card.in-progress .number { color: #f59e0b; }
 
+        /* Failing Branches Section */
+        .failing-branches-section {
+            background: white;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .failing-branches-header {
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .failing-branches-header:hover {
+            background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+        }
+
+        .failing-branches-header h3 {
+            color: #991b1b;
+            font-size: 16px;
+            margin: 0;
+        }
+
+        .toggle-icon {
+            color: #991b1b;
+            font-size: 14px;
+            transition: transform 0.3s ease;
+        }
+
+        .toggle-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .failing-branches-content {
+            padding: 20px;
+            display: block;
+        }
+
+        .failing-branches-content.collapsed {
+            display: none;
+        }
+
+        .cycle-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .cycle-tab {
+            padding: 8px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #6b7280;
+            transition: all 0.3s ease;
+        }
+
+        .cycle-tab:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .cycle-tab.active {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: white;
+        }
+
+        .cycle-tab .fail-count {
+            background: rgba(239, 68, 68, 0.2);
+            color: #dc2626;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            margin-left: 6px;
+        }
+
+        .cycle-tab.active .fail-count {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+
+        .failing-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .failing-branch-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #fef2f2;
+            border-radius: 10px;
+            border-left: 4px solid #ef4444;
+        }
+
+        .failing-branch-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .failing-branch-name {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 14px;
+        }
+
+        .failing-branch-doc {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .failing-branch-score {
+            font-size: 18px;
+            font-weight: 700;
+            color: #ef4444;
+        }
+
+        .empty-state-small {
+            text-align: center;
+            padding: 30px;
+            color: #9ca3af;
+            font-size: 14px;
+            grid-column: 1 / -1;
+        }
+
         /* Score Colors */
         .score-pass { color: #10b981 !important; }
         .score-fail { color: #ef4444 !important; }
@@ -940,6 +1079,20 @@
             </div>
         </div>
 
+        <!-- Failing Branches By Cycle -->
+        <div class="failing-branches-section" id="failingBranchesSection">
+            <div class="failing-branches-header" onclick="toggleFailingBranches()">
+                <h3>❌ Failing Branches by Cycle</h3>
+                <span class="toggle-icon" id="failingBranchesToggle">▼</span>
+            </div>
+            <div class="failing-branches-content" id="failingBranchesContent">
+                <div class="cycle-tabs" id="cycleTabs"></div>
+                <div class="failing-list" id="failingList">
+                    <div class="empty-state-small">Select a cycle to view failing branches</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Filters -->
         <div class="filters-bar">
             <div class="filter-group">
@@ -1104,6 +1257,90 @@
             document.getElementById('completedAudits').textContent = completed;
             document.getElementById('inProgressAudits').textContent = inProgress;
             document.getElementById('avgScore').textContent = avgScore !== '-' ? avgScore + '%' : '-';
+            
+            // Update failing branches
+            updateFailingBranches();
+        }
+
+        // Passing threshold (should match system setting)
+        const PASSING_THRESHOLD = 83;
+
+        function updateFailingBranches() {
+            // Group failing audits by cycle and year
+            const failingByCycle = {};
+            
+            allAudits.forEach(audit => {
+                if (audit.Status === 'Completed' && audit.TotalScore !== null && audit.TotalScore < PASSING_THRESHOLD) {
+                    const cycleKey = `${audit.AuditCycle || 'N/A'} ${audit.AuditYear || ''}`.trim();
+                    if (!failingByCycle[cycleKey]) {
+                        failingByCycle[cycleKey] = [];
+                    }
+                    failingByCycle[cycleKey].push(audit);
+                }
+            });
+
+            // Sort cycles (most recent first)
+            const sortedCycles = Object.keys(failingByCycle).sort((a, b) => {
+                // Extract year and cycle for sorting
+                const [cycleA, yearA] = a.split(' ');
+                const [cycleB, yearB] = b.split(' ');
+                if (yearA !== yearB) return (parseInt(yearB) || 0) - (parseInt(yearA) || 0);
+                return cycleB.localeCompare(cycleA);
+            });
+
+            // Render cycle tabs
+            const tabsHtml = sortedCycles.map((cycle, idx) => {
+                const count = failingByCycle[cycle].length;
+                return `<button class="cycle-tab ${idx === 0 ? 'active' : ''}" onclick="showFailingForCycle('${cycle}')">${cycle} <span class="fail-count">${count}</span></button>`;
+            }).join('');
+
+            document.getElementById('cycleTabs').innerHTML = tabsHtml || '<span class="empty-state-small">No failing audits found</span>';
+
+            // Store for later use BEFORE showing first cycle
+            window.failingByCycle = failingByCycle;
+
+            // Show first cycle by default
+            if (sortedCycles.length > 0) {
+                showFailingForCycle(sortedCycles[0]);
+            } else {
+                document.getElementById('failingList').innerHTML = '<div class="empty-state-small">🎉 All branches passed! No failing audits.</div>';
+            }
+        }
+
+        function showFailingForCycle(cycleKey) {
+            // Update active tab
+            document.querySelectorAll('.cycle-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.textContent.includes(cycleKey.split(' ')[0]));
+            });
+
+            const failingAudits = window.failingByCycle[cycleKey] || [];
+            
+            if (failingAudits.length === 0) {
+                document.getElementById('failingList').innerHTML = '<div class="empty-state-small">No failing branches in this cycle</div>';
+                return;
+            }
+
+            // Sort by score (lowest first)
+            failingAudits.sort((a, b) => (a.TotalScore || 0) - (b.TotalScore || 0));
+
+            const listHtml = failingAudits.map(audit => `
+                <div class="failing-branch-item" onclick="window.location.href='/auditor/fill-audit?id=${audit.AuditID}&readonly=true'" style="cursor: pointer;">
+                    <div class="failing-branch-info">
+                        <div class="failing-branch-name">🏪 ${audit.StoreName || 'Unknown Store'}</div>
+                        <div class="failing-branch-doc">${audit.DocumentNumber || '-'}</div>
+                    </div>
+                    <div class="failing-branch-score">${Math.round(audit.TotalScore)}%</div>
+                </div>
+            `).join('');
+
+            document.getElementById('failingList').innerHTML = listHtml;
+        }
+
+        function toggleFailingBranches() {
+            const content = document.getElementById('failingBranchesContent');
+            const toggle = document.getElementById('failingBranchesToggle');
+            content.classList.toggle('collapsed');
+            toggle.classList.toggle('collapsed');
         }
 
         function applyFilters() {
