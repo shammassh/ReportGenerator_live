@@ -65,15 +65,87 @@ body {
     transform: translateY(-1px);
 }
 
-/* Summary mode - hide detailed sections */
-body.summary-mode .section,
-body.summary-mode .pictures-section,
-body.summary-mode .findings-section {
+/* Summary mode - show header and section findings only, hide everything else */
+body.summary-mode .data-table,
+body.summary-mode .data-table-section,
+body.summary-mode .chart-section,
+body.summary-mode .overall-score-section,
+body.summary-mode .categories-chart,
+body.summary-mode .temperature-readings,
+body.summary-mode .repetitive-summary,
+body.summary-mode .action-plan-section,
+body.summary-mode .all-findings-pictures-section,
+body.summary-mode .all-good-pictures-section,
+body.summary-mode .all-corrective-pictures-section,
+body.summary-mode .section-table,
+body.summary-mode .audit-info-grid,
+body.summary-mode .section-score,
+body.summary-mode .score-breakdown,
+body.summary-mode .performance-banner,
+body.summary-mode .score-display,
+body.summary-mode .threshold-info,
+body.summary-mode .categories-table,
+body.summary-mode .chart-container,
+body.summary-mode .category-scores {
     display: none !important;
 }
 
+/* Keep report header visible */
+body.summary-mode .report-header {
+    display: flex !important;
+}
+
+/* Keep section wrapper visible */
+body.summary-mode .section {
+    display: block !important;
+    margin-bottom: 20px;
+    page-break-inside: avoid;
+}
+
+/* Show section header but hide score */
+body.summary-mode .section-header {
+    display: flex !important;
+    padding: 10px 15px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+/* Show only section title, hide score */
+body.summary-mode .section-header .section-title {
+    display: flex !important;
+}
+
+/* Show section findings table (the findings within each section) */
+body.summary-mode .section-findings {
+    display: block !important;
+}
+
+/* Hide sections that have NO findings (empty section-findings) */
+body.summary-mode .section:not(:has(.section-findings)) {
+    display: none !important;
+}
+
+/* Keep findings and pictures visible in summary mode */
+body.summary-mode .findings-section,
+body.summary-mode .pictures-section {
+    display: block !important;
+}
+
+body.summary-mode .container::before {
+    content: '📋 Findings & Pictures Summary';
+    display: block;
+    text-align: center;
+    padding: 20px;
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e3a5f;
+    border-bottom: 3px solid #667eea;
+    margin-bottom: 30px;
+}
+
 body.summary-mode .container::after {
-    content: '📋 Summary Report - For full details, view the complete report';
+    content: '— End of Summary Report —';
     display: block;
     text-align: center;
     padding: 25px;

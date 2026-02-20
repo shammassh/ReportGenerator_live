@@ -2029,6 +2029,21 @@ class TemplateEngine {
                     }
                 }
                 
+                // Print Summary Only - hides detailed sections, shows only findings and pictures
+                function printSummaryOnly() {
+                    document.body.classList.add('summary-mode');
+                    
+                    // Give browser time to apply styles
+                    setTimeout(() => {
+                        window.print();
+                        
+                        // Remove summary mode after print dialog closes
+                        setTimeout(() => {
+                            document.body.classList.remove('summary-mode');
+                        }, 500);
+                    }, 100);
+                }
+                
                 // Download PDF via server-side generation
                 async function downloadPDF() {
                     const btn = document.querySelector('.pdf-btn');
