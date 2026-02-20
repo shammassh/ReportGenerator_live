@@ -1525,6 +1525,8 @@
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
+            flex-direction: column;
+            align-items: stretch;
         }
 
         .my-audit-btn {
@@ -1561,6 +1563,72 @@
         .my-audit-btn.action-plan:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .my-audit-btn.mark-reviewed {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .my-audit-btn.mark-reviewed:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+        }
+
+        .my-audit-btn.reviewed {
+            background: linear-gradient(135deg, #a3a3a3 0%, #737373 100%);
+            color: white;
+            cursor: default;
+        }
+
+        .my-audit-btn.reviewed:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .review-status {
+            font-size: 11px;
+            color: #059669;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .review-status.pending {
+            color: #d97706;
+        }
+
+        .my-audit-review-status {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed #e5e7eb;
+        }
+
+        .review-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .review-badge.reviewed {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+
+        .review-badge.pending {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+
+        .review-badge .badge-icon {
+            font-size: 14px;
         }
 
         .my-audits-empty {
@@ -3171,15 +3239,61 @@
                     return;
                 }
 
-                // Render audits grid (read-only - no action plan button)
+                // Get notification statuses (includes action plan submission info)
+                const auditIds = completedAudits.map(a => a.AuditID);
+                let notificationStatuses = {};
+                try {
+                    const statusResponse = await fetch('/api/audits/notification-statuses', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ auditIds })
+                    });
+                    const statusData = await statusResponse.json();
+                    if (statusData.success) {
+                        notificationStatuses = statusData.statuses;
+                    }
+                } catch (e) {
+                    console.error('Error fetching notification statuses:', e);
+                }
+
+                // Render audits grid with review status
                 const auditsHtml = completedAudits.map(audit => {
                     const score = audit.TotalScore !== null ? Math.round(audit.TotalScore) : null;
                     const passingGrade = audit.PassingGrade || 83;
                     const scoreClass = score !== null ? (score >= passingGrade ? 'pass' : 'fail') : '';
                     const scoreText = score !== null ? `${score}%` : 'N/A';
                     
+                    // Check if action plan was submitted by Store Manager
+                    const status = notificationStatuses[audit.AuditID] || {};
+                    const isReviewed = !!status.actionPlanSubmittedDate;
+                    const reviewedByName = status.actionPlanSubmittedBy || '';
+                    const reviewedAt = status.actionPlanSubmittedDate ? new Date(status.actionPlanSubmittedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+                    
+                    // Generate review status display (read-only, no button)
+                    let reviewStatusHtml = '';
+                    if (isReviewed) {
+                        reviewStatusHtml = `
+                            <div class="review-badge reviewed">
+                                <span class="badge-icon">✅</span>
+                                <span class="badge-text">Reviewed</span>
+                            </div>
+                            <div class="review-status">
+                                <span>👤 ${reviewedByName}</span>
+                                <span>• ${reviewedAt}</span>
+                            </div>
+                        `;
+                    } else {
+                        reviewStatusHtml = `
+                            <div class="review-badge pending">
+                                <span class="badge-icon">⏳</span>
+                                <span class="badge-text">Pending Review</span>
+                            </div>
+                            <div class="review-status pending">Awaiting Store Manager response</div>
+                        `;
+                    }
+                    
                     return `
-                        <div class="my-audit-item">
+                        <div class="my-audit-item" id="auditCard_${audit.AuditID}">
                             <div class="my-audit-header">
                                 <span class="my-audit-doc">${audit.DocumentNumber || '-'}</span>
                                 <span class="my-audit-score ${scoreClass}">${scoreText}</span>
@@ -3202,6 +3316,9 @@
                                 <button class="my-audit-btn view-report" onclick="viewReport(${audit.AuditID})">
                                     📄 View Report
                                 </button>
+                            </div>
+                            <div class="my-audit-review-status">
+                                ${reviewStatusHtml}
                             </div>
                         </div>
                     `;
