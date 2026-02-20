@@ -4816,7 +4816,7 @@ app.get('/api/audits/:auditId/department-report/:department/download-word', requ
             return res.status(400).json({ success: false, error: 'Invalid department' });
         }
         
-        console.log(`📄 [API] Downloading ${department} Word report for audit ${auditId}`);
+        console.log(`📄 [API] Downloading ${department} Word report with pictures for audit ${auditId}`);
         
         // Get department report data
         const report = await AuditService.getDepartmentReport(auditId, department);
@@ -4827,59 +4827,154 @@ app.get('/api/audits/:auditId/department-report/:department/download-word', requ
         }
         
         // Use docx library to create Word document
-        const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, HeadingLevel } = require('docx');
+        const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, HeadingLevel, ImageRun, AlignmentType } = require('docx');
+        const fsSync = require('fs');
+        const pathModule = require('path');
         
-        // Build table rows
-        const tableRows = [
-            // Header row
-            new TableRow({
-                children: [
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '#', bold: true })] })], width: { size: 5, type: WidthType.PERCENTAGE } }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Ref', bold: true })] })], width: { size: 8, type: WidthType.PERCENTAGE } }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Question', bold: true })] })], width: { size: 25, type: WidthType.PERCENTAGE } }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Finding', bold: true })] })], width: { size: 22, type: WidthType.PERCENTAGE } }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Corrective Action', bold: true })] })], width: { size: 25, type: WidthType.PERCENTAGE } }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Priority', bold: true })] })], width: { size: 10, type: WidthType.PERCENTAGE } }),
-                ],
-                tableHeader: true,
-            })
+        // Helper function to get picture buffer from file storage
+        async function getPictureBuffer(picture) {
+            try {
+                // Try to read from file first
+                if (picture.filePath) {
+                    const STORAGE_BASE = pathModule.join(__dirname, 'storage', 'pictures');
+                    const fullPath = pathModule.join(STORAGE_BASE, picture.filePath);
+                    if (fsSync.existsSync(fullPath)) {
+                        return fsSync.readFileSync(fullPath);
+                    }
+                }
+                
+                // Fall back to SQL binary data
+                const picData = await AuditService.getPictureById(picture.pictureId);
+                if (picData && picData.fileData) {
+                    return Buffer.isBuffer(picData.fileData) ? picData.fileData : Buffer.from(picData.fileData);
+                }
+                
+                return null;
+            } catch (err) {
+                console.warn(`⚠️ Could not load picture ${picture.pictureId}: ${err.message}`);
+                return null;
+            }
+        }
+        
+        // Build document content
+        const docChildren = [
+            new Paragraph({
+                children: [new TextRun({ text: `${report.departmentDisplayName || department} Department`, bold: true, size: 36 })],
+                heading: HeadingLevel.HEADING_1,
+                alignment: AlignmentType.CENTER,
+            }),
+            new Paragraph({
+                children: [new TextRun({ text: 'Follow-up Report', size: 28, color: '666666' })],
+                alignment: AlignmentType.CENTER,
+            }),
+            new Paragraph({ text: '' }),
+            new Paragraph({ children: [new TextRun({ text: `Document: `, bold: true }), new TextRun({ text: auditData.documentNumber })] }),
+            new Paragraph({ children: [new TextRun({ text: `Store: `, bold: true }), new TextRun({ text: auditData.storeName })] }),
+            new Paragraph({ children: [new TextRun({ text: `Audit Date: `, bold: true }), new TextRun({ text: new Date(auditData.auditDate).toLocaleDateString() })] }),
+            new Paragraph({ children: [new TextRun({ text: `Total Findings: `, bold: true }), new TextRun({ text: String(report.items.length) })] }),
+            new Paragraph({ text: '' }),
         ];
         
-        // Data rows
+        // Process each item with pictures
         for (let i = 0; i < report.items.length; i++) {
             const item = report.items[i];
-            tableRows.push(new TableRow({
+            
+            // Item header
+            docChildren.push(new Paragraph({
                 children: [
-                    new TableCell({ children: [new Paragraph({ text: String(i + 1) })] }),
-                    new TableCell({ children: [new Paragraph({ text: item.referenceValue || '' })] }),
-                    new TableCell({ children: [new Paragraph({ text: item.title || '' })] }),
-                    new TableCell({ children: [new Paragraph({ text: item.finding || '' })] }),
-                    new TableCell({ children: [new Paragraph({ text: item.correctiveAction || item.cr || '' })] }),
-                    new TableCell({ children: [new Paragraph({ text: item.priority || '-' })] }),
+                    new TextRun({ text: `Finding #${i + 1}`, bold: true, size: 24 }),
+                    new TextRun({ text: `  [${item.priority || 'Medium'}]`, bold: true, size: 20, color: item.priority === 'High' ? 'DC2626' : item.priority === 'Low' ? '10B981' : 'F59E0B' })
                 ],
+                spacing: { before: 300, after: 100 },
             }));
+            
+            // Item details table
+            docChildren.push(new Table({
+                rows: [
+                    new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Reference', bold: true })] })], width: { size: 25, type: WidthType.PERCENTAGE }, shading: { fill: 'F3F4F6' } }),
+                            new TableCell({ children: [new Paragraph({ text: item.referenceValue || '-' })], width: { size: 75, type: WidthType.PERCENTAGE } }),
+                        ],
+                    }),
+                    new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Section', bold: true })] })], shading: { fill: 'F3F4F6' } }),
+                            new TableCell({ children: [new Paragraph({ text: item.section || '-' })] }),
+                        ],
+                    }),
+                    new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Question', bold: true })] })], shading: { fill: 'F3F4F6' } }),
+                            new TableCell({ children: [new Paragraph({ text: item.title || '' })] }),
+                        ],
+                    }),
+                    new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Finding', bold: true })] })], shading: { fill: 'F3F4F6' } }),
+                            new TableCell({ children: [new Paragraph({ text: item.finding || '-' })] }),
+                        ],
+                    }),
+                    new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Corrective Action', bold: true })] })], shading: { fill: 'F3F4F6' } }),
+                            new TableCell({ children: [new Paragraph({ text: item.correctiveAction || item.cr || '-' })] }),
+                        ],
+                    }),
+                ],
+                width: { size: 100, type: WidthType.PERCENTAGE },
+            }));
+            
+            // Add pictures if present
+            if (item.pictures && item.pictures.length > 0) {
+                docChildren.push(new Paragraph({
+                    children: [new TextRun({ text: 'Evidence Photos:', bold: true, size: 20 })],
+                    spacing: { before: 150, after: 50 },
+                }));
+                
+                for (const pic of item.pictures) {
+                    try {
+                        const buffer = await getPictureBuffer(pic);
+                        if (buffer) {
+                            // Add picture type label
+                            const picTypeLabel = (pic.pictureType || '').toLowerCase().includes('finding') 
+                                ? 'Finding Photo' 
+                                : (pic.pictureType || '').toLowerCase().includes('corrective') 
+                                    ? 'Corrective Photo' 
+                                    : 'Photo';
+                            
+                            docChildren.push(new Paragraph({
+                                children: [new TextRun({ text: picTypeLabel, italics: true, size: 18, color: '666666' })],
+                            }));
+                            
+                            // Add the embedded image
+                            docChildren.push(new Paragraph({
+                                children: [
+                                    new ImageRun({
+                                        data: buffer,
+                                        transformation: {
+                                            width: 350,
+                                            height: 250,
+                                        },
+                                    }),
+                                ],
+                                spacing: { after: 150 },
+                            }));
+                        }
+                    } catch (imgErr) {
+                        console.warn(`⚠️ Could not embed image: ${imgErr.message}`);
+                    }
+                }
+            }
+            
+            // Spacing between items
+            docChildren.push(new Paragraph({ text: '' }));
         }
         
         // Create document
         const doc = new Document({
             sections: [{
-                children: [
-                    new Paragraph({
-                        children: [new TextRun({ text: `${report.departmentDisplayName || department} Department - Follow-up Report`, bold: true, size: 32 })],
-                        heading: HeadingLevel.HEADING_1,
-                    }),
-                    new Paragraph({ text: '' }),
-                    new Paragraph({ children: [new TextRun({ text: `Document: `, bold: true }), new TextRun({ text: auditData.documentNumber })] }),
-                    new Paragraph({ children: [new TextRun({ text: `Store: `, bold: true }), new TextRun({ text: auditData.storeName })] }),
-                    new Paragraph({ children: [new TextRun({ text: `Audit Date: `, bold: true }), new TextRun({ text: new Date(auditData.auditDate).toLocaleDateString() })] }),
-                    new Paragraph({ children: [new TextRun({ text: `Total Items: `, bold: true }), new TextRun({ text: String(report.items.length) })] }),
-                    new Paragraph({ text: '' }),
-                    new Paragraph({ text: '' }),
-                    new Table({
-                        rows: tableRows,
-                        width: { size: 100, type: WidthType.PERCENTAGE },
-                    }),
-                ],
+                children: docChildren,
             }],
         });
         
