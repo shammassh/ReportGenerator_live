@@ -9,8 +9,8 @@ BEGIN
     ) VALUES (
         'orgTreeBtn',
         'Org Tree',
-        'Developer',
-        '🏢',
+        'Developer Tools',
+        N'🏢',
         '/admin/org-hierarchy',
         'Page',
         'Admin',
@@ -22,6 +22,7 @@ BEGIN
 END
 ELSE
 BEGIN
-    PRINT 'orgTreeBtn already exists in MenuPermissions';
+    UPDATE MenuPermissions SET Category = 'Developer Tools' WHERE ButtonID = 'orgTreeBtn';
+    PRINT 'Updated orgTreeBtn category to Developer Tools';
 END
 GO
