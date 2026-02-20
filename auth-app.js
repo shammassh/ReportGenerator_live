@@ -632,6 +632,88 @@ app.get('/api/stores/manager-assignments', requireAuth, requirePagePermission(ST
     }
 });
 
+// Get all area manager assignments (grouped by store)
+// MUST be before /:storeId routes
+app.get('/api/stores/area-manager-assignments', requireAuth, requirePagePermission(STORE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+
+        const result = await pool.request().query(`
+            SELECT uaa.StoreID, u.id as userId, u.email, u.display_name as displayName
+            FROM UserAreaAssignments uaa
+            INNER JOIN Users u ON uaa.UserID = u.id
+            WHERE u.is_active = 1 AND u.role = 'AreaManager'
+            ORDER BY uaa.StoreID, u.display_name
+        `);
+
+        // Group by store
+        const assignments = {};
+        result.recordset.forEach(row => {
+            if (!assignments[row.StoreID]) {
+                assignments[row.StoreID] = [];
+            }
+            assignments[row.StoreID].push({
+                userId: row.userId,
+                email: row.email,
+                displayName: row.displayName
+            });
+        });
+
+        res.json({ success: true, data: assignments });
+    } catch (error) {
+        console.error('Error getting area manager assignments:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get all head of operations assignments (grouped by brand)
+// MUST be before /:storeId routes
+app.get('/api/stores/head-of-ops-assignments', requireAuth, requirePagePermission(STORE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+
+        const result = await pool.request().query(`
+            SELECT uba.Brand, u.id as userId, u.email, u.display_name as displayName
+            FROM UserBrandAssignments uba
+            INNER JOIN Users u ON uba.UserID = u.id
+            WHERE u.is_active = 1 AND u.role = 'HeadOfOperations'
+            ORDER BY uba.Brand, u.display_name
+        `);
+
+        // Group by brand
+        const assignments = {};
+        result.recordset.forEach(row => {
+            if (!assignments[row.Brand]) {
+                assignments[row.Brand] = [];
+            }
+            assignments[row.Brand].push({
+                userId: row.userId,
+                email: row.email,
+                displayName: row.displayName
+            });
+        });
+
+        res.json({ success: true, data: assignments });
+    } catch (error) {
+        console.error('Error getting head of ops assignments:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Create store
 app.post('/api/stores', requireAuth, requirePagePermission(STORE_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
     try {
@@ -2177,6 +2259,188 @@ app.post('/api/menu/settings/reset', requireAuth, requireRole('Admin'), async (r
 });
 
 console.log('[APP] Menu settings API loaded');
+
+// ==========================================
+// Organization Hierarchy API
+// ==========================================
+
+// Serve org hierarchy page
+app.get('/admin/org-hierarchy', requireAuth, requireAutoRole('Admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin', 'pages', 'org-hierarchy.html'));
+});
+
+// Get organization hierarchy data
+app.get('/api/admin/org-hierarchy', requireAuth, requirePagePermission('orgTreeBtn', 'Admin'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const brandFilter = req.query.brand;
+        
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+
+        // Get all brands (or filtered)
+        let brandsQuery = `SELECT BrandID, BrandName, BrandCode, BrandIcon FROM Brands WHERE IsActive = 1`;
+        if (brandFilter) {
+            brandsQuery += ` AND BrandName = @brandFilter`;
+        }
+        brandsQuery += ` ORDER BY BrandName`;
+        
+        const brandsRequest = pool.request();
+        if (brandFilter) {
+            brandsRequest.input('brandFilter', sql.NVarChar, brandFilter);
+        }
+        const brandsResult = await brandsRequest.query(brandsQuery);
+
+        // Get all stores with brand info
+        let storesQuery = `
+            SELECT s.StoreID, s.StoreCode, s.StoreName, s.Location, s.Brand, s.IsActive
+            FROM Stores s
+            WHERE s.IsActive = 1
+        `;
+        if (brandFilter) {
+            storesQuery += ` AND s.Brand = @brandFilter`;
+        }
+        storesQuery += ` ORDER BY s.Brand, s.StoreName`;
+        
+        const storesRequest = pool.request();
+        if (brandFilter) {
+            storesRequest.input('brandFilter', sql.NVarChar, brandFilter);
+        }
+        const storesResult = await storesRequest.query(storesQuery);
+
+        // Get all Head of Operations with brand assignments
+        const hoResult = await pool.request().query(`
+            SELECT u.id, u.email, u.display_name, uba.Brand
+            FROM Users u
+            INNER JOIN UserBrandAssignments uba ON u.id = uba.UserID
+            WHERE u.is_active = 1 AND u.role = 'HeadOfOperations'
+            ORDER BY uba.Brand, u.display_name
+        `);
+
+        // Get all Area Managers with store assignments
+        const amResult = await pool.request().query(`
+            SELECT u.id, u.email, u.display_name, uaa.StoreID
+            FROM Users u
+            INNER JOIN UserAreaAssignments uaa ON u.id = uaa.UserID
+            WHERE u.is_active = 1 AND u.role = 'AreaManager'
+            ORDER BY u.display_name
+        `);
+
+        // Get all Store Managers with store assignments
+        const smResult = await pool.request().query(`
+            SELECT u.id, u.email, u.display_name, sma.StoreID, sma.IsPrimary
+            FROM Users u
+            INNER JOIN StoreManagerAssignments sma ON u.id = sma.UserID
+            WHERE u.is_active = 1
+            ORDER BY sma.IsPrimary DESC, u.display_name
+        `);
+
+        // Build hierarchy structure
+        const hierarchy = [];
+        const hoByBrand = {};
+        const amByStore = {};
+        const smByStore = {};
+
+        // Group HeadOfOps by brand
+        hoResult.recordset.forEach(ho => {
+            if (!hoByBrand[ho.Brand]) hoByBrand[ho.Brand] = [];
+            hoByBrand[ho.Brand].push({
+                userId: ho.id,
+                email: ho.email,
+                displayName: ho.display_name
+            });
+        });
+
+        // Group Area Managers by store
+        amResult.recordset.forEach(am => {
+            if (!amByStore[am.StoreID]) amByStore[am.StoreID] = [];
+            amByStore[am.StoreID].push({
+                userId: am.id,
+                email: am.email,
+                displayName: am.display_name
+            });
+        });
+
+        // Group Store Managers by store
+        smResult.recordset.forEach(sm => {
+            if (!smByStore[sm.StoreID]) smByStore[sm.StoreID] = [];
+            smByStore[sm.StoreID].push({
+                userId: sm.id,
+                email: sm.email,
+                displayName: sm.display_name,
+                isPrimary: sm.IsPrimary
+            });
+        });
+
+        // Build brand-centric hierarchy
+        const storesByBrand = {};
+        storesResult.recordset.forEach(store => {
+            const brand = store.Brand || 'Unassigned';
+            if (!storesByBrand[brand]) storesByBrand[brand] = [];
+            storesByBrand[brand].push({
+                storeId: store.StoreID,
+                storeCode: store.StoreCode,
+                storeName: store.StoreName,
+                location: store.Location,
+                areaManagers: amByStore[store.StoreID] || [],
+                storeManagers: smByStore[store.StoreID] || []
+            });
+        });
+
+        // Build final hierarchy array
+        brandsResult.recordset.forEach(brand => {
+            hierarchy.push({
+                brandId: brand.BrandID,
+                brandName: brand.BrandName,
+                brandCode: brand.BrandCode,
+                brandIcon: brand.BrandIcon,
+                headsOfOps: hoByBrand[brand.BrandName] || [],
+                stores: storesByBrand[brand.BrandName] || []
+            });
+        });
+
+        // Add unassigned stores if not filtering
+        if (!brandFilter && storesByBrand['Unassigned']?.length > 0) {
+            hierarchy.push({
+                brandId: 0,
+                brandName: 'Unassigned',
+                brandCode: 'NA',
+                brandIcon: '❓',
+                headsOfOps: [],
+                stores: storesByBrand['Unassigned']
+            });
+        }
+
+        // Calculate stats
+        const uniqueHO = new Set(hoResult.recordset.map(h => h.id)).size;
+        const uniqueAM = new Set(amResult.recordset.map(a => a.id)).size;
+        const uniqueSM = new Set(smResult.recordset.map(s => s.id)).size;
+
+        console.log(`[OrgHierarchy] Loaded: ${brandsResult.recordset.length} brands, ${storesResult.recordset.length} stores`);
+
+        res.json({
+            success: true,
+            data: hierarchy,
+            stats: {
+                brands: brandsResult.recordset.length,
+                headsOfOps: uniqueHO,
+                areaManagers: uniqueAM,
+                stores: storesResult.recordset.length,
+                storeManagers: uniqueSM
+            }
+        });
+    } catch (error) {
+        console.error('[OrgHierarchy] Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+console.log('[APP] Organization hierarchy API loaded');
 
 // ==========================================
 // Role Management API

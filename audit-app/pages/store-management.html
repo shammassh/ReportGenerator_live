@@ -331,6 +331,16 @@
             color: #059669;
         }
 
+        .manager-badge.area-manager {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .manager-badge.head-of-ops {
+            background: #ede9fe;
+            color: #5b21b6;
+        }
+
         .manager-badge .remove-btn {
             background: none;
             border: none;
@@ -845,6 +855,8 @@
         let brands = [];
         let availableManagers = [];
         let managerAssignments = {};
+        let areaManagerAssignments = {}; // { storeId: [{ userId, email, displayName }] }
+        let headOfOpsAssignments = {}; // { brand: [{ userId, email, displayName }] }
         let selectedEditManagers = [];
         let selectedAssignManagers = [];
         let managerSearchTerm = '';
@@ -859,6 +871,8 @@
             loadSchemas();
             loadBrands();
             loadAvailableManagers();
+            loadAreaManagerAssignments();
+            loadHeadOfOpsAssignments();
             loadStores();
             
             // Close dropdowns when clicking outside
@@ -881,6 +895,30 @@
                 }
             } catch (error) {
                 console.error('Error loading available managers:', error);
+            }
+        }
+
+        // Load area manager assignments
+        async function loadAreaManagerAssignments() {
+            try {
+                const response = await fetch('/api/stores/area-manager-assignments');
+                const result = await response.json();
+                areaManagerAssignments = result.data || {};
+                console.log('[DEBUG] Loaded area manager assignments');
+            } catch (error) {
+                console.error('Error loading area manager assignments:', error);
+            }
+        }
+
+        // Load head of ops assignments
+        async function loadHeadOfOpsAssignments() {
+            try {
+                const response = await fetch('/api/stores/head-of-ops-assignments');
+                const result = await response.json();
+                headOfOpsAssignments = result.data || {};
+                console.log('[DEBUG] Loaded head of ops assignments');
+            } catch (error) {
+                console.error('Error loading head of ops assignments:', error);
             }
         }
 
@@ -1012,6 +1050,8 @@
                             <th>Store Name</th>
                             <th>Location</th>
                             <th>Schema</th>
+                            <th>Head of Ops</th>
+                            <th>Area Manager</th>
                             <th>Store Managers</th>
                             <th>Status</th>
                             <th>Actions</th>
@@ -1020,6 +1060,9 @@
                     <tbody>
                         ${storesToRender.map((store, index) => {
                             const managers = managerAssignments[store.storeId] || [];
+                            const areaManagers = areaManagerAssignments[store.storeId] || [];
+                            const storeBrand = store.brand || '';
+                            const headsOfOps = headOfOpsAssignments[storeBrand] || [];
                             return `
                             <tr>
                                 <td><strong>${index + 1}</strong></td>
@@ -1027,6 +1070,20 @@
                                 <td>${store.storeName}</td>
                                 <td>${store.location || '-'}</td>
                                 <td><span class="schema-badge">${store.schemaName}</span></td>
+                                    <td class="managers-cell">
+                                        ${headsOfOps.length > 0 ? headsOfOps.map(ho => `
+                                            <span class="manager-badge head-of-ops">
+                                                👔 ${ho.displayName || ho.email}
+                                            </span>
+                                        `).join('') : '<span style="color: #999;">-</span>'}
+                                    </td>
+                                    <td class="managers-cell">
+                                        ${areaManagers.length > 0 ? areaManagers.map(am => `
+                                            <span class="manager-badge area-manager">
+                                                👥 ${am.displayName || am.email}
+                                            </span>
+                                        `).join('') : '<span style="color: #999;">-</span>'}
+                                    </td>
                                     <td class="managers-cell">
                                         ${managers.length > 0 ? managers.map(m => `
                                             <span class="manager-badge ${m.isPrimary ? 'primary' : ''}">

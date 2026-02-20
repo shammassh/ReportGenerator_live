@@ -691,6 +691,28 @@
             background: linear-gradient(135deg, #047857 0%, #059669 100%);
         }
 
+        .org-tree-btn {
+            background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        }
+
+        .org-tree-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(91, 33, 182, 0.4);
+            background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%);
+        }
+
         .email-templates-btn {
             background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
             color: white;
@@ -2179,6 +2201,10 @@
                             <span>👥</span>
                             Role Management
                         </button>
+                        <button class="org-tree-btn" id="orgTreeBtn" onclick="window.location.href='/admin/org-hierarchy'" style="display: none;">
+                            <span>🏢</span>
+                            Org Tree
+                        </button>
                     </div>
                 </div>
             </div>
@@ -2613,7 +2639,8 @@
                 { id: 'sessionManagementBtn', elementId: 'sessionManagementBtn' },
                 { id: 'dbInspectorBtn', elementId: 'dbInspectorBtn' },
                 { id: 'menuSettingsBtn', elementId: 'menuSettingsBtn' },
-                { id: 'roleManagementBtn', elementId: 'roleManagementBtn' }
+                { id: 'roleManagementBtn', elementId: 'roleManagementBtn' },
+                { id: 'orgTreeBtn', elementId: 'orgTreeBtn' }
             ];
 
             let usedDatabase = false;
