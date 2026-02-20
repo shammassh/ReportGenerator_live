@@ -90,11 +90,12 @@ class AnalyticsPage {
                     <p>Avg Score</p>
                 </div>
             </div>
-            <div class="summary-card">
+            <div class="summary-card clickable" onclick="showUnsolvedActionPlans()" title="Click to view unsolved items">
                 <div class="card-icon">📝</div>
                 <div class="card-content">
                     <h3 id="actionPlanCompletion">-</h3>
                     <p>Action Plans Solved</p>
+                    <span class="click-hint">Click to view unsolved ➡️</span>
                 </div>
             </div>
         </section>
@@ -242,6 +243,40 @@ class AnalyticsPage {
         </div>
     </main>
 
+    <!-- Unsolved Action Plans Modal -->
+    <div id="unsolvedModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>📝 Unsolved Action Plan Items</h2>
+                <button class="modal-close" onclick="closeUnsolvedModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-filters">
+                    <input type="text" id="unsolvedSearch" placeholder="🔍 Search store, question, finding..." oninput="filterUnsolvedItems()">
+                    <select id="unsolvedPriorityFilter" onchange="filterUnsolvedItems()">
+                        <option value="">All Priorities</option>
+                        <option value="High">🔴 High</option>
+                        <option value="Medium">🟡 Medium</option>
+                        <option value="Low">🟢 Low</option>
+                    </select>
+                    <select id="unsolvedStatusFilter" onchange="filterUnsolvedItems()">
+                        <option value="">All Statuses</option>
+                        <option value="Open">Open</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Deferred">Deferred</option>
+                    </select>
+                </div>
+                <div class="modal-stats">
+                    <span id="unsolvedCount">Loading...</span>
+                </div>
+                <div class="unsolved-table-container" id="unsolvedTableContainer">
+                    <p class="loading-text">Loading unsolved items...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Chart instances
         let trendChart = null;
@@ -255,6 +290,111 @@ class AnalyticsPage {
         document.addEventListener('DOMContentLoaded', async () => {
             await initFilters();
             await loadAnalytics();
+        });
+
+        // Unsolved action plans data
+        let unsolvedItems = [];
+
+        // Show unsolved action plans modal
+        async function showUnsolvedActionPlans() {
+            document.getElementById('unsolvedModal').style.display = 'flex';
+            document.getElementById('unsolvedTableContainer').innerHTML = '<p class="loading-text">Loading unsolved items...</p>';
+            
+            try {
+                const response = await fetch('/api/admin/analytics/unsolved-action-plans');
+                const data = await response.json();
+                
+                if (data.success) {
+                    unsolvedItems = data.items;
+                    document.getElementById('unsolvedCount').textContent = data.count + ' unsolved items';
+                    renderUnsolvedTable(unsolvedItems);
+                } else {
+                    document.getElementById('unsolvedTableContainer').innerHTML = '<p class="error-text">Error loading data</p>';
+                }
+            } catch (error) {
+                console.error('Error loading unsolved items:', error);
+                document.getElementById('unsolvedTableContainer').innerHTML = '<p class="error-text">Error: ' + error.message + '</p>';
+            }
+        }
+
+        // Close modal
+        function closeUnsolvedModal() {
+            document.getElementById('unsolvedModal').style.display = 'none';
+        }
+
+        // Filter unsolved items
+        function filterUnsolvedItems() {
+            const search = document.getElementById('unsolvedSearch').value.toLowerCase();
+            const priority = document.getElementById('unsolvedPriorityFilter').value;
+            const status = document.getElementById('unsolvedStatusFilter').value;
+            
+            const filtered = unsolvedItems.filter(item => {
+                const matchesSearch = !search || 
+                    (item.StoreName || '').toLowerCase().includes(search) ||
+                    (item.SectionName || '').toLowerCase().includes(search) ||
+                    (item.Finding || '').toLowerCase().includes(search) ||
+                    (item.DocumentNumber || '').toLowerCase().includes(search) ||
+                    (item.PersonInCharge || '').toLowerCase().includes(search);
+                const matchesPriority = !priority || item.Priority === priority;
+                const matchesStatus = !status || item.Status === status;
+                return matchesSearch && matchesPriority && matchesStatus;
+            });
+            
+            document.getElementById('unsolvedCount').textContent = filtered.length + ' of ' + unsolvedItems.length + ' items';
+            renderUnsolvedTable(filtered);
+        }
+
+        // Render unsolved table
+        function renderUnsolvedTable(items) {
+            if (items.length === 0) {
+                document.getElementById('unsolvedTableContainer').innerHTML = '<p class="empty-text">🎉 No unsolved action plan items found!</p>';
+                return;
+            }
+            
+            const html = \`
+                <table class="unsolved-table">
+                    <thead>
+                        <tr>
+                            <th>Store</th>
+                            <th>Document</th>
+                            <th>Section</th>
+                            <th>Ref</th>
+                            <th>Finding</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Person In Charge</th>
+                            <th>Deadline</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        \${items.map(item => \`
+                            <tr class="priority-\${(item.Priority || 'none').toLowerCase()}">
+                                <td>\${item.StoreName || '-'}</td>
+                                <td>\${item.DocumentNumber || '-'}</td>
+                                <td>\${item.SectionName || '-'}</td>
+                                <td>\${item.ReferenceValue || '-'}</td>
+                                <td class="finding-cell" title="\${item.Finding || ''}">\${truncate(item.Finding, 50)}</td>
+                                <td><span class="priority-badge priority-\${(item.Priority || 'none').toLowerCase()}">\${item.Priority || 'N/A'}</span></td>
+                                <td><span class="status-badge status-\${(item.Status || 'open').toLowerCase().replace(' ', '-')}">\${item.Status || 'Open'}</span></td>
+                                <td>\${item.PersonInCharge || '-'}</td>
+                                <td>\${item.Deadline ? new Date(item.Deadline).toLocaleDateString() : '-'}</td>
+                            </tr>
+                        \`).join('')}
+                    </tbody>
+                </table>
+            \`;
+            document.getElementById('unsolvedTableContainer').innerHTML = html;
+        }
+
+        // Truncate text helper
+        function truncate(text, maxLength) {
+            if (!text) return '-';
+            return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+        }
+
+        // Close modal on overlay click
+        document.getElementById('unsolvedModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'unsolvedModal') closeUnsolvedModal();
         });
 
         // Initialize filter dropdowns

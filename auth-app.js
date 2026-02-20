@@ -1473,6 +1473,54 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
     }
 });
 
+// Get unsolved action plan items
+app.get('/api/admin/analytics/unsolved-action-plans', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request().query(`
+            SELECT 
+                apr.ResponseID,
+                apr.DocumentNumber,
+                apr.Section as SectionName,
+                apr.ReferenceValue,
+                apr.Finding,
+                apr.SuggestedAction,
+                apr.ActionTaken,
+                apr.Status,
+                apr.Priority,
+                apr.Deadline,
+                apr.PersonInCharge,
+                apr.CreatedDate,
+                ai.StoreName,
+                ai.AuditDate
+            FROM ActionPlanResponses apr
+            LEFT JOIN AuditInstances ai ON apr.DocumentNumber = ai.DocumentNumber
+            WHERE apr.Status != 'Completed' OR apr.Status IS NULL
+            ORDER BY 
+                CASE apr.Priority 
+                    WHEN 'High' THEN 1 
+                    WHEN 'Medium' THEN 2 
+                    WHEN 'Low' THEN 3 
+                    ELSE 4 
+                END,
+                apr.CreatedDate DESC
+        `);
+        
+        res.json({
+            success: true,
+            count: result.recordset.length,
+            items: result.recordset
+        });
+        
+    } catch (error) {
+        console.error('Error fetching unsolved action plans:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Custom Query API - Dynamic analytics queries
 app.get('/api/admin/analytics/custom-query', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
     try {
