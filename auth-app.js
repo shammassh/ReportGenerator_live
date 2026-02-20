@@ -4806,6 +4806,98 @@ app.post('/api/audits/:auditId/generate-department-report/:department', requireA
     }
 });
 
+// Download department report as Word document (text only, no pictures)
+app.get('/api/audits/:auditId/department-report/:department/download-word', requireAuth, async (req, res) => {
+    try {
+        const auditId = parseInt(req.params.auditId);
+        const department = req.params.department;
+        
+        if (!['Maintenance', 'Procurement', 'Cleaning'].includes(department)) {
+            return res.status(400).json({ success: false, error: 'Invalid department' });
+        }
+        
+        console.log(`📄 [API] Downloading ${department} Word report for audit ${auditId}`);
+        
+        // Get department report data
+        const report = await AuditService.getDepartmentReport(auditId, department);
+        const auditData = await AuditService.getAudit(auditId);
+        
+        if (!auditData) {
+            return res.status(404).json({ success: false, error: 'Audit not found' });
+        }
+        
+        // Use docx library to create Word document
+        const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, HeadingLevel } = require('docx');
+        
+        // Build table rows
+        const tableRows = [
+            // Header row
+            new TableRow({
+                children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '#', bold: true })] })], width: { size: 5, type: WidthType.PERCENTAGE } }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Ref', bold: true })] })], width: { size: 8, type: WidthType.PERCENTAGE } }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Question', bold: true })] })], width: { size: 25, type: WidthType.PERCENTAGE } }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Finding', bold: true })] })], width: { size: 22, type: WidthType.PERCENTAGE } }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Corrective Action', bold: true })] })], width: { size: 25, type: WidthType.PERCENTAGE } }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Priority', bold: true })] })], width: { size: 10, type: WidthType.PERCENTAGE } }),
+                ],
+                tableHeader: true,
+            })
+        ];
+        
+        // Data rows
+        for (let i = 0; i < report.items.length; i++) {
+            const item = report.items[i];
+            tableRows.push(new TableRow({
+                children: [
+                    new TableCell({ children: [new Paragraph({ text: String(i + 1) })] }),
+                    new TableCell({ children: [new Paragraph({ text: item.referenceValue || '' })] }),
+                    new TableCell({ children: [new Paragraph({ text: item.title || '' })] }),
+                    new TableCell({ children: [new Paragraph({ text: item.finding || '' })] }),
+                    new TableCell({ children: [new Paragraph({ text: item.correctiveAction || item.cr || '' })] }),
+                    new TableCell({ children: [new Paragraph({ text: item.priority || '-' })] }),
+                ],
+            }));
+        }
+        
+        // Create document
+        const doc = new Document({
+            sections: [{
+                children: [
+                    new Paragraph({
+                        children: [new TextRun({ text: `${report.departmentDisplayName || department} Department - Follow-up Report`, bold: true, size: 32 })],
+                        heading: HeadingLevel.HEADING_1,
+                    }),
+                    new Paragraph({ text: '' }),
+                    new Paragraph({ children: [new TextRun({ text: `Document: `, bold: true }), new TextRun({ text: auditData.documentNumber })] }),
+                    new Paragraph({ children: [new TextRun({ text: `Store: `, bold: true }), new TextRun({ text: auditData.storeName })] }),
+                    new Paragraph({ children: [new TextRun({ text: `Audit Date: `, bold: true }), new TextRun({ text: new Date(auditData.auditDate).toLocaleDateString() })] }),
+                    new Paragraph({ children: [new TextRun({ text: `Total Items: `, bold: true }), new TextRun({ text: String(report.items.length) })] }),
+                    new Paragraph({ text: '' }),
+                    new Paragraph({ text: '' }),
+                    new Table({
+                        rows: tableRows,
+                        width: { size: 100, type: WidthType.PERCENTAGE },
+                    }),
+                ],
+            }],
+        });
+        
+        // Generate buffer
+        const buffer = await Packer.toBuffer(doc);
+        
+        // Send as download
+        const fileName = `${department}_Report_${auditData.documentNumber}.docx`;
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.send(buffer);
+        
+    } catch (error) {
+        console.error('Error downloading department Word report:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Get report data (JSON, no file generation)
 app.get('/api/audits/:auditId/report-data', requireAuth, async (req, res) => {
     try {

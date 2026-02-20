@@ -590,6 +590,8 @@ class ReportGenerator {
         .btn-print-fast:hover { transform: translateY(-2px); }
         .btn-print-full { background: ${colors.header}; color: white; }
         .btn-print-full:hover { transform: translateY(-2px); opacity: 0.9; }
+        .btn-download-word { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; }
+        .btn-download-word:hover { transform: translateY(-2px); }
         @media print { 
             .no-print { display: none !important; }
             .container { max-width: 100%; }
@@ -612,7 +614,14 @@ class ReportGenerator {
         <div class="action-buttons no-print">
             <button id="printCompressedBtn" class="btn-print-fast" onclick="printCompressed()">🖨️ Print (Fast - Compressed)</button>
             <button class="btn-print-full" onclick="window.print()">🖨️ Print (Full Quality)</button>
+            <button id="downloadWordBtn" class="btn-download-word" onclick="downloadWord()">📄 Download Word</button>
         </div>
+
+        <script>
+            // Store audit info for Word download
+            window.auditId = ${data.auditId};
+            window.department = '${data.department}';
+        </script>
 
         <div class="summary">
             <div class="summary-value">${data.findings.length}</div>
@@ -721,6 +730,46 @@ class ReportGenerator {
             } catch (error) {
                 console.error('Compression error:', error);
                 window.print();
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }        
+        // Download as Word document (server-side generation)
+        async function downloadWord() {
+            const btn = document.getElementById('downloadWordBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Generating Word...';
+            
+            try {
+                // Call server endpoint to generate Word document
+                const response = await fetch(\`/api/audits/\${window.auditId}/department-report/\${window.department}/download-word\`);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to generate Word document');
+                }
+                
+                // Get blob and download
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = \`\${window.department}_Report_${data.documentNumber}.docx\`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                btn.innerHTML = '✅ Downloaded';
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Word download error:', error);
+                alert('Failed to download Word document: ' + error.message);
                 btn.disabled = false;
                 btn.innerHTML = originalText;
             }
