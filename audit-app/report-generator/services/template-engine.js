@@ -385,9 +385,15 @@ class TemplateEngine {
             const sectionRef = temps.bad[0].referenceValue || '';
             
             const badRows = temps.bad.map(reading => {
-                const pictureHtml = reading.picture 
-                    ? `<img src="${reading.picture}" class="temp-picture" onclick="openImageModal(this.src)" />`
-                    : '-';
+                // Support multiple pictures
+                let pictureHtml = '-';
+                if (reading.pictures && reading.pictures.length > 0) {
+                    pictureHtml = reading.pictures.map(pic => 
+                        `<img src="${pic}" class="temp-picture" onclick="openImageModal(this.src)" />`
+                    ).join(' ');
+                } else if (reading.picture) {
+                    pictureHtml = `<img src="${reading.picture}" class="temp-picture" onclick="openImageModal(this.src)" />`;
+                }
                 return `
                     <tr class="temp-bad">
                         <td>${escapeHtml(reading.section || '')}</td>
@@ -428,9 +434,15 @@ class TemplateEngine {
             const sectionRef = temps.good[0].referenceValue || '';
             
             const goodRows = temps.good.map(reading => {
-                const pictureHtml = reading.picture 
-                    ? `<img src="${reading.picture}" class="temp-picture" onclick="openImageModal(this.src)" />`
-                    : '-';
+                // Support multiple pictures
+                let pictureHtml = '-';
+                if (reading.pictures && reading.pictures.length > 0) {
+                    pictureHtml = reading.pictures.map(pic => 
+                        `<img src="${pic}" class="temp-picture" onclick="openImageModal(this.src)" />`
+                    ).join(' ');
+                } else if (reading.picture) {
+                    pictureHtml = `<img src="${reading.picture}" class="temp-picture" onclick="openImageModal(this.src)" />`;
+                }
                 return `
                     <tr class="temp-good">
                         <td>${escapeHtml(reading.section || '')}</td>

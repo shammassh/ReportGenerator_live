@@ -1116,7 +1116,8 @@ class AuditService {
             `);
             
             // Helper function to save fridge picture to file (with optimization)
-            const saveFridgePicture = async (readingId, auditId, base64DataUrl) => {
+            // Supports multiple pictures per reading with index parameter
+            const saveFridgePicture = async (readingId, auditId, base64DataUrl, pictureIndex = 0) => {
                 if (!base64DataUrl || !base64DataUrl.startsWith('data:image')) {
                     return null;
                 }
@@ -1130,7 +1131,7 @@ class AuditService {
                 
                 // Optimize the image
                 const ImageOptimizer = require('../../services/image-optimizer');
-                const originalFileName = `fridge_${readingId}.${originalExtension}`;
+                const originalFileName = `fridge_${readingId}_${pictureIndex}.${originalExtension}`;
                 const optimized = await ImageOptimizer.optimizeBuffer(buffer, originalFileName);
                 
                 // Determine final extension (might change if PNG converted to JPG)
@@ -1138,13 +1139,14 @@ class AuditService {
                 const finalBuffer = optimized.buffer;
                 
                 if (optimized.optimized) {
-                    console.log(`📸 [ImageOptimizer] Fridge pic ${readingId}: ${(optimized.originalSize/1024).toFixed(0)}KB → ${(optimized.newSize/1024).toFixed(0)}KB (${optimized.savingsPercent}% saved)`);
+                    console.log(`📸 [ImageOptimizer] Fridge pic ${readingId}_${pictureIndex}: ${(optimized.originalSize/1024).toFixed(0)}KB → ${(optimized.newSize/1024).toFixed(0)}KB (${optimized.savingsPercent}% saved)`);
                 }
                 
                 const dirPath = path.join(FRIDGE_STORAGE_BASE, 'audits', String(auditId), 'fridges');
                 await fs.mkdir(dirPath, { recursive: true });
                 
-                const fileName = `fridge_${readingId}.${finalExtension}`;
+                // Include picture index in filename for multiple pictures
+                const fileName = pictureIndex > 0 ? `fridge_${readingId}_${pictureIndex}.${finalExtension}` : `fridge_${readingId}.${finalExtension}`;
                 const fullPath = path.join(dirPath, fileName);
                 const relativePath = path.relative(FRIDGE_STORAGE_BASE, fullPath).replace(/\\/g, '/');
                 
@@ -1204,15 +1206,22 @@ class AuditService {
                 
                 const readingId = insertResult.recordset[0].ReadingID;
                 
-                // Save picture to file if present
-                if (reading.picture) {
-                    const picturePath = await saveFridgePicture(readingId, auditId, reading.picture);
+                // Save pictures to files (supports multiple pictures)
+                const pictures = reading.pictures || (reading.picture ? [reading.picture] : []);
+                const picturePaths = [];
+                for (let i = 0; i < pictures.length; i++) {
+                    const picturePath = await saveFridgePicture(readingId, auditId, pictures[i], i);
                     if (picturePath) {
-                        await pool.request()
-                            .input('ReadingID', sql.Int, readingId)
-                            .input('PicturePath', sql.NVarChar(500), picturePath)
-                            .query(`UPDATE FridgeReadings SET PicturePath = @PicturePath WHERE ReadingID = @ReadingID`);
+                        picturePaths.push(picturePath);
                     }
+                }
+                if (picturePaths.length > 0) {
+                    // Store as JSON array for multiple pictures, or single path for backward compatibility
+                    const pathValue = picturePaths.length === 1 ? picturePaths[0] : JSON.stringify(picturePaths);
+                    await pool.request()
+                        .input('ReadingID', sql.Int, readingId)
+                        .input('PicturePath', sql.NVarChar(500), pathValue)
+                        .query(`UPDATE FridgeReadings SET PicturePath = @PicturePath WHERE ReadingID = @ReadingID`);
                 }
             }
             
@@ -1242,15 +1251,22 @@ class AuditService {
                 
                 const readingId = insertResult.recordset[0].ReadingID;
                 
-                // Save picture to file if present
-                if (reading.picture) {
-                    const picturePath = await saveFridgePicture(readingId, auditId, reading.picture);
+                // Save pictures to files (supports multiple pictures)
+                const pictures = reading.pictures || (reading.picture ? [reading.picture] : []);
+                const picturePaths = [];
+                for (let i = 0; i < pictures.length; i++) {
+                    const picturePath = await saveFridgePicture(readingId, auditId, pictures[i], i);
                     if (picturePath) {
-                        await pool.request()
-                            .input('ReadingID', sql.Int, readingId)
-                            .input('PicturePath', sql.NVarChar(500), picturePath)
-                            .query(`UPDATE FridgeReadings SET PicturePath = @PicturePath WHERE ReadingID = @ReadingID`);
+                        picturePaths.push(picturePath);
                     }
+                }
+                if (picturePaths.length > 0) {
+                    // Store as JSON array for multiple pictures, or single path for backward compatibility
+                    const pathValue = picturePaths.length === 1 ? picturePaths[0] : JSON.stringify(picturePaths);
+                    await pool.request()
+                        .input('ReadingID', sql.Int, readingId)
+                        .input('PicturePath', sql.NVarChar(500), pathValue)
+                        .query(`UPDATE FridgeReadings SET PicturePath = @PicturePath WHERE ReadingID = @ReadingID`);
                 }
             }
             
@@ -1325,6 +1341,21 @@ class AuditService {
                 return `/api/fridge-pictures/file/${picturePath}`;
             };
             
+            // Helper to get multiple picture URLs from stored path (may be JSON array or single path)
+            const getPictureUrls = (picturePath) => {
+                if (!picturePath) return [];
+                try {
+                    // Check if it's a JSON array
+                    if (picturePath.startsWith('[')) {
+                        const paths = JSON.parse(picturePath);
+                        return paths.map(p => `/api/fridge-pictures/file/${p}`);
+                    }
+                } catch (e) {
+                    // Not JSON, single path
+                }
+                return [`/api/fridge-pictures/file/${picturePath}`];
+            };
+            
             const goodReadings = result.recordset
                 .filter(r => r.readingType === 'Good')
                 .map(r => ({
@@ -1333,7 +1364,8 @@ class AuditService {
                     unit: r.unit,
                     displayTemp: r.displayTemp,
                     probeTemp: r.probeTemp,
-                    picture: getPictureUrl(r.picturePath)
+                    picture: getPictureUrl(r.picturePath), // Backward compatibility
+                    pictures: getPictureUrls(r.picturePath) // Multiple pictures support
                 }));
             
             const badReadings = result.recordset
@@ -1345,7 +1377,8 @@ class AuditService {
                     displayTemp: r.displayTemp,
                     probeTemp: r.probeTemp,
                     issue: r.issue,
-                    picture: getPictureUrl(r.picturePath)
+                    picture: getPictureUrl(r.picturePath), // Backward compatibility
+                    pictures: getPictureUrls(r.picturePath) // Multiple pictures support
                 }));
             
             return { goodReadings, badReadings, enabledSections };

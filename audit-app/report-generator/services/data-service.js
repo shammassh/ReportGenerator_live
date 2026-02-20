@@ -346,10 +346,6 @@ class DataService {
      * @returns {Promise<Object>} - Temperature readings grouped by type
      */
     async getTemperatureReadings(auditId) {
-        const fs = require('fs');
-        const path = require('path');
-        const FRIDGE_STORAGE_BASE = path.join(__dirname, '..', '..', '..', 'storage', 'fridge-pictures');
-        
         try {
             console.log(`🌡️ Fetching temperature readings for audit: ${auditId}`);
 
@@ -369,31 +365,24 @@ class DataService {
                 bad: []
             };
             
-            // Helper to convert PicturePath to base64 for standalone reports
-            const pictureToBase64 = (picturePath) => {
-                if (!picturePath) return null;
+            // Helper to get picture URLs (supports multiple pictures stored as JSON array)
+            const getPictureUrls = (picturePath) => {
+                if (!picturePath) return [];
                 try {
-                    const fullPath = path.join(FRIDGE_STORAGE_BASE, picturePath);
-                    const buffer = fs.readFileSync(fullPath);
-                    const extension = path.extname(fullPath).toLowerCase().slice(1);
-                    const mimeTypes = {
-                        'jpg': 'image/jpeg',
-                        'jpeg': 'image/jpeg',
-                        'png': 'image/png',
-                        'gif': 'image/gif',
-                        'webp': 'image/webp'
-                    };
-                    const mimeType = mimeTypes[extension] || 'image/jpeg';
-                    return `data:${mimeType};base64,${buffer.toString('base64')}`;
+                    // Check if it's a JSON array
+                    if (picturePath.startsWith('[')) {
+                        const paths = JSON.parse(picturePath);
+                        return paths.map(p => `/api/fridge-pictures/file/${p}`);
+                    }
                 } catch (e) {
-                    console.warn(`Warning: Could not read fridge picture: ${picturePath}`, e.message);
-                    return null;
+                    // Not JSON, treat as single path
                 }
+                return [`/api/fridge-pictures/file/${picturePath}`];
             };
 
             for (const row of result.recordset) {
-                // For reports, convert file to base64 for standalone HTML
-                const picture = row.PicturePath ? pictureToBase64(row.PicturePath) : null;
+                // Get picture URLs (not base64 - pictures served via API endpoint)
+                const pictures = getPictureUrls(row.PicturePath);
                 
                 const reading = {
                     readingId: row.ReadingID,
@@ -405,7 +394,8 @@ class DataService {
                     displayTemp: row.DisplayTemp,
                     probeTemp: row.ProbeTemp,
                     issue: row.Issue,
-                    picture: picture,
+                    picture: pictures.length > 0 ? pictures[0] : null, // Backward compatibility
+                    pictures: pictures, // Multiple pictures support
                     readingType: row.ReadingType,
                     createdAt: row.CreatedAt
                 };

@@ -1356,6 +1356,21 @@
             background: rgba(99, 102, 241, 0.05);
         }
 
+        .fridge-picture-zone.drag-over {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+            transform: scale(1.02);
+        }
+
+        .fridge-picture-zone.drag-over .fridge-picture-icon {
+            animation: bounce 0.5s ease infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
         .fridge-picture-icon {
             font-size: 2rem;
             margin-bottom: 0.5rem;
@@ -1366,11 +1381,71 @@
             font-size: 0.85rem;
         }
 
+        .fridge-picture-text .drag-hint {
+            display: block;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 0.25rem;
+        }
+
         .fridge-picture-preview {
             max-width: 100%;
             max-height: 150px;
             border-radius: 8px;
             margin-top: 1rem;
+        }
+
+        /* Multiple pictures gallery */
+        .fridge-pictures-gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 1rem;
+        }
+
+        .fridge-picture-item {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .fridge-picture-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .fridge-picture-item .remove-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 20px;
+            height: 20px;
+            background: rgba(239, 68, 68, 0.9);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .fridge-picture-item:hover .remove-btn {
+            opacity: 1;
+        }
+
+        .fridge-pictures-count {
+            font-size: 0.8rem;
+            color: #10b981;
+            margin-top: 0.5rem;
+            font-weight: 500;
         }
 
         .fridge-modal-actions {
@@ -1449,6 +1524,22 @@
             font-size: 0.85rem;
             font-weight: 500;
             color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .pic-count-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            background: rgba(99, 102, 241, 0.15);
+            color: #6366f1;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 600;
         }
 
         .fridge-entry-temps {
@@ -1654,13 +1745,17 @@
             </div>
             
             <div class="fridge-form-group">
-                <label class="fridge-form-label">📷 Picture</label>
-                <div class="fridge-picture-zone" onclick="document.getElementById('fridgeGoodPicture').click()">
+                <label class="fridge-form-label">📷 Pictures <span style="font-size: 0.75rem; color: #94a3b8;">(multiple allowed)</span></label>
+                <div class="fridge-picture-zone" id="fridgeGoodDropZone" onclick="document.getElementById('fridgeGoodPicture').click()">
                     <div class="fridge-picture-icon">📤</div>
-                    <div class="fridge-picture-text">Click to upload picture</div>
-                    <input type="file" id="fridgeGoodPicture" accept="image/*" style="display: none;" onchange="previewFridgePicture('good', this)">
+                    <div class="fridge-picture-text">
+                        Click to upload or drag & drop
+                        <span class="drag-hint">Supports: JPG, PNG, GIF (multiple files)</span>
+                    </div>
+                    <input type="file" id="fridgeGoodPicture" accept="image/*" multiple style="display: none;" onchange="handleFridgePictureSelect('good', this)">
                 </div>
-                <img id="fridgeGoodPreview" class="fridge-picture-preview" style="display: none;">
+                <div class="fridge-pictures-gallery" id="fridgeGoodGallery"></div>
+                <div class="fridge-pictures-count" id="fridgeGoodCount"></div>
             </div>
             
             <div class="fridge-modal-actions">
@@ -1726,13 +1821,17 @@
             </div>
             
             <div class="fridge-form-group">
-                <label class="fridge-form-label">📷 Picture</label>
-                <div class="fridge-picture-zone" onclick="document.getElementById('fridgeBadPicture').click()">
+                <label class="fridge-form-label">📷 Pictures <span style="font-size: 0.75rem; color: #94a3b8;">(multiple allowed)</span></label>
+                <div class="fridge-picture-zone" id="fridgeBadDropZone" onclick="document.getElementById('fridgeBadPicture').click()">
                     <div class="fridge-picture-icon">📤</div>
-                    <div class="fridge-picture-text">Click to upload picture</div>
-                    <input type="file" id="fridgeBadPicture" accept="image/*" style="display: none;" onchange="previewFridgePicture('bad', this)">
+                    <div class="fridge-picture-text">
+                        Click to upload or drag & drop
+                        <span class="drag-hint">Supports: JPG, PNG, GIF (multiple files)</span>
+                    </div>
+                    <input type="file" id="fridgeBadPicture" accept="image/*" multiple style="display: none;" onchange="handleFridgePictureSelect('bad', this)">
                 </div>
-                <img id="fridgeBadPreview" class="fridge-picture-preview" style="display: none;">
+                <div class="fridge-pictures-gallery" id="fridgeBadGallery"></div>
+                <div class="fridge-pictures-count" id="fridgeBadCount"></div>
             </div>
             
             <div class="fridge-modal-actions">
@@ -1771,6 +1870,9 @@
         
         // Track which sections have temperature monitoring enabled
         let tempMonitoringSections = {};
+        
+        // Temporary storage for pictures being added in the modal
+        let pendingFridgePictures = { good: [], bad: [] };
 
         // Get audit ID from URL (supports both path params and query params)
         function getAuditId() {
@@ -2875,13 +2977,22 @@
                 return '';
             }
             
+            // Helper to get picture count
+            const getPicCount = (entry) => {
+                if (entry.pictures && entry.pictures.length > 0) return entry.pictures.length;
+                if (entry.picture) return 1;
+                return 0;
+            };
+            
             let html = '<div class="fridge-entries-list">';
             
             goodEntries.forEach((entry, idx) => {
+                const picCount = getPicCount(entry);
+                const picBadge = picCount > 0 ? `<span class="pic-count-badge">📷 ${picCount}</span>` : '';
                 html += `
                     <div class="fridge-entry-item good">
                         <div class="fridge-entry-info">
-                            <div class="fridge-entry-section">✅ ${entry.section} - ${entry.unit}</div>
+                            <div class="fridge-entry-section">✅ ${entry.section} - ${entry.unit} ${picBadge}</div>
                             <div class="fridge-entry-temps">Display: ${entry.displayTemp}°C | Air: ${entry.probeTemp}°C</div>
                         </div>
                         <div class="fridge-entry-actions">
@@ -2893,10 +3004,12 @@
             });
             
             badEntries.forEach((entry, idx) => {
+                const picCount = getPicCount(entry);
+                const picBadge = picCount > 0 ? `<span class="pic-count-badge">📷 ${picCount}</span>` : '';
                 html += `
                     <div class="fridge-entry-item bad">
                         <div class="fridge-entry-info">
-                            <div class="fridge-entry-section">❌ ${entry.section} - ${entry.unit}</div>
+                            <div class="fridge-entry-section">❌ ${entry.section} - ${entry.unit} ${picBadge}</div>
                             <div class="fridge-entry-temps">Display: ${entry.displayTemp}°C | Air: ${entry.probeTemp}°C</div>
                             <div class="fridge-entry-issue">⚠️ ${entry.issue}</div>
                         </div>
@@ -2912,6 +3025,9 @@
             return html;
         }
         
+        // Track if drag and drop has been initialized
+        let dragDropInitialized = false;
+        
         // Open fridge modal
         function openFridgeModal(type, responseId) {
             currentFridgeResponseId = responseId;
@@ -2926,6 +3042,12 @@
             const titleEl = modal.querySelector('.fridge-modal-title');
             if (titleEl) {
                 titleEl.innerHTML = type === 'good' ? '✅ Add Good Fridge Reading' : '❌ Add Bad Fridge Reading';
+            }
+            
+            // Initialize drag and drop on first modal open
+            if (!dragDropInitialized) {
+                setTimeout(initFridgeDragAndDrop, 100);
+                dragDropInitialized = true;
             }
         }
         
@@ -2991,26 +3113,136 @@
             document.getElementById(prefix + 'DisplayTemp').value = '';
             document.getElementById(prefix + 'ProbeTemp').value = '';
             document.getElementById(prefix + 'Picture').value = '';
-            document.getElementById(prefix + 'Preview').style.display = 'none';
-            document.getElementById(prefix + 'Preview').src = '';
+            
+            // Clear gallery
+            const gallery = document.getElementById(prefix + 'Gallery');
+            if (gallery) gallery.innerHTML = '';
+            const countEl = document.getElementById(prefix + 'Count');
+            if (countEl) countEl.textContent = '';
+            pendingFridgePictures[type] = [];
             
             if (type === 'bad') {
                 document.getElementById('fridgeBadIssue').value = '';
             }
         }
         
-        // Preview fridge picture
-        function previewFridgePicture(type, input) {
-            const preview = document.getElementById(type === 'good' ? 'fridgeGoodPreview' : 'fridgeBadPreview');
-            
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
-                };
-                reader.readAsDataURL(input.files[0]);
+        // Handle multiple picture selection from file input
+        function handleFridgePictureSelect(type, input) {
+            if (input.files && input.files.length > 0) {
+                for (const file of input.files) {
+                    if (file.type.startsWith('image/')) {
+                        addFridgePicture(type, file);
+                    }
+                }
             }
+        }
+        
+        // Add a picture to the pending list and update gallery
+        function addFridgePicture(type, file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                pendingFridgePictures[type].push({
+                    name: file.name,
+                    data: e.target.result
+                });
+                renderFridgePicturesGallery(type);
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // Remove a picture from pending list
+        function removeFridgePicture(type, index) {
+            pendingFridgePictures[type].splice(index, 1);
+            renderFridgePicturesGallery(type);
+        }
+        
+        // Render the pictures gallery in modal
+        function renderFridgePicturesGallery(type) {
+            const gallery = document.getElementById(type === 'good' ? 'fridgeGoodGallery' : 'fridgeBadGallery');
+            const countEl = document.getElementById(type === 'good' ? 'fridgeGoodCount' : 'fridgeBadCount');
+            const pictures = pendingFridgePictures[type];
+            
+            if (pictures.length === 0) {
+                gallery.innerHTML = '';
+                countEl.textContent = '';
+                return;
+            }
+            
+            gallery.innerHTML = pictures.map((pic, idx) => `
+                <div class="fridge-picture-item">
+                    <img src="${pic.data}" alt="Picture ${idx + 1}">
+                    <button type="button" class="remove-btn" onclick="event.stopPropagation(); removeFridgePicture('${type}', ${idx})">×</button>
+                </div>
+            `).join('');
+            
+            countEl.textContent = `${pictures.length} picture${pictures.length > 1 ? 's' : ''} selected`;
+        }
+        
+        // Initialize drag and drop for fridge picture zones
+        function initFridgeDragAndDrop() {
+            // First, prevent browser from opening dropped files globally
+            document.addEventListener('dragover', (e) => {
+                e.preventDefault();
+            });
+            document.addEventListener('drop', (e) => {
+                e.preventDefault();
+            });
+            
+            const zones = [
+                { id: 'fridgeGoodDropZone', type: 'good' },
+                { id: 'fridgeBadDropZone', type: 'bad' }
+            ];
+            
+            zones.forEach(({ id, type }) => {
+                const zone = document.getElementById(id);
+                if (!zone) {
+                    console.log(`Drop zone ${id} not found, will retry later`);
+                    return;
+                }
+                
+                console.log(`Initializing drag & drop for ${id}`);
+                
+                // Prevent default drag behaviors
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    zone.addEventListener(eventName, preventDefaults, false);
+                });
+                
+                function preventDefaults(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                
+                // Highlight drop zone on drag enter/over
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    zone.addEventListener(eventName, () => {
+                        zone.classList.add('drag-over');
+                    }, false);
+                });
+                
+                // Remove highlight on drag leave/drop
+                ['dragleave', 'drop'].forEach(eventName => {
+                    zone.addEventListener(eventName, () => {
+                        zone.classList.remove('drag-over');
+                    }, false);
+                });
+                
+                // Handle dropped files (multiple)
+                zone.addEventListener('drop', (e) => {
+                    const files = e.dataTransfer.files;
+                    let addedCount = 0;
+                    for (const file of files) {
+                        if (file.type.startsWith('image/')) {
+                            addFridgePicture(type, file);
+                            addedCount++;
+                        }
+                    }
+                    if (addedCount > 0) {
+                        showToast(`${addedCount} image${addedCount > 1 ? 's' : ''} added!`, 'success');
+                    } else if (files.length > 0) {
+                        showToast('Please drop image files only', 'error');
+                    }
+                }, false);
+            });
         }
         
         // Save fridge reading
@@ -3021,7 +3253,6 @@
             const unit = document.getElementById(prefix + 'Unit').value;
             const displayTemp = document.getElementById(prefix + 'DisplayTemp').value;
             const probeTemp = document.getElementById(prefix + 'ProbeTemp').value;
-            const pictureInput = document.getElementById(prefix + 'Picture');
             
             // Validation
             if (!section) {
@@ -3050,18 +3281,21 @@
                 }
             }
             
-            // Get picture as base64 (keep existing picture if editing and no new file selected)
-            let picture = null;
-            if (pictureInput.files && pictureInput.files[0]) {
-                picture = await fileToBase64(pictureInput.files[0]);
+            // Get pictures array (from pending pictures or keep existing when editing)
+            let pictures = [];
+            if (pendingFridgePictures[type].length > 0) {
+                pictures = pendingFridgePictures[type].map(p => p.data);
             } else if (editingFridgeEntry) {
-                // Keep existing picture when editing
+                // Keep existing pictures when editing
                 const existingEntries = type === 'good' 
                     ? fridgeGoodReadings.filter(r => r.responseId === editingFridgeEntry.responseId)
                     : fridgeBadReadings.filter(r => r.responseId === editingFridgeEntry.responseId);
                 const existingEntry = existingEntries[editingFridgeEntry.index];
-                if (existingEntry) {
-                    picture = existingEntry.picture;
+                if (existingEntry && existingEntry.pictures) {
+                    pictures = existingEntry.pictures;
+                } else if (existingEntry && existingEntry.picture) {
+                    // Backward compatibility: single picture to array
+                    pictures = [existingEntry.picture];
                 }
             }
             
@@ -3072,7 +3306,8 @@
                 unit: unit,
                 displayTemp: displayTemp.trim(),
                 probeTemp: probeTemp.trim(),
-                picture: picture,
+                pictures: pictures, // Now an array
+                picture: pictures.length > 0 ? pictures[0] : null, // Keep backward compatibility
                 timestamp: new Date().toISOString()
             };
             
@@ -3198,6 +3433,10 @@
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', init);
+        
+        // Prevent browser from opening dropped files globally (runs immediately)
+        document.addEventListener('dragover', (e) => e.preventDefault());
+        document.addEventListener('drop', (e) => e.preventDefault());
     </script>
 </body>
 </html>
