@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <title>Escalation Settings - Food Safety Audit System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #1e3a5f;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #495057;
+            border: 1px solid #dee2e6;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .info-banner {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .info-banner .icon {
+            font-size: 40px;
+        }
+
+        .info-banner .text h3 {
+            color: #1e3a5f;
+            margin-bottom: 4px;
+        }
+
+        .info-banner .text p {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .settings-panel {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .settings-section {
+            margin-bottom: 30px;
+        }
+
+        .settings-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e3a5f;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+
+        .setting-item {
+            background: linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%);
+            border: 2px solid #fcd34d;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-item.toggle-setting {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .setting-item .label {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .setting-item .label .icon {
+            font-size: 28px;
+            margin-top: 2px;
+        }
+
+        .setting-item .label h4 {
+            font-size: 16px;
+            color: #92400e;
+            margin-bottom: 4px;
+        }
+
+        .setting-item .label p {
+            font-size: 13px;
+            color: #a16207;
+            max-width: 500px;
+        }
+
+        .input-group {
+            margin-top: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #78350f;
+            margin-bottom: 8px;
+        }
+
+        .input-group input {
+            width: 100%;
+            max-width: 200px;
+            padding: 12px 16px;
+            font-size: 16px;
+            font-weight: 600;
+            border: 2px solid #fcd34d;
+            border-radius: 8px;
+            background: white;
+            transition: all 0.2s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+        }
+
+        .input-group input.changed {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+
+        .input-hint {
+            font-size: 12px;
+            color: #a16207;
+            margin-top: 6px;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 32px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #e5e7eb;
+            transition: 0.3s;
+            border-radius: 32px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: #10b981;
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(28px);
+        }
+
+        .toggle-status {
+            margin-top: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .toggle-status.enabled {
+            color: #059669;
+        }
+
+        .toggle-status.disabled {
+            color: #dc2626;
+        }
+
+        /* Info Card */
+        .info-card {
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            border: 2px solid #38bdf8;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 20px;
+        }
+
+        .info-card h4 {
+            color: #0369a1;
+            font-size: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-card ol {
+            padding-left: 20px;
+            color: #0c4a6e;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .info-card li {
+            margin-bottom: 4px;
+        }
+
+        /* Save Bar */
+        .save-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 16px 40px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 100;
+        }
+
+        .save-bar.visible {
+            transform: translateY(0);
+        }
+
+        .save-bar .changes-text {
+            color: #f59e0b;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            background: #10b981;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            transform: translateX(150%);
+            transition: transform 0.3s ease;
+            z-index: 200;
+        }
+
+        .toast.visible {
+            transform: translateX(0);
+        }
+
+        .toast.error {
+            background: #ef4444;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #f59e0b;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Escalation Log Table */
+        .log-section {
+            margin-top: 30px;
+        }
+
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .log-table th,
+        .log-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .log-table th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .log-table tr:hover {
+            background: #fef3c7;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-reminder {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .badge-escalation {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .badge-sent {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge-failed {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .empty-log {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .empty-log .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>
+            <span>⏰</span>
+            Action Plan Escalation Settings
+        </h1>
+        <div class="header-actions">
+            <button class="btn btn-secondary" onclick="window.location.href='/dashboard'">
+                <span>←</span> Back to Dashboard
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="info-banner">
+            <div class="icon">📋</div>
+            <div class="text">
+                <h3>Configure Automatic Escalation</h3>
+                <p>Set up automatic reminders and escalation when Store Managers don't complete action plans on time.</p>
+            </div>
+        </div>
+
+        <div id="loadingState" class="settings-panel loading">
+            <div class="spinner"></div>
+            <p>Loading settings...</p>
+        </div>
+
+        <div id="settingsContent" style="display: none;">
+            <div class="settings-panel">
+                <div class="settings-section">
+                    <div class="section-title">
+                        <span>⏱️</span>
+                        Deadline Configuration
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="label">
+                            <div class="icon">📅</div>
+                            <div>
+                                <h4>Action Plan Deadline</h4>
+                                <p>Number of days Store Manager has to complete action plan after inspection</p>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="deadlineDays">Days to Complete</label>
+                            <input type="number" id="deadlineDays" min="1" max="30" value="7" onchange="markChanged(this)">
+                            <div class="input-hint">Recommended: 7 days</div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="label">
+                            <div class="icon">🔔</div>
+                            <div>
+                                <h4>Send Reminder Before Deadline</h4>
+                                <p>Send reminder emails before the deadline to ensure Store Managers complete action plans on time</p>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="reminderDays">Days Before Deadline (comma-separated)</label>
+                            <input type="text" id="reminderDays" value="3,1" placeholder="e.g., 3,1" onchange="markChanged(this)">
+                            <div class="input-hint">Example: "3,1" sends reminders 3 days and 1 day before deadline</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="section-title">
+                        <span>🚨</span>
+                        Escalation Settings
+                    </div>
+
+                    <div class="setting-item toggle-setting">
+                        <div class="label">
+                            <div class="icon">⬆️</div>
+                            <div>
+                                <h4>Enable Auto-Escalation</h4>
+                                <p>Automatically escalate to Area Manager when deadline passes without completion</p>
+                                <div id="autoEscalationStatus" class="toggle-status enabled">✅ Enabled</div>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoEscalationEnabled" checked onchange="updateToggleStatus('autoEscalation'); markChanged(this)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item toggle-setting">
+                        <div class="label">
+                            <div class="icon">📧</div>
+                            <div>
+                                <h4>Email Notifications</h4>
+                                <p>Send email notifications for reminders and escalations</p>
+                                <div id="emailNotificationsStatus" class="toggle-status enabled">✅ Enabled</div>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="emailNotificationsEnabled" checked onchange="updateToggleStatus('emailNotifications'); markChanged(this)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="label">
+                            <div class="icon">⏳</div>
+                            <div>
+                                <h4>Grace Period</h4>
+                                <p>Hours to wait after deadline before escalating</p>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="gracePeriodHours">Grace Period (hours)</label>
+                            <input type="number" id="gracePeriodHours" min="0" max="72" value="24" onchange="markChanged(this)">
+                            <div class="input-hint">Set to 0 for immediate escalation after deadline</div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="label">
+                            <div class="icon">🔢</div>
+                            <div>
+                                <h4>Maximum Reminders</h4>
+                                <p>Maximum number of reminder emails to send before deadline</p>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="maxReminders">Max Reminders</label>
+                            <input type="number" id="maxReminders" min="1" max="10" value="3" onchange="markChanged(this)">
+                            <div class="input-hint">Recommended: 3 reminders</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h4><span>💡</span> How Escalation Works</h4>
+                    <ol>
+                        <li><strong>Inspector completes inspection</strong> → Action Plan is generated</li>
+                        <li><strong>Store Manager receives notification</strong> to complete action plan</li>
+                        <li><strong>Reminders are sent</strong> at configured intervals before deadline</li>
+                        <li><strong>If not completed within deadline</strong> → Assigned Area Manager is notified</li>
+                        <li><strong>Area Manager can contact Store Manager</strong> to resolve outstanding items</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Escalation Log Section -->
+            <div class="settings-panel log-section">
+                <div class="section-title">
+                    <span>📊</span>
+                    Recent Escalation Activity
+                </div>
+
+                <div id="logTableContainer">
+                    <table class="log-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Document</th>
+                                <th>Event</th>
+                                <th>Recipient</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logTableBody">
+                            <!-- Filled dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="emptyLog" class="empty-log" style="display: none;">
+                    <div class="icon">📭</div>
+                    <p>No escalation events yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Bar -->
+    <div class="save-bar" id="saveBar">
+        <div class="changes-text">
+            <span>⚠️</span>
+            You have unsaved changes
+        </div>
+        <button class="btn btn-secondary" onclick="resetChanges()">Cancel</button>
+        <button class="btn btn-success" onclick="saveSettings()" id="saveBtn">
+            <span>💾</span>
+            Save Escalation Settings
+        </button>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <span id="toastIcon">✅</span>
+        <span id="toastMessage">Settings saved successfully!</span>
+    </div>
+
+    <script>
+        let originalSettings = {};
+        let hasChanges = false;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadSettings();
+        });
+
+        // Load settings from API
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/escalation-settings');
+                const data = await response.json();
+
+                if (data.success) {
+                    populateSettings(data.settings);
+                    originalSettings = { ...data.settings };
+                } else {
+                    showToast('Failed to load settings: ' + data.error, true);
+                }
+
+                // Load escalation log
+                await loadEscalationLog();
+
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('settingsContent').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                showToast('Failed to load settings', true);
+            }
+        }
+
+        // Populate form with settings
+        function populateSettings(settings) {
+            document.getElementById('deadlineDays').value = settings.DeadlineDays || 7;
+            document.getElementById('reminderDays').value = settings.ReminderDaysBefore || '3,1';
+            document.getElementById('autoEscalationEnabled').checked = settings.AutoEscalationEnabled !== false;
+            document.getElementById('emailNotificationsEnabled').checked = settings.EmailNotificationsEnabled !== false;
+            document.getElementById('gracePeriodHours').value = settings.GracePeriodHours || 24;
+            document.getElementById('maxReminders').value = settings.MaxReminders || 3;
+
+            updateToggleStatus('autoEscalation');
+            updateToggleStatus('emailNotifications');
+        }
+
+        // Update toggle status text
+        function updateToggleStatus(type) {
+            const checkbox = document.getElementById(type + 'Enabled');
+            const status = document.getElementById(type + 'Status');
+            
+            if (checkbox.checked) {
+                status.textContent = '✅ Enabled';
+                status.className = 'toggle-status enabled';
+            } else {
+                status.textContent = '❌ Disabled';
+                status.className = 'toggle-status disabled';
+            }
+        }
+
+        // Mark input as changed
+        function markChanged(element) {
+            element.classList.add('changed');
+            hasChanges = true;
+            document.getElementById('saveBar').classList.add('visible');
+        }
+
+        // Reset changes
+        function resetChanges() {
+            populateSettings(originalSettings);
+            
+            // Remove changed class from all inputs
+            document.querySelectorAll('.changed').forEach(el => el.classList.remove('changed'));
+            
+            hasChanges = false;
+            document.getElementById('saveBar').classList.remove('visible');
+        }
+
+        // Save settings
+        async function saveSettings() {
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span>⏳</span> Saving...';
+
+            const settings = {
+                DeadlineDays: parseInt(document.getElementById('deadlineDays').value) || 7,
+                ReminderDaysBefore: document.getElementById('reminderDays').value || '3,1',
+                AutoEscalationEnabled: document.getElementById('autoEscalationEnabled').checked,
+                EmailNotificationsEnabled: document.getElementById('emailNotificationsEnabled').checked,
+                GracePeriodHours: parseInt(document.getElementById('gracePeriodHours').value) || 24,
+                MaxReminders: parseInt(document.getElementById('maxReminders').value) || 3
+            };
+
+            try {
+                const response = await fetch('/api/escalation-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast('Settings saved successfully!');
+                    originalSettings = { ...settings };
+                    
+                    // Remove changed class from all inputs
+                    document.querySelectorAll('.changed').forEach(el => el.classList.remove('changed'));
+                    
+                    hasChanges = false;
+                    document.getElementById('saveBar').classList.remove('visible');
+                } else {
+                    showToast('Failed to save settings: ' + data.error, true);
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                showToast('Failed to save settings', true);
+            }
+
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<span>💾</span> Save Escalation Settings';
+        }
+
+        // Load escalation log
+        async function loadEscalationLog() {
+            try {
+                const response = await fetch('/api/escalation-settings/log?limit=10');
+                const data = await response.json();
+
+                const tbody = document.getElementById('logTableBody');
+                const emptyLog = document.getElementById('emptyLog');
+                const tableContainer = document.getElementById('logTableContainer');
+
+                if (data.success && data.logs && data.logs.length > 0) {
+                    tbody.innerHTML = data.logs.map(log => `
+                        <tr>
+                            <td>${formatDate(log.EventDate)}</td>
+                            <td>${log.DocumentNumber || '-'}</td>
+                            <td><span class="badge badge-${log.EventType.toLowerCase()}">${log.EventType}</span></td>
+                            <td>${log.RecipientName || log.RecipientEmail || '-'}</td>
+                            <td><span class="badge badge-${log.Status.toLowerCase()}">${log.Status}</span></td>
+                        </tr>
+                    `).join('');
+                    tableContainer.style.display = 'block';
+                    emptyLog.style.display = 'none';
+                } else {
+                    tableContainer.style.display = 'none';
+                    emptyLog.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading escalation log:', error);
+            }
+        }
+
+        // Format date
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Show toast notification
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastMessage = document.getElementById('toastMessage');
+
+            toastIcon.textContent = isError ? '❌' : '✅';
+            toastMessage.textContent = message;
+            toast.className = isError ? 'toast error visible' : 'toast visible';
+
+            setTimeout(() => {
+                toast.classList.remove('visible');
+            }, 3000);
+        }
+
+        // Warn before leaving with unsaved changes
+        window.addEventListener('beforeunload', (e) => {
+            if (hasChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>

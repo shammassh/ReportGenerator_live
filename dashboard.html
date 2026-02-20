@@ -625,6 +625,28 @@
             background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
         }
 
+        .escalation-settings-btn {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        .escalation-settings-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(217, 119, 6, 0.4);
+            background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+        }
+
         .menu-settings-btn {
             background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
             color: white;
@@ -2058,6 +2080,10 @@
                             <span>⚙️</span>
                             System Settings
                         </button>
+                        <button class="escalation-settings-btn" id="escalationSettingsBtn" onclick="window.location.href='/admin/escalation-settings'" style="display: none;">
+                            <span>⏰</span>
+                            Escalation Settings
+                        </button>
                     </div>
                 </div>
 
@@ -2547,7 +2573,8 @@
                 { id: 'storeManagementBtn', elementId: 'storeManagementBtn' },
                 { id: 'brandManagementBtn', elementId: 'brandManagementBtn' },
                 { id: 'templateBuilderBtn', elementId: 'templateBuilderBtn' },
-                { id: 'systemSettingsBtn', elementId: 'systemSettingsBtn' }
+                { id: 'systemSettingsBtn', elementId: 'systemSettingsBtn' },
+                { id: 'escalationSettingsBtn', elementId: 'escalationSettingsBtn' }
             ];
 
             let usedDatabase = false;
@@ -2747,6 +2774,11 @@
                                 systemSettingsBtn.style.display = 'flex';
                                 console.log('✅ System Settings button display set to flex');
                             }
+                            const escalationSettingsBtn = document.getElementById('escalationSettingsBtn');
+                            if (escalationSettingsBtn) {
+                                escalationSettingsBtn.style.display = 'flex';
+                                console.log('✅ Escalation Settings button display set to flex');
+                            }
                             if (storeManagementBtn) {
                                 storeManagementBtn.style.display = 'flex';
                             }
@@ -2868,6 +2900,10 @@
                         if (userRole === 'Admin' || userRole === 'SuperAuditor') {
                             if (storeManagementBtn) {
                                 storeManagementBtn.style.display = 'flex';
+                            }
+                            const escalationSettingsBtnFallback = document.getElementById('escalationSettingsBtn');
+                            if (escalationSettingsBtnFallback) {
+                                escalationSettingsBtnFallback.style.display = 'flex';
                             }
                         }
                     }

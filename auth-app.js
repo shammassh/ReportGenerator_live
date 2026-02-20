@@ -1853,6 +1853,189 @@ app.get('/api/schema-colors/defaults', requireAuth, requireRole('Admin', 'SuperA
 console.log('[APP] Schema colors API loaded');
 
 // ==========================================
+// Action Plan Escalation Settings
+// ==========================================
+
+const ESCALATION_PAGE = '/admin/escalation-settings';
+
+// Serve Escalation Settings page
+app.get('/admin/escalation-settings', requireAuth, requireAutoRole('Admin', 'SuperAuditor'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin/pages/escalation-settings.html'));
+});
+
+// Get escalation settings
+app.get('/api/escalation-settings', requireAuth, requirePagePermission(ESCALATION_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+
+        const result = await pool.request().query(`
+            SELECT TOP 1 
+                SettingID,
+                DeadlineDays,
+                ReminderDaysBefore,
+                AutoEscalationEnabled,
+                EmailNotificationsEnabled,
+                EscalationRecipients,
+                GracePeriodHours,
+                MaxReminders,
+                ModifiedAt,
+                ModifiedBy
+            FROM ActionPlanEscalationSettings
+        `);
+
+        if (result.recordset.length > 0) {
+            res.json({ success: true, settings: result.recordset[0] });
+        } else {
+            // Return defaults if no settings exist
+            res.json({
+                success: true,
+                settings: {
+                    DeadlineDays: 7,
+                    ReminderDaysBefore: '3,1',
+                    AutoEscalationEnabled: true,
+                    EmailNotificationsEnabled: true,
+                    EscalationRecipients: 'AreaManager',
+                    GracePeriodHours: 24,
+                    MaxReminders: 3
+                }
+            });
+        }
+    } catch (error) {
+        console.error('[EscalationSettings] Error getting settings:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Save escalation settings
+app.post('/api/escalation-settings', requireAuth, requirePagePermission(ESCALATION_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const {
+            DeadlineDays,
+            ReminderDaysBefore,
+            AutoEscalationEnabled,
+            EmailNotificationsEnabled,
+            EscalationRecipients,
+            GracePeriodHours,
+            MaxReminders
+        } = req.body;
+
+        const sql = require('mssql');
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+
+        // Check if settings exist
+        const checkResult = await pool.request().query('SELECT COUNT(*) as count FROM ActionPlanEscalationSettings');
+        
+        if (checkResult.recordset[0].count > 0) {
+            // Update existing settings
+            await pool.request()
+                .input('deadlineDays', sql.Int, DeadlineDays || 7)
+                .input('reminderDays', sql.NVarChar(100), ReminderDaysBefore || '3,1')
+                .input('autoEscalation', sql.Bit, AutoEscalationEnabled ? 1 : 0)
+                .input('emailNotifications', sql.Bit, EmailNotificationsEnabled ? 1 : 0)
+                .input('escalationRecipients', sql.NVarChar(500), EscalationRecipients || 'AreaManager')
+                .input('gracePeriod', sql.Int, GracePeriodHours || 24)
+                .input('maxReminders', sql.Int, MaxReminders || 3)
+                .input('modifiedBy', sql.NVarChar(200), req.currentUser.email)
+                .query(`
+                    UPDATE ActionPlanEscalationSettings SET
+                        DeadlineDays = @deadlineDays,
+                        ReminderDaysBefore = @reminderDays,
+                        AutoEscalationEnabled = @autoEscalation,
+                        EmailNotificationsEnabled = @emailNotifications,
+                        EscalationRecipients = @escalationRecipients,
+                        GracePeriodHours = @gracePeriod,
+                        MaxReminders = @maxReminders,
+                        ModifiedAt = GETDATE(),
+                        ModifiedBy = @modifiedBy
+                `);
+        } else {
+            // Insert new settings
+            await pool.request()
+                .input('deadlineDays', sql.Int, DeadlineDays || 7)
+                .input('reminderDays', sql.NVarChar(100), ReminderDaysBefore || '3,1')
+                .input('autoEscalation', sql.Bit, AutoEscalationEnabled ? 1 : 0)
+                .input('emailNotifications', sql.Bit, EmailNotificationsEnabled ? 1 : 0)
+                .input('escalationRecipients', sql.NVarChar(500), EscalationRecipients || 'AreaManager')
+                .input('gracePeriod', sql.Int, GracePeriodHours || 24)
+                .input('maxReminders', sql.Int, MaxReminders || 3)
+                .input('modifiedBy', sql.NVarChar(200), req.currentUser.email)
+                .query(`
+                    INSERT INTO ActionPlanEscalationSettings (
+                        DeadlineDays, ReminderDaysBefore, AutoEscalationEnabled,
+                        EmailNotificationsEnabled, EscalationRecipients, GracePeriodHours,
+                        MaxReminders, ModifiedBy
+                    ) VALUES (
+                        @deadlineDays, @reminderDays, @autoEscalation,
+                        @emailNotifications, @escalationRecipients, @gracePeriod,
+                        @maxReminders, @modifiedBy
+                    )
+                `);
+        }
+
+        console.log(`[EscalationSettings] Settings saved by ${req.currentUser.email}`);
+        res.json({ success: true, message: 'Escalation settings saved successfully' });
+    } catch (error) {
+        console.error('[EscalationSettings] Error saving settings:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get escalation log
+app.get('/api/escalation-settings/log', requireAuth, requirePagePermission(ESCALATION_PAGE, 'Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 50;
+        
+        const sql = require('mssql');
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+
+        const result = await pool.request()
+            .input('limit', sql.Int, limit)
+            .query(`
+                SELECT TOP (@limit)
+                    LogID,
+                    AuditID,
+                    DocumentNumber,
+                    EventType,
+                    EventDate,
+                    RecipientEmail,
+                    RecipientName,
+                    DaysOverdue,
+                    Status,
+                    ErrorMessage,
+                    CreatedAt
+                FROM ActionPlanEscalationLog
+                ORDER BY EventDate DESC
+            `);
+
+        res.json({ success: true, logs: result.recordset });
+    } catch (error) {
+        console.error('[EscalationSettings] Error getting log:', error);
+        res.status(500).json({ success: false, error: error.message, logs: [] });
+    }
+});
+
+console.log('[APP] Escalation settings API loaded');
+
+// ==========================================
 // Menu Settings API (Admin Only)
 // ==========================================
 
