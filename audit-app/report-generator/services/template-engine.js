@@ -377,7 +377,12 @@ class TemplateEngine {
         }
 
         let html = '<div class="temperature-readings">';
-        html += '<h4 class="temperature-title">🌡️ Temperature Readings</h4>';
+        html += `<div class="temperature-header">
+            <h4 class="temperature-title">🌡️ Temperature Readings</h4>
+            <button class="export-temp-btn no-print" onclick="downloadTemperatureExcel()">
+                📥 Export to Excel
+            </button>
+        </div>`;
 
         // Bad/Finding readings table
         if (temps.bad.length > 0) {
@@ -2042,6 +2047,90 @@ class TemplateEngine {
                             document.body.classList.remove('summary-mode');
                         }, 500);
                     }, 100);
+                }
+                
+                // Download Temperature Readings as Excel
+                function downloadTemperatureExcel() {
+                    try {
+                        // Extract temperature data from HTML tables
+                        const tempReadings = document.querySelector('.temperature-readings');
+                        if (!tempReadings) {
+                            alert('No temperature data found');
+                            return;
+                        }
+                        
+                        // Build CSV data
+                        let csvContent = '';
+                        const docNumber = '${data.documentNumber || ''}';
+                        const storeName = '${(data.storeName || '').replace(/'/g, "\\'")}';
+                        
+                        // Header info
+                        csvContent += 'Temperature Readings Export\\n';
+                        csvContent += 'Document Number,' + docNumber + '\\n';
+                        csvContent += 'Store,' + storeName + '\\n';
+                        csvContent += '\\n';
+                        
+                        // Findings table
+                        const badTable = tempReadings.querySelector('.temp-bad-table');
+                        if (badTable) {
+                            csvContent += 'FRIDGES WITH FINDINGS\\n';
+                            csvContent += 'Section,Category,Unit,Display (°C),Probe (°C),Issue\\n';
+                            
+                            const badRows = badTable.querySelectorAll('tbody tr');
+                            badRows.forEach(row => {
+                                const cells = row.querySelectorAll('td');
+                                if (cells.length >= 6) {
+                                    const rowData = [
+                                        cells[0]?.textContent?.trim() || '',
+                                        cells[1]?.textContent?.trim() || '',
+                                        cells[2]?.textContent?.trim() || '',
+                                        cells[3]?.textContent?.trim() || '',
+                                        cells[4]?.textContent?.trim() || '',
+                                        '"' + (cells[5]?.textContent?.trim() || '').replace(/"/g, '""') + '"'
+                                    ];
+                                    csvContent += rowData.join(',') + '\\n';
+                                }
+                            });
+                            csvContent += '\\n';
+                        }
+                        
+                        // Compliant table
+                        const goodTable = tempReadings.querySelector('.temp-good-table');
+                        if (goodTable) {
+                            csvContent += 'COMPLIANT FRIDGES\\n';
+                            csvContent += 'Section,Category,Unit,Display (°C),Probe (°C)\\n';
+                            
+                            const goodRows = goodTable.querySelectorAll('tbody tr');
+                            goodRows.forEach(row => {
+                                const cells = row.querySelectorAll('td');
+                                if (cells.length >= 5) {
+                                    const rowData = [
+                                        cells[0]?.textContent?.trim() || '',
+                                        cells[1]?.textContent?.trim() || '',
+                                        cells[2]?.textContent?.trim() || '',
+                                        cells[3]?.textContent?.trim() || '',
+                                        cells[4]?.textContent?.trim() || ''
+                                    ];
+                                    csvContent += rowData.join(',') + '\\n';
+                                }
+                            });
+                        }
+                        
+                        // Create download
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'Temperature_Readings_' + docNumber + '.csv';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        
+                    } catch (error) {
+                        console.error('Error exporting temperature data:', error);
+                        alert('Failed to export: ' + error.message);
+                    }
                 }
                 
                 // Download PDF via server-side generation

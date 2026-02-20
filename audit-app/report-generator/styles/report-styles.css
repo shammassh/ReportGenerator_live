@@ -1261,6 +1261,36 @@ td.answer-col {
     color: #16a34a;
 }
 
+/* Temperature header with export button */
+.temperature-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.temperature-header .temperature-title {
+    margin: 0;
+}
+
+.export-temp-btn {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.export-temp-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
 .temp-table {
     width: 100%;
     border-collapse: collapse;
