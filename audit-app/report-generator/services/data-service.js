@@ -389,6 +389,7 @@ class DataService {
                     responseId: row.ResponseID,
                     documentNumber: row.DocumentNumber,
                     section: row.Section,
+                    category: row.Category,
                     referenceValue: row.ReferenceValue,
                     unit: row.Unit,
                     displayTemp: row.DisplayTemp,

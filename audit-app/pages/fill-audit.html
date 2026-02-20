@@ -1051,6 +1051,57 @@
             border-color: #3b82f6;
         }
 
+        /* Picture Category Selector */
+        .image-category-selector {
+            margin-bottom: 1.5rem;
+        }
+
+        .image-category-dropdown {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            background: rgba(30, 41, 59, 0.5);
+            color: #f1f5f9;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .image-category-dropdown:hover,
+        .image-category-dropdown:focus {
+            border-color: rgba(99, 102, 241, 0.6);
+            background: rgba(99, 102, 241, 0.1);
+            outline: none;
+        }
+
+        .image-category-dropdown option {
+            background: #1e293b;
+            color: #f1f5f9;
+        }
+
+        .image-category-custom {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            margin-top: 0.5rem;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            background: rgba(30, 41, 59, 0.5);
+            color: #f1f5f9;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .image-category-custom:focus {
+            border-color: rgba(99, 102, 241, 0.6);
+            background: rgba(99, 102, 241, 0.1);
+            outline: none;
+        }
+
+        .image-category-custom::placeholder {
+            color: #94a3b8;
+        }
+
         .image-preview-container {
             margin-bottom: 1.5rem;
         }
@@ -1102,6 +1153,12 @@
         .existing-image-type.type-finding { color: #ef4444; }
         .existing-image-type.type-good { color: #10b981; }
         .existing-image-type.type-corrective { color: #3b82f6; }
+
+        .existing-image-category {
+            font-size: 0.75rem;
+            color: #8b5cf6;
+            font-weight: 500;
+        }
 
         .existing-image-name {
             font-size: 0.75rem;
@@ -1542,6 +1599,18 @@
             font-weight: 600;
         }
 
+        .category-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            background: rgba(139, 92, 246, 0.15);
+            color: #8b5cf6;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
         .fridge-entry-temps {
             font-size: 0.75rem;
             color: #64748b;
@@ -1730,6 +1799,23 @@
             </div>
             
             <div class="fridge-form-group">
+                <label class="fridge-form-label">📁 Picture Category</label>
+                <select class="fridge-form-select" id="fridgeGoodCategory" onchange="handleFridgeCategoryChange('good', this.value)">
+                    <option value="">-- Select Category --</option>
+                    <option value="Cheese and Deli Section">Cheese and Deli Section</option>
+                    <option value="Butchery Section">Butchery Section</option>
+                    <option value="Fishery Section">Fishery Section</option>
+                    <option value="Store">Store</option>
+                    <option value="Retail Section">Retail Section</option>
+                    <option value="Warehouse">Warehouse</option>
+                    <option value="Restrooms">Restrooms</option>
+                    <option value="Staff Room">Staff Room</option>
+                    <option value="Others">Others</option>
+                </select>
+                <input type="text" class="fridge-form-input" id="fridgeGoodCategoryCustom" placeholder="Enter custom category..." style="display: none; margin-top: 0.5rem;">
+            </div>
+            
+            <div class="fridge-form-group">
                 <label class="fridge-form-label">🧊 Unit / Fridge Name</label>
                 <input type="text" class="fridge-form-input" id="fridgeGoodUnit" placeholder="e.g., Display Fridge 1">
             </div>
@@ -1789,6 +1875,23 @@
                     <option value="Retail">Retail</option>
                     <option value="3rd Party">3rd Party</option>
                 </select>
+            </div>
+            
+            <div class="fridge-form-group">
+                <label class="fridge-form-label">📁 Picture Category</label>
+                <select class="fridge-form-select" id="fridgeBadCategory" onchange="handleFridgeCategoryChange('bad', this.value)">
+                    <option value="">-- Select Category --</option>
+                    <option value="Cheese and Deli Section">Cheese and Deli Section</option>
+                    <option value="Butchery Section">Butchery Section</option>
+                    <option value="Fishery Section">Fishery Section</option>
+                    <option value="Store">Store</option>
+                    <option value="Retail Section">Retail Section</option>
+                    <option value="Warehouse">Warehouse</option>
+                    <option value="Restrooms">Restrooms</option>
+                    <option value="Staff Room">Staff Room</option>
+                    <option value="Others">Others</option>
+                </select>
+                <input type="text" class="fridge-form-input" id="fridgeBadCategoryCustom" placeholder="Enter custom category..." style="display: none; margin-top: 0.5rem;">
             </div>
             
             <div class="fridge-form-group">
@@ -2989,10 +3092,11 @@
             goodEntries.forEach((entry, idx) => {
                 const picCount = getPicCount(entry);
                 const picBadge = picCount > 0 ? `<span class="pic-count-badge">📷 ${picCount}</span>` : '';
+                const categoryBadge = entry.category ? `<span class="category-badge">📁 ${entry.category}</span>` : '';
                 html += `
                     <div class="fridge-entry-item good">
                         <div class="fridge-entry-info">
-                            <div class="fridge-entry-section">✅ ${entry.section} - ${entry.unit} ${picBadge}</div>
+                            <div class="fridge-entry-section">✅ ${entry.section} - ${entry.unit} ${picBadge} ${categoryBadge}</div>
                             <div class="fridge-entry-temps">Display: ${entry.displayTemp}°C | Air: ${entry.probeTemp}°C</div>
                         </div>
                         <div class="fridge-entry-actions">
@@ -3006,10 +3110,11 @@
             badEntries.forEach((entry, idx) => {
                 const picCount = getPicCount(entry);
                 const picBadge = picCount > 0 ? `<span class="pic-count-badge">📷 ${picCount}</span>` : '';
+                const categoryBadge = entry.category ? `<span class="category-badge">📁 ${entry.category}</span>` : '';
                 html += `
                     <div class="fridge-entry-item bad">
                         <div class="fridge-entry-info">
-                            <div class="fridge-entry-section">❌ ${entry.section} - ${entry.unit} ${picBadge}</div>
+                            <div class="fridge-entry-section">❌ ${entry.section} - ${entry.unit} ${picBadge} ${categoryBadge}</div>
                             <div class="fridge-entry-temps">Display: ${entry.displayTemp}°C | Air: ${entry.probeTemp}°C</div>
                             <div class="fridge-entry-issue">⚠️ ${entry.issue}</div>
                         </div>
@@ -3080,6 +3185,21 @@
             // Populate form with existing values
             const prefix = type === 'good' ? 'fridgeGood' : 'fridgeBad';
             document.getElementById(prefix + 'Section').value = entry.section || '';
+            
+            // Handle category - check if it's a predefined value or custom
+            const predefinedCategories = ['Cheese and Deli Section', 'Butchery Section', 'Fishery Section', 'Store', 'Retail Section', 'Warehouse', 'Restrooms', 'Staff Room', 'Others'];
+            if (entry.category && predefinedCategories.includes(entry.category)) {
+                document.getElementById(prefix + 'Category').value = entry.category;
+                document.getElementById(prefix + 'CategoryCustom').style.display = 'none';
+            } else if (entry.category) {
+                document.getElementById(prefix + 'Category').value = 'Others';
+                document.getElementById(prefix + 'CategoryCustom').value = entry.category;
+                document.getElementById(prefix + 'CategoryCustom').style.display = 'block';
+            } else {
+                document.getElementById(prefix + 'Category').value = '';
+                document.getElementById(prefix + 'CategoryCustom').style.display = 'none';
+            }
+            
             document.getElementById(prefix + 'Unit').value = entry.unit || '';
             document.getElementById(prefix + 'DisplayTemp').value = entry.displayTemp || '';
             document.getElementById(prefix + 'ProbeTemp').value = entry.probeTemp || '';
@@ -3109,6 +3229,9 @@
         function resetFridgeForm(type) {
             const prefix = type === 'good' ? 'fridgeGood' : 'fridgeBad';
             document.getElementById(prefix + 'Section').value = '';
+            document.getElementById(prefix + 'Category').value = '';
+            document.getElementById(prefix + 'CategoryCustom').value = '';
+            document.getElementById(prefix + 'CategoryCustom').style.display = 'none';
             document.getElementById(prefix + 'Unit').value = '';
             document.getElementById(prefix + 'DisplayTemp').value = '';
             document.getElementById(prefix + 'ProbeTemp').value = '';
@@ -3123,6 +3246,19 @@
             
             if (type === 'bad') {
                 document.getElementById('fridgeBadIssue').value = '';
+            }
+        }
+        
+        // Handle fridge category change (show custom input for "Others")
+        function handleFridgeCategoryChange(type, value) {
+            const prefix = type === 'good' ? 'fridgeGood' : 'fridgeBad';
+            const customInput = document.getElementById(prefix + 'CategoryCustom');
+            if (value === 'Others') {
+                customInput.style.display = 'block';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+                customInput.value = '';
             }
         }
         
@@ -3250,6 +3386,9 @@
             const prefix = type === 'good' ? 'fridgeGood' : 'fridgeBad';
             
             const section = document.getElementById(prefix + 'Section').value;
+            const categorySelect = document.getElementById(prefix + 'Category').value;
+            const categoryCustom = document.getElementById(prefix + 'CategoryCustom').value;
+            const category = categorySelect === 'Others' ? categoryCustom : categorySelect;
             const unit = document.getElementById(prefix + 'Unit').value;
             const displayTemp = document.getElementById(prefix + 'DisplayTemp').value;
             const probeTemp = document.getElementById(prefix + 'ProbeTemp').value;
@@ -3303,6 +3442,7 @@
             const reading = {
                 responseId: currentFridgeResponseId,
                 section: section,
+                category: category,
                 unit: unit,
                 displayTemp: displayTemp.trim(),
                 probeTemp: probeTemp.trim(),

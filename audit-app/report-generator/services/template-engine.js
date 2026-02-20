@@ -397,6 +397,7 @@ class TemplateEngine {
                 return `
                     <tr class="temp-bad">
                         <td>${escapeHtml(reading.section || '')}</td>
+                        <td>${escapeHtml(reading.category || '-')}</td>
                         <td>${escapeHtml(reading.unit || '')}</td>
                         <td>${reading.displayTemp ?? '-'}</td>
                         <td>${reading.probeTemp ?? '-'}</td>
@@ -413,6 +414,7 @@ class TemplateEngine {
                         <thead>
                             <tr>
                                 <th>Section</th>
+                                <th>Category</th>
                                 <th>Unit</th>
                                 <th>Display (°C)</th>
                                 <th>Probe (°C)</th>
@@ -446,6 +448,7 @@ class TemplateEngine {
                 return `
                     <tr class="temp-good">
                         <td>${escapeHtml(reading.section || '')}</td>
+                        <td>${escapeHtml(reading.category || '-')}</td>
                         <td>${escapeHtml(reading.unit || '')}</td>
                         <td>${reading.displayTemp ?? '-'}</td>
                         <td>${reading.probeTemp ?? '-'}</td>
@@ -461,6 +464,7 @@ class TemplateEngine {
                         <thead>
                             <tr>
                                 <th>Section</th>
+                                <th>Category</th>
                                 <th>Unit</th>
                                 <th>Display (°C)</th>
                                 <th>Probe (°C)</th>

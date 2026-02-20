@@ -699,9 +699,10 @@ class AuditService {
                 .input('FileName', sql.NVarChar(255), finalFileName)
                 .input('ContentType', sql.NVarChar(100), finalContentType)
                 .input('PictureType', sql.NVarChar(50), pictureData.pictureType)
+                .input('Category', sql.NVarChar(100), pictureData.category || null)
                 .query(`
-                    INSERT INTO AuditPictures (ResponseID, AuditID, FileName, ContentType, PictureType)
-                    VALUES (@ResponseID, @AuditID, @FileName, @ContentType, @PictureType);
+                    INSERT INTO AuditPictures (ResponseID, AuditID, FileName, ContentType, PictureType, Category)
+                    VALUES (@ResponseID, @AuditID, @FileName, @ContentType, @PictureType, @Category);
                     SELECT SCOPE_IDENTITY() AS PictureID;
                 `);
 
@@ -752,7 +753,7 @@ class AuditService {
             const result = await pool.request()
                 .input('ResponseID', sql.Int, responseId)
                 .query(`
-                    SELECT PictureID, FileName, FileData, FilePath, ContentType, PictureType, CreatedAt
+                    SELECT PictureID, FileName, FileData, FilePath, ContentType, PictureType, Category, CreatedAt
                     FROM AuditPictures
                     WHERE ResponseID = @ResponseID
                     ORDER BY CreatedAt DESC
@@ -783,6 +784,7 @@ class AuditService {
                     fileData: fileData,
                     contentType: row.ContentType,
                     pictureType: row.PictureType,
+                    category: row.Category,
                     createdAt: row.CreatedAt
                 });
             }
@@ -1189,6 +1191,7 @@ class AuditService {
                     .input('ResponseID', sql.Int, reading.responseId)
                     .input('ReadingType', sql.NVarChar(10), 'Good')
                     .input('Section', sql.NVarChar(100), reading.section)
+                    .input('Category', sql.NVarChar(100), reading.category || null)
                     .input('Unit', sql.NVarChar(200), reading.unit)
                     .input('DisplayTemp', sql.NVarChar(50), String(reading.displayTemp))
                     .input('ProbeTemp', sql.NVarChar(50), String(reading.probeTemp))
@@ -1196,10 +1199,10 @@ class AuditService {
                     .query(`
                         INSERT INTO FridgeReadings (
                             AuditID, DocumentNumber, ResponseID, ReadingType,
-                            Section, Unit, DisplayTemp, ProbeTemp, Issue
+                            Section, Category, Unit, DisplayTemp, ProbeTemp, Issue
                         ) VALUES (
                             @AuditID, @DocumentNumber, @ResponseID, @ReadingType,
-                            @Section, @Unit, @DisplayTemp, @ProbeTemp, @Issue
+                            @Section, @Category, @Unit, @DisplayTemp, @ProbeTemp, @Issue
                         );
                         SELECT SCOPE_IDENTITY() as ReadingID;
                     `);
@@ -1234,6 +1237,7 @@ class AuditService {
                     .input('ResponseID', sql.Int, reading.responseId)
                     .input('ReadingType', sql.NVarChar(10), 'Bad')
                     .input('Section', sql.NVarChar(100), reading.section)
+                    .input('Category', sql.NVarChar(100), reading.category || null)
                     .input('Unit', sql.NVarChar(200), reading.unit)
                     .input('DisplayTemp', sql.NVarChar(50), String(reading.displayTemp))
                     .input('ProbeTemp', sql.NVarChar(50), String(reading.probeTemp))
@@ -1241,10 +1245,10 @@ class AuditService {
                     .query(`
                         INSERT INTO FridgeReadings (
                             AuditID, DocumentNumber, ResponseID, ReadingType,
-                            Section, Unit, DisplayTemp, ProbeTemp, Issue
+                            Section, Category, Unit, DisplayTemp, ProbeTemp, Issue
                         ) VALUES (
                             @AuditID, @DocumentNumber, @ResponseID, @ReadingType,
-                            @Section, @Unit, @DisplayTemp, @ProbeTemp, @Issue
+                            @Section, @Category, @Unit, @DisplayTemp, @ProbeTemp, @Issue
                         );
                         SELECT SCOPE_IDENTITY() as ReadingID;
                     `);
@@ -1324,6 +1328,7 @@ class AuditService {
                         ResponseID as responseId,
                         ReadingType as readingType,
                         Section as section,
+                        Category as category,
                         Unit as unit,
                         DisplayTemp as displayTemp,
                         ProbeTemp as probeTemp,
@@ -1361,6 +1366,7 @@ class AuditService {
                 .map(r => ({
                     responseId: r.responseId,
                     section: r.section,
+                    category: r.category,
                     unit: r.unit,
                     displayTemp: r.displayTemp,
                     probeTemp: r.probeTemp,
@@ -1373,6 +1379,7 @@ class AuditService {
                 .map(r => ({
                     responseId: r.responseId,
                     section: r.section,
+                    category: r.category,
                     unit: r.unit,
                     displayTemp: r.displayTemp,
                     probeTemp: r.probeTemp,
