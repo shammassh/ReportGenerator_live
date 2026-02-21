@@ -3150,6 +3150,72 @@ app.post('/api/audits/notification-statuses', requireAuth, requireRole('Admin', 
     }
 });
 
+// Get action plan progress stats for multiple audits
+app.post('/api/audits/action-plan-stats', requireAuth, async (req, res) => {
+    try {
+        const { auditIds } = req.body;
+        
+        if (!auditIds || !Array.isArray(auditIds) || auditIds.length === 0) {
+            return res.status(400).json({ success: false, error: 'auditIds array is required' });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // Get document numbers for the audit IDs
+        const auditIdsParam = auditIds.join(',');
+        const auditsResult = await pool.request()
+            .query(`SELECT AuditID, DocumentNumber FROM AuditInstances WHERE AuditID IN (${auditIdsParam})`);
+        
+        const auditDocMap = {};
+        for (const row of auditsResult.recordset) {
+            auditDocMap[row.AuditID] = row.DocumentNumber;
+        }
+        
+        // Get all document numbers
+        const docNumbers = Object.values(auditDocMap).filter(d => d);
+        
+        if (docNumbers.length === 0) {
+            return res.json({ success: true, stats: {} });
+        }
+        
+        // Query action plan responses grouped by document number
+        const docNumbersParam = docNumbers.map(d => `'${d.replace(/'/g, "''")}'`).join(',');
+        
+        const actionPlanResult = await pool.request()
+            .query(`
+                SELECT 
+                    DocumentNumber,
+                    COUNT(*) as TotalActions,
+                    SUM(CASE WHEN Status = 'Completed' THEN 1 ELSE 0 END) as CompletedCount
+                FROM ActionPlanResponses
+                WHERE DocumentNumber IN (${docNumbersParam})
+                GROUP BY DocumentNumber
+            `);
+        
+        // Build document stats map
+        const docStats = {};
+        for (const row of actionPlanResult.recordset) {
+            docStats[row.DocumentNumber] = {
+                total: row.TotalActions || 0,
+                completed: row.CompletedCount || 0
+            };
+        }
+        
+        // Map back to audit IDs
+        const stats = {};
+        for (const [auditId, docNumber] of Object.entries(auditDocMap)) {
+            stats[auditId] = docStats[docNumber] || { total: 0, completed: 0 };
+        }
+        
+        res.json({ success: true, stats });
+    } catch (error) {
+        console.error('Error getting action plan stats:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ==========================================
 // Broadcast Feature API
 // ==========================================
