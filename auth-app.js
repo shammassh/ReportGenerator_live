@@ -3217,6 +3217,433 @@ app.post('/api/audits/action-plan-stats', requireAuth, async (req, res) => {
 });
 
 // ==========================================
+// Email Compose Modal APIs
+// ==========================================
+
+// Get auto-suggested recipients for email compose modal
+app.post('/api/email/compose-data', requireAuth, async (req, res) => {
+    try {
+        const { auditId, documentNumber, storeName } = req.body;
+        
+        if (!auditId && !documentNumber) {
+            return res.status(400).json({ success: false, error: 'Audit ID or Document Number required' });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // Get audit info if not provided
+        let storeId = null;
+        let auditStoreName = storeName;
+        let auditDocNumber = documentNumber;
+        
+        if (auditId) {
+            const auditResult = await pool.request()
+                .input('auditId', sql.Int, auditId)
+                .query('SELECT StoreID, StoreName, DocumentNumber FROM AuditInstances WHERE AuditID = @auditId');
+            
+            if (auditResult.recordset.length > 0) {
+                storeId = auditResult.recordset[0].StoreID;
+                auditStoreName = auditStoreName || auditResult.recordset[0].StoreName;
+                auditDocNumber = auditDocNumber || auditResult.recordset[0].DocumentNumber;
+            }
+        }
+        
+        // Get TO recipients: Store Managers assigned to this store
+        const toRecipients = [];
+        
+        // Method 1: Check StoreManagerAssignments table
+        if (storeId) {
+            const smResult = await pool.request()
+                .input('storeId', sql.Int, storeId)
+                .query(`
+                    SELECT DISTINCT u.id, u.email, u.display_name, u.role
+                    FROM Users u
+                    INNER JOIN StoreManagerAssignments sma ON u.id = sma.UserId
+                    WHERE sma.StoreId = @storeId
+                    AND u.is_active = 1
+                    AND u.email IS NOT NULL
+                `);
+            
+            for (const row of smResult.recordset) {
+                toRecipients.push({
+                    id: row.id,
+                    email: row.email,
+                    name: row.display_name || row.email,
+                    role: row.role,
+                    source: 'StoreAssignment'
+                });
+            }
+        }
+        
+        // Method 2: Check Users with assigned_stores JSON column
+        const assignedStoresResult = await pool.request()
+            .input('storeName', sql.NVarChar, auditStoreName || '')
+            .query(`
+                SELECT id, email, display_name, role, assigned_stores
+                FROM Users
+                WHERE is_active = 1
+                AND email IS NOT NULL
+                AND assigned_stores IS NOT NULL
+                AND role IN ('StoreManager', 'AreaManager')
+            `);
+        
+        for (const row of assignedStoresResult.recordset) {
+            try {
+                const assignedStores = JSON.parse(row.assigned_stores || '[]');
+                const storeMatch = assignedStores.some(s => 
+                    s.toLowerCase().includes((auditStoreName || '').toLowerCase()) ||
+                    (auditStoreName || '').toLowerCase().includes(s.toLowerCase())
+                );
+                
+                if (storeMatch && !toRecipients.find(r => r.email === row.email)) {
+                    toRecipients.push({
+                        id: row.id,
+                        email: row.email,
+                        name: row.display_name || row.email,
+                        role: row.role,
+                        source: 'AssignedStores'
+                    });
+                }
+            } catch (e) {
+                // Invalid JSON, skip
+            }
+        }
+        
+        // Get CC recipients: Area Managers, Head of Operations based on store's area/brand
+        const ccRecipients = [];
+        
+        if (storeId) {
+            // Get store's brand
+            const storeInfoResult = await pool.request()
+                .input('storeId', sql.Int, storeId)
+                .query('SELECT Brand FROM Stores WHERE StoreID = @storeId');
+            
+            if (storeInfoResult.recordset.length > 0) {
+                const { Brand } = storeInfoResult.recordset[0];
+                
+                // Get users assigned to the same stores (Area Managers via UserAreaAssignments)
+                const areaManagersResult = await pool.request()
+                    .input('storeId', sql.Int, storeId)
+                    .query(`
+                        SELECT DISTINCT u.id, u.email, u.display_name, u.role
+                        FROM Users u
+                        INNER JOIN UserAreaAssignments uaa ON u.id = uaa.UserID
+                        WHERE uaa.StoreID = @storeId
+                        AND u.is_active = 1
+                        AND u.email IS NOT NULL
+                        AND u.role IN ('AreaManager', 'HeadOfOperations')
+                    `);
+                
+                for (const row of areaManagersResult.recordset) {
+                    if (!toRecipients.find(r => r.email === row.email)) {
+                        ccRecipients.push({
+                            id: row.id,
+                            email: row.email,
+                            name: row.display_name || row.email,
+                            role: row.role,
+                            source: 'AreaAssignment'
+                        });
+                    }
+                }
+                
+                // Get Brand Managers for this brand
+                if (Brand) {
+                    const brandManagersResult = await pool.request()
+                        .input('brand', sql.NVarChar, Brand)
+                        .query(`
+                            SELECT DISTINCT u.id, u.email, u.display_name, u.role
+                            FROM Users u
+                            INNER JOIN UserBrandAssignments uba ON u.id = uba.UserID
+                            WHERE uba.Brand = @brand
+                            AND u.is_active = 1
+                            AND u.email IS NOT NULL
+                        `);
+                    
+                    for (const row of brandManagersResult.recordset) {
+                        if (!toRecipients.find(r => r.email === row.email) &&
+                            !ccRecipients.find(r => r.email === row.email)) {
+                            ccRecipients.push({
+                                id: row.id,
+                                email: row.email,
+                                name: row.display_name || row.email,
+                                role: row.role,
+                                source: 'BrandAssignment'
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Get actual sender info from access token (who will actually send the email)
+        let senderInfo = {
+            email: req.currentUser?.email || 'Unknown',
+            name: req.currentUser?.displayName || req.currentUser?.email || 'Unknown'
+        };
+        
+        // DEBUG: Log the current user vs token owner for REPORT compose
+        console.log(`📧 [COMPOSE-REPORT] Logged-in user from session: ${req.currentUser?.email}`);
+        console.log(`📧 [COMPOSE-REPORT] User ID from session: ${req.currentUser?.id}`);
+        
+        try {
+            const validAccessToken = await getValidAccessToken(req);
+            if (validAccessToken) {
+                const meResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
+                    headers: { 'Authorization': `Bearer ${validAccessToken}` }
+                });
+                
+                if (meResponse.ok) {
+                    const meData = await meResponse.json();
+                    senderInfo = {
+                        email: meData.mail || meData.userPrincipalName,
+                        name: meData.displayName || meData.mail || meData.userPrincipalName
+                    };
+                    console.log(`📧 [COMPOSE-REPORT] Token owner (actual sender): ${senderInfo.email}`);
+                    
+                    // CRITICAL: Check if there's a mismatch
+                    if (req.currentUser?.email && senderInfo.email.toLowerCase() !== req.currentUser.email.toLowerCase()) {
+                        console.error(`⚠️ [COMPOSE-REPORT] TOKEN MISMATCH! User ${req.currentUser.email} has token belonging to ${senderInfo.email}`);
+                    }
+                }
+            }
+        } catch (tokenError) {
+            console.warn('Could not get sender info from token:', tokenError.message);
+        }
+        
+        res.json({
+            success: true,
+            auditInfo: {
+                auditId,
+                documentNumber: auditDocNumber,
+                storeName: auditStoreName
+            },
+            toRecipients,
+            ccRecipients,
+            senderInfo
+        });
+        
+    } catch (error) {
+        console.error('Error getting email compose data:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Search users to add as recipients
+app.get('/api/users/search-for-email', requireAuth, async (req, res) => {
+    try {
+        const { q } = req.query;
+        
+        if (!q || q.length < 2) {
+            return res.json({ success: true, users: [] });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request()
+            .input('search', sql.NVarChar, `%${q}%`)
+            .query(`
+                SELECT TOP 10 id, email, display_name, role
+                FROM Users
+                WHERE is_active = 1
+                AND email IS NOT NULL
+                AND (email LIKE @search OR display_name LIKE @search)
+                ORDER BY display_name
+            `);
+        
+        const users = result.recordset.map(row => ({
+            id: row.id,
+            email: row.email,
+            name: row.display_name || row.email,
+            role: row.role
+        }));
+        
+        res.json({ success: true, users });
+        
+    } catch (error) {
+        console.error('Error searching users:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Send report with custom recipients (from compose modal)
+app.post('/api/audits/send-report-with-recipients', requireAuth, requireRole('Admin', 'Auditor', 'SuperAuditor'), async (req, res) => {
+    try {
+        const { auditId, documentNumber, fileName, storeName, totalScore, toRecipients, ccRecipients } = req.body;
+        
+        if (!auditId || !documentNumber) {
+            return res.status(400).json({ success: false, error: 'Audit ID and Document Number required' });
+        }
+        
+        if (!toRecipients || toRecipients.length === 0) {
+            return res.status(400).json({ success: false, error: 'At least one recipient is required' });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // First, publish the report (same as save-report-for-store-manager)
+        const existingResult = await pool.request()
+            .input('auditId', sql.Int, auditId)
+            .query('SELECT id FROM PublishedReports WHERE audit_id = @auditId');
+        
+        if (existingResult.recordset.length > 0) {
+            // Update existing
+            await pool.request()
+                .input('auditId', sql.Int, auditId)
+                .input('fileName', sql.NVarChar(255), fileName)
+                .input('publishedAt', sql.DateTime, new Date())
+                .query(`
+                    UPDATE PublishedReports 
+                    SET file_name = @fileName, published_at = @publishedAt
+                    WHERE audit_id = @auditId
+                `);
+        } else {
+            // Insert new
+            await pool.request()
+                .input('auditId', sql.Int, auditId)
+                .input('documentNumber', sql.NVarChar(50), documentNumber)
+                .input('storeName', sql.NVarChar(255), storeName)
+                .input('fileName', sql.NVarChar(255), fileName)
+                .input('totalScore', sql.Decimal(5, 2), totalScore)
+                .input('publishedAt', sql.DateTime, new Date())
+                .query(`
+                    INSERT INTO PublishedReports (audit_id, document_number, store_name, file_name, total_score, published_at)
+                    VALUES (@auditId, @documentNumber, @storeName, @fileName, @totalScore, @publishedAt)
+                `);
+        }
+        
+        // Get valid access token for sending email
+        const user = req.currentUser;
+        const userEmail = user?.email;
+        const validAccessToken = await getValidAccessToken(req);
+        
+        if (!validAccessToken) {
+            return res.json({
+                success: true,
+                published: true,
+                emailSent: false,
+                message: 'Report published but could not send email (session expired, please log in again)'
+            });
+        }
+        
+        // Build email content
+        const reportUrl = `https://fsaudit.gmrlapps.com/reports/${fileName}`;
+        const score = parseFloat(totalScore) || 0;
+        const scoreStatus = score >= 83 ? 'PASS ✅' : 'FAIL ❌';
+        const scoreColor = score >= 83 ? '#10b981' : '#ef4444';
+        
+        const emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0;">🍽️ Food Safety Audit Report</h2>
+                </div>
+                <div style="padding: 20px; background: #f9fafb;">
+                    <p>A new audit report has been published:</p>
+                    <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Store</strong></td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">${storeName}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Document #</strong></td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">${documentNumber}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Score</strong></td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                <span style="color: ${scoreColor}; font-weight: bold;">${score.toFixed(1)}% - ${scoreStatus}</span>
+                            </td>
+                        </tr>
+                    </table>
+                    <p style="text-align: center; margin-top: 20px;">
+                        <a href="${reportUrl}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">View Full Report</a>
+                    </p>
+                    <p style="text-align: center; color: #6b7280; font-size: 12px; margin-top: 20px;">
+                        Or copy this link: ${reportUrl}
+                    </p>
+                </div>
+                <div style="background: #1f2937; color: #9ca3af; padding: 15px; text-align: center; font-size: 12px;">
+                    Food Safety Audit System - GMRL
+                </div>
+            </div>
+        `;
+        
+        // Send email via EmailNotificationService
+        try {
+            const SimpleGraphConnector = require('./src/simple-graph-connector');
+            const spConfig = require('./config/default').sharepoint || {};
+            const connector = new SimpleGraphConnector(spConfig);
+            await connector.connectToSharePoint();
+            
+            const emailService = new EmailNotificationService(connector);
+            
+            // Combine TO and CC recipients
+            const toEmails = toRecipients.map(r => r.email);
+            const ccEmails = (ccRecipients || []).map(r => r.email);
+            
+            const emailSubject = `Food Safety Audit Report - ${storeName} - ${documentNumber}`;
+            
+            const result = await emailService.sendEmail(
+                toEmails,
+                emailSubject,
+                emailHtml,
+                ccEmails.length > 0 ? ccEmails : null,
+                validAccessToken,
+                { email: userEmail, name: user.displayName }
+            );
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Email sending failed');
+            }
+            
+            // Log notification for each recipient
+            const allRecipients = [...toRecipients, ...(ccRecipients || [])];
+            for (const recipient of allRecipients) {
+                await pool.request()
+                    .input('documentNumber', sql.NVarChar(50), documentNumber)
+                    .input('recipientEmail', sql.NVarChar(255), recipient.email)
+                    .input('recipientName', sql.NVarChar(255), recipient.name || recipient.email)
+                    .input('recipientRole', sql.NVarChar(50), recipient.role || 'User')
+                    .input('notificationType', sql.NVarChar(50), 'AuditReport')
+                    .input('emailSubject', sql.NVarChar(255), emailSubject)
+                    .input('sentByEmail', sql.NVarChar(255), userEmail)
+                    .input('status', sql.NVarChar(50), 'Sent')
+                    .input('sentAt', sql.DateTime, new Date())
+                    .query(`
+                        INSERT INTO Notifications (document_number, recipient_email, recipient_name, recipient_role, notification_type, email_subject, sent_by_email, status, sent_at)
+                        VALUES (@documentNumber, @recipientEmail, @recipientName, @recipientRole, @notificationType, @emailSubject, @sentByEmail, @status, @sentAt)
+                    `);
+            }
+            
+            res.json({
+                success: true,
+                published: true,
+                emailSent: true,
+                emailRecipients: allRecipients.map(r => r.email)
+            });
+            
+        } catch (emailError) {
+            console.error('Error sending email:', emailError);
+            res.json({
+                success: true,
+                published: true,
+                emailSent: false,
+                message: 'Report published but email failed: ' + emailError.message
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error sending report with recipients:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ==========================================
 // Broadcast Feature API
 // ==========================================
 
@@ -6623,6 +7050,296 @@ app.post('/api/action-plan/send-email', requireAuth, async (req, res) => {
 });
 
 /**
+ * POST /api/action-plan/submit-compose-data
+ * Get auto-suggested recipients for action plan submission email compose modal
+ */
+app.post('/api/action-plan/submit-compose-data', requireAuth, async (req, res) => {
+    try {
+        const { documentNumber } = req.body;
+        
+        if (!documentNumber) {
+            return res.status(400).json({ success: false, error: 'Document Number required' });
+        }
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // Get the auditor who created this audit from AuditInstances table
+        const auditResult = await pool.request()
+            .input('DocumentNumber', sql.NVarChar(50), documentNumber)
+            .query(`
+                SELECT ai.CreatedBy, ai.StoreName, ai.AuditDate, ai.TotalScore,
+                       u.display_name as AuditorName
+                FROM AuditInstances ai
+                LEFT JOIN Users u ON ai.CreatedBy = u.email
+                WHERE ai.DocumentNumber = @DocumentNumber
+            `);
+        
+        const toRecipients = [];
+        const ccRecipients = [];
+        let auditInfo = {};
+        
+        if (auditResult.recordset.length > 0) {
+            const audit = auditResult.recordset[0];
+            auditInfo = {
+                storeName: audit.StoreName,
+                auditDate: audit.AuditDate,
+                totalScore: audit.TotalScore
+            };
+            
+            // Add the auditor who created the audit as TO recipient
+            if (audit.CreatedBy) {
+                toRecipients.push({
+                    email: audit.CreatedBy,
+                    name: audit.AuditorName || audit.CreatedBy,
+                    role: 'Auditor',
+                    source: 'AuditCreator'
+                });
+            }
+        }
+        
+        // Get SuperAuditors as CC recipients
+        const superAuditorResult = await pool.request()
+            .query(`
+                SELECT id, email, display_name, role
+                FROM Users
+                WHERE role = 'SuperAuditor'
+                AND is_active = 1
+                AND email IS NOT NULL
+            `);
+        
+        for (const row of superAuditorResult.recordset) {
+            if (!toRecipients.find(r => r.email === row.email)) {
+                ccRecipients.push({
+                    id: row.id,
+                    email: row.email,
+                    name: row.display_name || row.email,
+                    role: row.role,
+                    source: 'SuperAuditor'
+                });
+            }
+        }
+        
+        // Get Admins as additional CC option
+        const adminResult = await pool.request()
+            .query(`
+                SELECT id, email, display_name, role
+                FROM Users
+                WHERE role = 'Admin'
+                AND is_active = 1
+                AND email IS NOT NULL
+            `);
+        
+        for (const row of adminResult.recordset) {
+            if (!toRecipients.find(r => r.email === row.email) && 
+                !ccRecipients.find(r => r.email === row.email)) {
+                ccRecipients.push({
+                    id: row.id,
+                    email: row.email,
+                    name: row.display_name || row.email,
+                    role: row.role,
+                    source: 'Admin'
+                });
+            }
+        }
+        
+        // Get actual sender info from access token (who will actually send the email)
+        let senderInfo = {
+            email: req.currentUser?.email || 'Unknown',
+            name: req.currentUser?.displayName || req.currentUser?.email || 'Unknown'
+        };
+        
+        // DEBUG: Log the current user vs token owner for ACTION PLAN compose
+        console.log(`📧 [COMPOSE-AP] Logged-in user from session: ${req.currentUser?.email}`);
+        console.log(`📧 [COMPOSE-AP] User ID from session: ${req.currentUser?.id}`);
+        
+        try {
+            const validAccessToken = await getValidAccessToken(req);
+            if (validAccessToken) {
+                const meResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
+                    headers: { 'Authorization': `Bearer ${validAccessToken}` }
+                });
+                
+                if (meResponse.ok) {
+                    const meData = await meResponse.json();
+                    senderInfo = {
+                        email: meData.mail || meData.userPrincipalName,
+                        name: meData.displayName || meData.mail || meData.userPrincipalName
+                    };
+                    console.log(`📧 [COMPOSE-AP] Token owner (actual sender): ${senderInfo.email}`);
+                    
+                    // CRITICAL: Check if there's a mismatch
+                    if (req.currentUser?.email && senderInfo.email.toLowerCase() !== req.currentUser.email.toLowerCase()) {
+                        console.error(`⚠️ [COMPOSE-AP] TOKEN MISMATCH! User ${req.currentUser.email} has token belonging to ${senderInfo.email}`);
+                    }
+                }
+            }
+        } catch (tokenError) {
+            console.warn('Could not get sender info from token:', tokenError.message);
+        }
+        
+        res.json({
+            success: true,
+            documentNumber,
+            auditInfo,
+            toRecipients,
+            ccRecipients,
+            senderInfo
+        });
+        
+    } catch (error) {
+        console.error('Error getting action plan submit compose data:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * POST /api/action-plan/submit-with-recipients
+ * Submit action plan with custom recipients (from compose modal)
+ */
+app.post('/api/action-plan/submit-with-recipients', requireAuth, async (req, res) => {
+    try {
+        const { documentNumber, storeName, auditDate, score, toRecipients, ccRecipients } = req.body;
+        const user = req.currentUser;
+        
+        if (!documentNumber || !storeName) {
+            return res.status(400).json({ success: false, error: 'Document Number and Store Name required' });
+        }
+        
+        if (!toRecipients || toRecipients.length === 0) {
+            return res.status(400).json({ success: false, error: 'At least one recipient is required' });
+        }
+        
+        console.log(`📧 [API] Store manager submitting action plan ${documentNumber} with custom recipients`);
+        
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // Get valid access token
+        const validAccessToken = await getValidAccessToken(req);
+        if (!validAccessToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'Session expired. Please log out and log in again.'
+            });
+        }
+        
+        // Use dynamic email template
+        const emailTemplateService = require('./services/email-template-service');
+        const emailData = await emailTemplateService.buildEmail('action_plan_submitted', {
+            document_number: documentNumber,
+            store_name: storeName,
+            audit_date: auditDate || 'N/A',
+            score: score || 'N/A',
+            submitter_name: user.displayName || user.email,
+            submitter_email: user.email
+        });
+        
+        // Fallback if template not found or failed
+        let subject, htmlBody;
+        if (emailData && emailData.subject && emailData.html) {
+            subject = emailData.subject;
+            htmlBody = emailData.html;
+            console.log(`📧 [EMAIL] Using database template for action_plan_submitted`);
+        } else {
+            console.warn(`📧 [EMAIL] Template 'action_plan_submitted' not found or invalid, using inline fallback`);
+            subject = `Action Plan Submitted - ${storeName} (${documentNumber})`;
+            htmlBody = `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+                        <h1 style="color: white; margin: 0;">✅ Action Plan Submitted</h1>
+                    </div>
+                    <div style="padding: 30px; background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 10px 10px;">
+                        <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                            Dear Food Safety Team,
+                        </p>
+                        <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                            The action plan related to the Food Safety Report has been completed and saved on the online dashboard.
+                        </p>
+                        <div style="background: #d1fae5; padding: 15px; border-left: 4px solid #10b981; margin: 20px 0; border-radius: 4px;">
+                            <strong>📋 Store:</strong> ${storeName}<br>
+                            <strong>📄 Document:</strong> ${documentNumber}<br>
+                            <strong>📅 Audit Date:</strong> ${auditDate || 'N/A'}<br>
+                            <strong>📊 Score:</strong> ${score || 'N/A'}<br>
+                            <strong>👤 Submitted by:</strong> ${user.displayName || user.email}
+                        </div>
+                        <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                            Please review the action plan on the dashboard.
+                        </p>
+                    </div>
+                    <div style="text-align: center; padding: 15px; color: #6b7280; font-size: 12px;">
+                        Food Safety Audit System | GMRL Group
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Initialize email service
+        const SimpleGraphConnector = require('./src/simple-graph-connector');
+        const spConfig = require('./config/default').sharepoint || {};
+        const connector = new SimpleGraphConnector(spConfig);
+        await connector.connectToSharePoint();
+        
+        const emailService = new EmailNotificationService(connector);
+        
+        const toEmails = toRecipients.map(r => r.email);
+        const ccEmails = (ccRecipients || []).map(r => r.email);
+        
+        // Send email
+        const result = await emailService.sendEmail(
+            toEmails,
+            subject,
+            htmlBody,
+            ccEmails.length > 0 ? ccEmails : null,
+            validAccessToken,
+            { email: user.email, name: user.displayName }
+        );
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to send email');
+        }
+        
+        // Log notification for each recipient
+        const allRecipients = [...toRecipients, ...(ccRecipients || [])];
+        for (const recipient of allRecipients) {
+            const isCC = (ccRecipients || []).some(r => r.email === recipient.email);
+            await pool.request()
+                .input('documentNumber', sql.NVarChar(50), documentNumber)
+                .input('recipientEmail', sql.NVarChar(255), recipient.email)
+                .input('recipientName', sql.NVarChar(255), recipient.name || recipient.email)
+                .input('recipientRole', sql.NVarChar(50), recipient.role || 'User')
+                .input('notificationType', sql.NVarChar(50), 'ActionPlanSubmitted')
+                .input('emailSubject', sql.NVarChar(255), subject)
+                .input('sentByEmail', sql.NVarChar(255), user.email)
+                .input('sentByName', sql.NVarChar(255), user.displayName || user.email)
+                .input('status', sql.NVarChar(50), 'Sent')
+                .input('sentAt', sql.DateTime, new Date())
+                .query(`
+                    INSERT INTO Notifications (document_number, recipient_email, recipient_name, recipient_role, notification_type, email_subject, sent_by_email, sent_by_name, status, sent_at)
+                    VALUES (@documentNumber, @recipientEmail, @recipientName, @recipientRole, @notificationType, @emailSubject, @sentByEmail, @sentByName, @status, @sentAt)
+                `);
+        }
+        
+        // Log the activity
+        logActionPlanSubmitted(req.currentUser, documentNumber, req);
+        
+        console.log(`✅ [API] Action plan submitted to ${toEmails.join(', ')}${ccEmails.length > 0 ? ' CC: ' + ccEmails.join(', ') : ''}`);
+        
+        res.json({
+            success: true,
+            message: 'Action plan submitted successfully',
+            recipients: allRecipients.map(r => r.email)
+        });
+        
+    } catch (error) {
+        console.error('Error submitting action plan with recipients:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
  * POST /api/action-plan/submit-to-auditor
  * Send notification to auditor that store manager completed the action plan
  */
@@ -6707,8 +7424,44 @@ app.post('/api/action-plan/submit-to-auditor', requireAuth, async (req, res) => 
             submitter_email: user.email
         });
         
-        const subject = emailData.subject;
-        const htmlBody = emailData.html;
+        // Fallback if template not found or failed
+        let subject, htmlBody;
+        if (emailData && emailData.subject && emailData.html) {
+            subject = emailData.subject;
+            htmlBody = emailData.html;
+            console.log(`📧 [EMAIL] Using database template for action_plan_submitted`);
+        } else {
+            console.warn(`📧 [EMAIL] Template 'action_plan_submitted' not found, using inline fallback`);
+            subject = `Action Plan Submitted - ${storeName} (${documentNumber})`;
+            htmlBody = `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+                        <h1 style="color: white; margin: 0;">✅ Action Plan Submitted</h1>
+                    </div>
+                    <div style="padding: 30px; background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 10px 10px;">
+                        <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                            Dear Food Safety Team,
+                        </p>
+                        <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                            The action plan related to the Food Safety Report has been completed and saved on the online dashboard.
+                        </p>
+                        <div style="background: #d1fae5; padding: 15px; border-left: 4px solid #10b981; margin: 20px 0; border-radius: 4px;">
+                            <strong>📋 Store:</strong> ${storeName}<br>
+                            <strong>📄 Document:</strong> ${documentNumber}<br>
+                            <strong>📅 Audit Date:</strong> ${auditDate || 'N/A'}<br>
+                            <strong>📊 Score:</strong> ${score || 'N/A'}<br>
+                            <strong>👤 Submitted by:</strong> ${user.displayName || user.email}
+                        </div>
+                        <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                            Please review the action plan on the dashboard.
+                        </p>
+                    </div>
+                    <div style="text-align: center; padding: 15px; color: #6b7280; font-size: 12px;">
+                        Food Safety Audit System | GMRL Group
+                    </div>
+                </div>
+            `;
+        }
         
         // Get valid access token (refresh if expired)
         const validAccessToken = await getValidAccessToken(req);

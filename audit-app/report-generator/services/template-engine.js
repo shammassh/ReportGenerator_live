@@ -1634,6 +1634,50 @@ class TemplateEngine {
                 ⚠️ This report has many images. If printing fails, please use "Download PDF" instead.
             </div>
             
+            <!-- Email Compose Modal -->
+            <div id="emailComposeModal" class="email-modal-overlay no-print" style="display:none;">
+                <div class="email-modal">
+                    <div class="email-modal-header">
+                        <h3>📧 Send Audit Report</h3>
+                        <button class="email-modal-close" onclick="closeEmailModal()">✕</button>
+                    </div>
+                    <div class="email-modal-body">
+                        <div class="email-field from-field">
+                            <label>From:</label>
+                            <div class="from-display" id="fromEmailDisplay">
+                                <span class="from-email-text">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="email-field">
+                            <label>To:</label>
+                            <div class="recipient-container" id="toRecipientsContainer"></div>
+                            <div class="recipient-search-wrapper">
+                                <input type="text" id="toSearchInput" placeholder="Search to add recipients..." autocomplete="off">
+                                <div class="search-results" id="toSearchResults"></div>
+                            </div>
+                        </div>
+                        <div class="email-field">
+                            <label>CC:</label>
+                            <div class="recipient-container" id="ccRecipientsContainer"></div>
+                            <div class="recipient-search-wrapper">
+                                <input type="text" id="ccSearchInput" placeholder="Search to add CC..." autocomplete="off">
+                                <div class="search-results" id="ccSearchResults"></div>
+                            </div>
+                        </div>
+                        <div class="email-preview">
+                            <label>Email Preview:</label>
+                            <div class="email-preview-content" id="emailPreviewContent"></div>
+                        </div>
+                    </div>
+                    <div class="email-modal-footer">
+                        <button class="email-btn-cancel" onclick="closeEmailModal()">Cancel</button>
+                        <button class="email-btn-send" id="sendEmailBtn" onclick="sendEmailWithRecipients()">
+                            📤 Send Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
             <style>
                 .action-bar {
                     position: fixed;
@@ -1750,6 +1794,254 @@ class TemplateEngine {
                 }
                 @media print {
                     .no-print { display: none !important; }
+                }
+                
+                /* Email Compose Modal Styles */
+                .email-modal-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.6);
+                    z-index: 10000;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .email-modal {
+                    background: white;
+                    border-radius: 12px;
+                    width: 90%;
+                    max-width: 700px;
+                    max-height: 90vh;
+                    overflow: hidden;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                    display: flex;
+                    flex-direction: column;
+                }
+                .email-modal-header {
+                    background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+                    color: white;
+                    padding: 15px 20px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .email-modal-header h3 {
+                    margin: 0;
+                    font-size: 1.2rem;
+                }
+                .email-modal-close {
+                    background: none;
+                    border: none;
+                    color: white;
+                    font-size: 1.5rem;
+                    cursor: pointer;
+                    padding: 0;
+                    line-height: 1;
+                }
+                .email-modal-close:hover {
+                    opacity: 0.8;
+                }
+                .email-modal-body {
+                    padding: 20px;
+                    overflow-y: auto;
+                    flex: 1;
+                }
+                .email-field {
+                    margin-bottom: 15px;
+                }
+                .email-field label {
+                    display: block;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                    color: #374151;
+                }
+                .from-field {
+                    margin-bottom: 15px;
+                    padding-bottom: 15px;
+                    border-bottom: 1px solid #e5e7eb;
+                }
+                .from-display {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 10px 12px;
+                    background: #f0fdf4;
+                    border: 1px solid #86efac;
+                    border-radius: 6px;
+                    color: #166534;
+                }
+                .from-email-text {
+                    font-weight: 500;
+                }
+                .recipient-container {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                    min-height: 40px;
+                    padding: 8px;
+                    border: 1px solid #d1d5db;
+                    border-radius: 6px;
+                    background: #f9fafb;
+                    margin-bottom: 8px;
+                }
+                .recipient-tag {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    background: #e0e7ff;
+                    color: #3730a3;
+                    padding: 6px 10px;
+                    border-radius: 20px;
+                    font-size: 0.85rem;
+                }
+                .recipient-tag .role-badge {
+                    background: #818cf8;
+                    color: white;
+                    padding: 2px 6px;
+                    border-radius: 10px;
+                    font-size: 0.7rem;
+                }
+                .recipient-tag .remove-btn {
+                    background: none;
+                    border: none;
+                    color: #6366f1;
+                    cursor: pointer;
+                    padding: 0;
+                    font-size: 1rem;
+                    line-height: 1;
+                }
+                .recipient-tag .remove-btn:hover {
+                    color: #ef4444;
+                }
+                .recipient-search-wrapper {
+                    position: relative;
+                }
+                .recipient-search-wrapper input {
+                    width: 100%;
+                    padding: 10px 12px;
+                    border: 1px solid #d1d5db;
+                    border-radius: 6px;
+                    font-size: 0.9rem;
+                    box-sizing: border-box;
+                }
+                .recipient-search-wrapper input:focus {
+                    outline: none;
+                    border-color: #6366f1;
+                    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+                }
+                .search-results {
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: white;
+                    border: 1px solid #d1d5db;
+                    border-radius: 6px;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                    z-index: 100;
+                    max-height: 200px;
+                    overflow-y: auto;
+                    display: none;
+                }
+                .search-results.show {
+                    display: block;
+                }
+                .search-result-item {
+                    padding: 10px 12px;
+                    cursor: pointer;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 1px solid #f3f4f6;
+                }
+                .search-result-item:hover {
+                    background: #f3f4f6;
+                }
+                .search-result-item:last-child {
+                    border-bottom: none;
+                }
+                .search-result-item .user-info {
+                    display: flex;
+                    flex-direction: column;
+                }
+                .search-result-item .user-name {
+                    font-weight: 500;
+                    color: #1f2937;
+                }
+                .search-result-item .user-email {
+                    font-size: 0.8rem;
+                    color: #6b7280;
+                }
+                .search-result-item .user-role {
+                    background: #e5e7eb;
+                    color: #374151;
+                    padding: 3px 8px;
+                    border-radius: 12px;
+                    font-size: 0.75rem;
+                }
+                .email-preview {
+                    margin-top: 15px;
+                }
+                .email-preview label {
+                    display: block;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                    color: #374151;
+                }
+                .email-preview-content {
+                    border: 1px solid #d1d5db;
+                    border-radius: 8px;
+                    padding: 15px;
+                    background: #ffffff;
+                    max-height: 250px;
+                    overflow-y: auto;
+                }
+                .email-modal-footer {
+                    padding: 15px 20px;
+                    background: #f9fafb;
+                    border-top: 1px solid #e5e7eb;
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
+                }
+                .email-btn-cancel {
+                    padding: 10px 20px;
+                    background: #6b7280;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 500;
+                }
+                .email-btn-cancel:hover {
+                    background: #4b5563;
+                }
+                .email-btn-send {
+                    padding: 10px 24px;
+                    background: linear-gradient(135deg, #10b981, #059669);
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 600;
+                }
+                .email-btn-send:hover {
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+                }
+                .email-btn-send:disabled {
+                    background: #9ca3af;
+                    cursor: not-allowed;
+                    transform: none;
+                    box-shadow: none;
+                }
+                .no-recipients-msg {
+                    color: #9ca3af;
+                    font-style: italic;
+                    padding: 5px;
                 }
             </style>
             
@@ -1899,14 +2191,259 @@ class TemplateEngine {
                 
                 async function saveReportForStoreManager() {
                     const btn = document.querySelector('.save-btn');
-                    const status = document.getElementById('saveStatus');
-                    const fileName = window.location.pathname.split('/').pop();
-                    
                     btn.disabled = true;
-                    btn.innerHTML = '⏳ Saving...';
+                    btn.innerHTML = '⏳ Loading recipients...';
                     
                     try {
-                        const response = await fetch('/api/audits/save-report-for-store-manager', {
+                        // Fetch auto-suggested recipients
+                        const response = await fetch('/api/email/compose-data', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                documentNumber: '${data.documentNumber}',
+                                auditId: ${data.auditId},
+                                storeName: '${(data.storeName || '').replace(/'/g, "\\'")}'
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // Store recipients and show modal
+                            emailModalState.toRecipients = result.toRecipients || [];
+                            emailModalState.ccRecipients = result.ccRecipients || [];
+                            emailModalState.auditInfo = result.auditInfo || {};
+                            emailModalState.senderInfo = result.senderInfo || null;
+                            
+                            // Render recipients
+                            renderRecipients('to');
+                            renderRecipients('cc');
+                            
+                            // Render email preview
+                            renderEmailPreview();
+                            
+                            // Display sender from API (actual token owner) or fallback
+                            if (result.senderInfo) {
+                                displaySenderInfo(result.senderInfo);
+                            } else {
+                                loadCurrentUserForFrom();
+                            }
+                            
+                            // Show modal
+                            document.getElementById('emailComposeModal').style.display = 'flex';
+                            btn.disabled = false;
+                            btn.innerHTML = '💾 Save & Email Store Manager';
+                        } else {
+                            throw new Error(result.error || 'Failed to load recipients');
+                        }
+                    } catch (error) {
+                        const status = document.getElementById('saveStatus');
+                        status.className = 'save-status error';
+                        status.innerHTML = '❌ ' + error.message;
+                        status.style.display = 'block';
+                        btn.disabled = false;
+                        btn.innerHTML = '💾 Save & Email Store Manager';
+                        setTimeout(() => { status.style.display = 'none'; }, 5000);
+                    }
+                }
+                
+                // Email compose modal state
+                let emailModalState = {
+                    toRecipients: [],
+                    ccRecipients: [],
+                    auditInfo: {}
+                };
+                
+                // Render recipients in container
+                function renderRecipients(type) {
+                    const container = document.getElementById(type + 'RecipientsContainer');
+                    const recipients = type === 'to' ? emailModalState.toRecipients : emailModalState.ccRecipients;
+                    
+                    if (recipients.length === 0) {
+                        container.innerHTML = '<span class="no-recipients-msg">No recipients added</span>';
+                        return;
+                    }
+                    
+                    container.innerHTML = recipients.map((r, i) => \`
+                        <span class="recipient-tag">
+                            <span class="role-badge">\${r.role || 'User'}</span>
+                            \${r.name || r.email}
+                            <button class="remove-btn" onclick="removeRecipient('\${type}', \${i})" title="Remove">×</button>
+                        </span>
+                    \`).join('');
+                }
+                
+                // Remove recipient
+                function removeRecipient(type, index) {
+                    if (type === 'to') {
+                        emailModalState.toRecipients.splice(index, 1);
+                    } else {
+                        emailModalState.ccRecipients.splice(index, 1);
+                    }
+                    renderRecipients(type);
+                }
+                
+                // Render email preview
+                function renderEmailPreview() {
+                    const preview = document.getElementById('emailPreviewContent');
+                    const score = ${data.totalScore || 0};
+                    const scoreStatus = score >= 83 ? 'PASS ✅' : 'FAIL ❌';
+                    const scoreColor = score >= 83 ? '#10b981' : '#ef4444';
+                    
+                    preview.innerHTML = \`
+                        <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                            <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 15px; text-align: center;">
+                                <strong>🍽️ Food Safety Audit Report</strong>
+                            </div>
+                            <div style="padding: 15px;">
+                                <p style="margin: 0 0 10px 0;">A new audit report has been published:</p>
+                                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                                    <tr>
+                                        <td style="padding: 6px 8px; border: 1px solid #e5e7eb; background: #f3f4f6; width: 30%;"><strong>Store</strong></td>
+                                        <td style="padding: 6px 8px; border: 1px solid #e5e7eb;">${(data.storeName || '').replace(/'/g, "\\'")}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Document #</strong></td>
+                                        <td style="padding: 6px 8px; border: 1px solid #e5e7eb;">${data.documentNumber}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Score</strong></td>
+                                        <td style="padding: 6px 8px; border: 1px solid #e5e7eb;">
+                                            <span style="color: \${scoreColor}; font-weight: bold;">\${score.toFixed(1)}% - \${scoreStatus}</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <p style="text-align: center; margin-top: 15px;">
+                                    <span style="display: inline-block; background: #2563eb; color: white; padding: 8px 16px; border-radius: 4px; font-size: 0.85rem;">View Full Report</span>
+                                </p>
+                            </div>
+                        </div>
+                    \`;
+                }
+                
+                // Search for users
+                let searchTimeout = null;
+                async function searchUsers(type, query) {
+                    if (query.length < 2) {
+                        document.getElementById(type + 'SearchResults').classList.remove('show');
+                        return;
+                    }
+                    
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(async () => {
+                        try {
+                            const response = await fetch('/api/users/search-for-email?q=' + encodeURIComponent(query));
+                            const result = await response.json();
+                            
+                            if (result.success && result.users.length > 0) {
+                                const resultsDiv = document.getElementById(type + 'SearchResults');
+                                const existingEmails = type === 'to' 
+                                    ? emailModalState.toRecipients.map(r => r.email)
+                                    : emailModalState.ccRecipients.map(r => r.email);
+                                
+                                const filteredUsers = result.users.filter(u => !existingEmails.includes(u.email));
+                                
+                                if (filteredUsers.length === 0) {
+                                    resultsDiv.classList.remove('show');
+                                    return;
+                                }
+                                
+                                resultsDiv.innerHTML = filteredUsers.map(u => \`
+                                    <div class="search-result-item" onclick="addRecipient('\${type}', '\${u.email}', '\${(u.name || '').replace(/'/g, "\\\\'")}', '\${u.role}')">
+                                        <div class="user-info">
+                                            <span class="user-name">\${u.name || u.email}</span>
+                                            <span class="user-email">\${u.email}</span>
+                                        </div>
+                                        <span class="user-role">\${u.role || 'User'}</span>
+                                    </div>
+                                \`).join('');
+                                resultsDiv.classList.add('show');
+                            } else {
+                                document.getElementById(type + 'SearchResults').classList.remove('show');
+                            }
+                        } catch (error) {
+                            console.error('Search error:', error);
+                        }
+                    }, 300);
+                }
+                
+                // Add recipient from search
+                function addRecipient(type, email, name, role) {
+                    const recipient = { email, name: name || email, role: role || 'User' };
+                    
+                    if (type === 'to') {
+                        if (!emailModalState.toRecipients.find(r => r.email === email)) {
+                            emailModalState.toRecipients.push(recipient);
+                        }
+                    } else {
+                        if (!emailModalState.ccRecipients.find(r => r.email === email)) {
+                            emailModalState.ccRecipients.push(recipient);
+                        }
+                    }
+                    
+                    document.getElementById(type + 'SearchInput').value = '';
+                    document.getElementById(type + 'SearchResults').classList.remove('show');
+                    renderRecipients(type);
+                }
+                
+                // Display sender info from API (actual token owner)
+                function displaySenderInfo(senderInfo) {
+                    const fromDisplay = document.getElementById('fromEmailDisplay');
+                    if (senderInfo && senderInfo.email) {
+                        const name = senderInfo.name || '';
+                        const email = senderInfo.email || '';
+                        fromDisplay.innerHTML = \`
+                            <span class="from-email-text">
+                                \${name ? name + ' &lt;' + email + '&gt;' : email}
+                            </span>
+                        \`;
+                    } else {
+                        fromDisplay.innerHTML = '<span class="from-email-text">Unknown sender</span>';
+                    }
+                }
+                
+                // Load current user for From field (fallback)
+                async function loadCurrentUserForFrom() {
+                    const fromDisplay = document.getElementById('fromEmailDisplay');
+                    try {
+                        const response = await fetch('/auth/session');
+                        const data = await response.json();
+                        if (data.authenticated && data.user) {
+                            const userName = data.user.displayName || data.user.name || '';
+                            const userEmail = data.user.email || '';
+                            fromDisplay.innerHTML = \`
+                                <span class="from-email-text">
+                                    \${userName ? userName + ' &lt;' + userEmail + '&gt;' : userEmail}
+                                </span>
+                            \`;
+                        } else {
+                            fromDisplay.innerHTML = '<span class="from-email-text">Unknown sender</span>';
+                        }
+                    } catch (e) {
+                        fromDisplay.innerHTML = '<span class="from-email-text">Unable to load sender</span>';
+                    }
+                }
+                
+                // Close modal
+                function closeEmailModal() {
+                    document.getElementById('emailComposeModal').style.display = 'none';
+                }
+                
+                // Send email with recipients
+                async function sendEmailWithRecipients() {
+                    if (emailModalState.toRecipients.length === 0) {
+                        alert('Please add at least one recipient in the "To" field.');
+                        return;
+                    }
+                    
+                    const sendBtn = document.getElementById('sendEmailBtn');
+                    sendBtn.disabled = true;
+                    sendBtn.innerHTML = '⏳ Sending...';
+                    
+                    const fileName = window.location.pathname.split('/').pop();
+                    
+                    try {
+                        const response = await fetch('/api/audits/send-report-with-recipients', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -1914,41 +2451,69 @@ class TemplateEngine {
                                 auditId: ${data.auditId},
                                 fileName: fileName,
                                 storeName: '${(data.storeName || '').replace(/'/g, "\\'")}',
-                                totalScore: ${data.totalScore || 0}
+                                totalScore: ${data.totalScore || 0},
+                                toRecipients: emailModalState.toRecipients,
+                                ccRecipients: emailModalState.ccRecipients
                             })
                         });
                         
                         const result = await response.json();
                         
                         if (result.success) {
+                            closeEmailModal();
+                            
+                            const status = document.getElementById('saveStatus');
                             status.className = 'save-status success';
-                            // Show email status
-                            if (result.emailSent && result.emailRecipients && result.emailRecipients.length > 0) {
-                                status.innerHTML = '✅ Report saved & email sent to: ' + result.emailRecipients.join(', ');
+                            
+                            if (result.emailSent) {
+                                status.innerHTML = '✅ Report published & email sent to: ' + (result.emailRecipients || []).join(', ');
                             } else {
-                                status.innerHTML = '✅ Report saved! (No store manager email configured)';
+                                status.innerHTML = '✅ Report published! ' + (result.message || '');
                             }
-                            btn.innerHTML = '✅ Saved';
-                            // Also disable the publish button
+                            status.style.display = 'block';
+                            
+                            // Update buttons
+                            const saveBtn = document.querySelector('.save-btn');
+                            if (saveBtn) saveBtn.innerHTML = '✅ Sent';
                             const publishBtn = document.querySelector('.publish-no-email-btn');
                             if (publishBtn) {
                                 publishBtn.innerHTML = '✅ Already Published';
                                 publishBtn.disabled = true;
                             }
+                            
+                            setTimeout(() => { status.style.display = 'none'; }, 8000);
                         } else {
-                            throw new Error(result.error || 'Failed to save');
+                            throw new Error(result.error || 'Failed to send email');
                         }
                     } catch (error) {
-                        status.className = 'save-status error';
-                        status.innerHTML = '❌ ' + error.message;
-                        btn.disabled = false;
-                        btn.innerHTML = '💾 Save for Store Manager';
+                        sendBtn.disabled = false;
+                        sendBtn.innerHTML = '📤 Send Email';
+                        alert('Error: ' + error.message);
                     }
-                    
-                    setTimeout(() => {
-                        status.style.display = 'none';
-                    }, 8000);
                 }
+                
+                // Set up search input listeners on load
+                (function setupEmailModalListeners() {
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const toInput = document.getElementById('toSearchInput');
+                        const ccInput = document.getElementById('ccSearchInput');
+                        
+                        if (toInput) {
+                            toInput.addEventListener('input', (e) => searchUsers('to', e.target.value));
+                            toInput.addEventListener('blur', () => setTimeout(() => {
+                                const el = document.getElementById('toSearchResults');
+                                if (el) el.classList.remove('show');
+                            }, 200));
+                        }
+                        if (ccInput) {
+                            ccInput.addEventListener('input', (e) => searchUsers('cc', e.target.value));
+                            ccInput.addEventListener('blur', () => setTimeout(() => {
+                                const el = document.getElementById('ccSearchResults');
+                                if (el) el.classList.remove('show');
+                            }, 200));
+                        }
+                    });
+                })();
                 
                 // Count images to show warning for large reports
                 function countImages() {

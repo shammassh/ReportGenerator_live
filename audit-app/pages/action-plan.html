@@ -1441,73 +1441,8 @@
         }
 
         async function submitToAuditor() {
-            // First save, then submit
-            try {
-                const btn = document.getElementById('submitBtn');
-                btn.disabled = true;
-                btn.innerHTML = '⏳ Submitting...';
-                
-                // Save first
-                showToast('Saving action plan...', 'info');
-                
-                const actions = actionItems.map(item => ({
-                    referenceValue: item.referenceValue,
-                    section: item.sectionName,
-                    finding: item.finding || item.title,
-                    priority: item.priority,
-                    actionTaken: item.actionTaken,
-                    deadline: item.deadline || null,
-                    personInCharge: item.personInCharge,
-                    status: item.status,
-                    pictures: item.pictures || []
-                }));
-
-                const saveRes = await fetch('/api/action-plan/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        documentNumber: auditData.documentNumber,
-                        actions: actions,
-                        updatedBy: 'Store Manager'
-                    })
-                });
-
-                const saveResult = await saveRes.json();
-                if (!saveResult.success) {
-                    throw new Error('Failed to save: ' + (saveResult.message || saveResult.error));
-                }
-
-                // Now submit to auditor
-                showToast('Sending notification to auditor...', 'info');
-                
-                const submitRes = await fetch('/api/action-plan/submit-to-auditor', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        documentNumber: auditData.documentNumber,
-                        storeName: auditData.storeName,
-                        auditDate: auditData.auditDate,
-                        score: auditData.totalScore ? Math.round(auditData.totalScore) + '%' : 'N/A'
-                    })
-                });
-
-                const submitResult = await submitRes.json();
-                
-                if (submitResult.success) {
-                    showToast('✅ Action plan submitted! Email sent to: ' + submitResult.recipients.join(', '), 'success');
-                    btn.innerHTML = '✅ Submitted';
-                    btn.style.background = '#059669 !important';
-                } else {
-                    throw new Error(submitResult.error || 'Failed to submit');
-                }
-
-            } catch (error) {
-                console.error('Error submitting action plan:', error);
-                showToast('❌ ' + error.message, 'error');
-                const btn = document.getElementById('submitBtn');
-                btn.disabled = false;
-                btn.innerHTML = '✅ Submit to Auditor';
-            }
+            // Open email compose modal instead of direct send
+            openSubmitEmailModal();
         }
 
         function showToast(message, type) {
@@ -1594,6 +1529,623 @@
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
                 saveActionPlan();
+            }
+        });
+    </script>
+
+    <!-- Email Compose Modal -->
+    <div id="emailComposeModal" class="email-modal-overlay" style="display:none;">
+        <div class="email-modal">
+            <div class="email-modal-header">
+                <h3>📧 Submit Action Plan to Auditor</h3>
+                <button class="email-modal-close" onclick="closeEmailModal()">✕</button>
+            </div>
+            <div class="email-modal-body">
+                <div class="email-field from-field">
+                    <label>From:</label>
+                    <div class="from-display" id="fromEmailDisplay">
+                        <span class="from-email-text">Loading...</span>
+                    </div>
+                </div>
+                <div class="email-field">
+                    <label>To:</label>
+                    <div class="recipient-container" id="toRecipientsContainer"></div>
+                    <div class="recipient-search-wrapper">
+                        <input type="text" id="toSearchInput" placeholder="Search to add recipients..." autocomplete="off">
+                        <div class="search-results" id="toSearchResults"></div>
+                    </div>
+                </div>
+                <div class="email-field">
+                    <label>CC:</label>
+                    <div class="recipient-container" id="ccRecipientsContainer"></div>
+                    <div class="recipient-search-wrapper">
+                        <input type="text" id="ccSearchInput" placeholder="Search to add CC..." autocomplete="off">
+                        <div class="search-results" id="ccSearchResults"></div>
+                    </div>
+                </div>
+                <div class="email-preview">
+                    <label>Email Preview:</label>
+                    <div class="email-preview-content" id="emailPreviewContent"></div>
+                </div>
+            </div>
+            <div class="email-modal-footer">
+                <button class="email-btn-cancel" onclick="closeEmailModal()">Cancel</button>
+                <button class="email-btn-send" id="sendEmailBtn" onclick="sendEmailWithRecipients()">
+                    📤 Send to Auditor
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Email Compose Modal Styles */
+        .email-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .email-modal {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+        .email-modal-header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .email-modal-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+        .email-modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .email-modal-close:hover {
+            opacity: 0.8;
+        }
+        .email-modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .email-field {
+            margin-bottom: 15px;
+        }
+        .email-field label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #374151;
+        }
+        .from-field {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .from-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 6px;
+            color: #166534;
+        }
+        .from-email-text {
+            font-weight: 500;
+        }
+        .recipient-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 40px;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: #f9fafb;
+            margin-bottom: 8px;
+        }
+        .recipient-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 6px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        .recipient-tag .role-badge {
+            background: #818cf8;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+        }
+        .recipient-tag .remove-btn {
+            background: none;
+            border: none;
+            color: #6366f1;
+            cursor: pointer;
+            padding: 0;
+            font-size: 1rem;
+            line-height: 1;
+        }
+        .recipient-tag .remove-btn:hover {
+            color: #ef4444;
+        }
+        .recipient-search-wrapper {
+            position: relative;
+        }
+        .recipient-search-wrapper input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+        }
+        .recipient-search-wrapper input:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+        .search-results.show {
+            display: block;
+        }
+        .search-result-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .search-result-item:hover {
+            background: #f3f4f6;
+        }
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        .search-result-item .user-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .search-result-item .user-name {
+            font-weight: 500;
+            color: #1f2937;
+        }
+        .search-result-item .user-email {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        .search-result-item .user-role {
+            background: #e5e7eb;
+            color: #374151;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
+        .email-preview {
+            margin-top: 15px;
+        }
+        .email-preview label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #374151;
+        }
+        .email-preview-content {
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 15px;
+            background: #ffffff;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .email-modal-footer {
+            padding: 15px 20px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .email-btn-cancel {
+            padding: 10px 20px;
+            background: #6b7280;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .email-btn-cancel:hover {
+            background: #4b5563;
+        }
+        .email-btn-send {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .email-btn-send:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+        .email-btn-send:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .no-recipients-msg {
+            color: #9ca3af;
+            font-style: italic;
+            padding: 5px;
+        }
+        @media print {
+            .email-modal-overlay { display: none !important; }
+        }
+    </style>
+
+    <script>
+        // Email compose modal state
+        let emailModalState = {
+            toRecipients: [],
+            ccRecipients: [],
+            auditInfo: {}
+        };
+
+        // Open email compose modal (called from submitToAuditor)
+        async function openSubmitEmailModal() {
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Loading...';
+
+            try {
+                // First save the action plan
+                showToast('Saving action plan...', 'info');
+                
+                const actions = actionItems.map(item => ({
+                    responseId: item.responseId,
+                    referenceValue: item.referenceValue,
+                    sectionName: item.sectionName,
+                    actionTaken: item.actionTaken,
+                    deadline: item.deadline,
+                    personInCharge: item.personInCharge,
+                    status: item.status,
+                    pictures: item.pictures || []
+                }));
+
+                const saveRes = await fetch('/api/action-plan/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        documentNumber: auditData.documentNumber,
+                        actions: actions,
+                        updatedBy: 'Store Manager'
+                    })
+                });
+
+                const saveResult = await saveRes.json();
+                if (!saveResult.success) {
+                    throw new Error('Failed to save: ' + (saveResult.message || saveResult.error));
+                }
+
+                // Fetch recipients
+                showToast('Loading recipients...', 'info');
+                const response = await fetch('/api/action-plan/submit-compose-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        documentNumber: auditData.documentNumber
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    emailModalState.toRecipients = result.toRecipients || [];
+                    emailModalState.ccRecipients = result.ccRecipients || [];
+                    emailModalState.auditInfo = result.auditInfo || {};
+                    emailModalState.senderInfo = result.senderInfo || null;
+
+                    renderRecipients('to');
+                    renderRecipients('cc');
+                    renderEmailPreview();
+                    
+                    // Use senderInfo from API (actual token owner)
+                    if (result.senderInfo) {
+                        displaySenderInfo(result.senderInfo);
+                    } else {
+                        loadCurrentUserForFrom();
+                    }
+
+                    document.getElementById('emailComposeModal').style.display = 'flex';
+                    btn.disabled = false;
+                    btn.innerHTML = '✅ Submit to Auditor';
+                    
+                    // Remove any info toast
+                    const existing = document.querySelector('.toast.info');
+                    if (existing) existing.remove();
+                } else {
+                    throw new Error(result.error || 'Failed to load recipients');
+                }
+            } catch (error) {
+                showToast('❌ ' + error.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '✅ Submit to Auditor';
+            }
+        }
+
+        function renderRecipients(type) {
+            const container = document.getElementById(type + 'RecipientsContainer');
+            const recipients = type === 'to' ? emailModalState.toRecipients : emailModalState.ccRecipients;
+
+            if (recipients.length === 0) {
+                container.innerHTML = '<span class="no-recipients-msg">No recipients added</span>';
+                return;
+            }
+
+            container.innerHTML = recipients.map((r, i) => `
+                <span class="recipient-tag">
+                    <span class="role-badge">${r.role || 'User'}</span>
+                    ${r.name || r.email}
+                    <button class="remove-btn" onclick="removeRecipient('${type}', ${i})" title="Remove">×</button>
+                </span>
+            `).join('');
+        }
+
+        function removeRecipient(type, index) {
+            if (type === 'to') {
+                emailModalState.toRecipients.splice(index, 1);
+            } else {
+                emailModalState.ccRecipients.splice(index, 1);
+            }
+            renderRecipients(type);
+        }
+
+        function renderEmailPreview() {
+            const preview = document.getElementById('emailPreviewContent');
+            const score = auditData.totalScore ? Math.round(auditData.totalScore) + '%' : 'N/A';
+
+            preview.innerHTML = `
+                <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 15px; text-align: center;">
+                        <strong>✅ Action Plan Submitted</strong>
+                    </div>
+                    <div style="padding: 15px;">
+                        <p style="margin: 0 0 10px 0;">The store manager has completed the action plan:</p>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                            <tr>
+                                <td style="padding: 6px 8px; border: 1px solid #e5e7eb; background: #f3f4f6; width: 30%;"><strong>Store</strong></td>
+                                <td style="padding: 6px 8px; border: 1px solid #e5e7eb;">${auditData.storeName || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Document #</strong></td>
+                                <td style="padding: 6px 8px; border: 1px solid #e5e7eb;">${auditData.documentNumber}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Score</strong></td>
+                                <td style="padding: 6px 8px; border: 1px solid #e5e7eb;">${score}</td>
+                            </tr>
+                        </table>
+                        <p style="text-align: center; margin-top: 15px;">
+                            <span style="display: inline-block; background: #10b981; color: white; padding: 8px 16px; border-radius: 4px; font-size: 0.85rem;">Review Action Plan</span>
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Display sender info from API response (actual token owner)
+        function displaySenderInfo(senderInfo) {
+            const fromDisplay = document.getElementById('fromEmailDisplay');
+            if (senderInfo && senderInfo.email) {
+                const name = senderInfo.name || '';
+                const email = senderInfo.email || '';
+                fromDisplay.innerHTML = `
+                    <span class="from-email-text">
+                        ${name ? name + ' &lt;' + email + '&gt;' : email}
+                    </span>
+                `;
+            } else {
+                fromDisplay.innerHTML = '<span class="from-email-text">Unknown sender</span>';
+            }
+        }
+
+        async function loadCurrentUserForFrom() {
+            const fromDisplay = document.getElementById('fromEmailDisplay');
+            // This is a fallback if senderInfo not available from API
+            try {
+                const response = await fetch('/auth/session');
+                const data = await response.json();
+                if (data.authenticated && data.user) {
+                    const userName = data.user.displayName || data.user.name || '';
+                    const userEmail = data.user.email || '';
+                    fromDisplay.innerHTML = `
+                        <span class="from-email-text">
+                            ${userName ? userName + ' &lt;' + userEmail + '&gt;' : userEmail}
+                        </span>
+                    `;
+                } else {
+                    fromDisplay.innerHTML = '<span class="from-email-text">Unknown sender</span>';
+                }
+            } catch (e) {
+                fromDisplay.innerHTML = '<span class="from-email-text">Unable to load sender</span>';
+            }
+        }
+
+        let searchTimeout = null;
+        async function searchUsers(type, query) {
+            if (query.length < 2) {
+                document.getElementById(type + 'SearchResults').classList.remove('show');
+                return;
+            }
+
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch('/api/users/search-for-email?q=' + encodeURIComponent(query));
+                    const result = await response.json();
+
+                    if (result.success && result.users.length > 0) {
+                        const resultsDiv = document.getElementById(type + 'SearchResults');
+                        const existingEmails = type === 'to'
+                            ? emailModalState.toRecipients.map(r => r.email)
+                            : emailModalState.ccRecipients.map(r => r.email);
+
+                        const filteredUsers = result.users.filter(u => !existingEmails.includes(u.email));
+
+                        if (filteredUsers.length === 0) {
+                            resultsDiv.classList.remove('show');
+                            return;
+                        }
+
+                        resultsDiv.innerHTML = filteredUsers.map(u => `
+                            <div class="search-result-item" onclick="addRecipient('${type}', '${u.email}', '${(u.name || '').replace(/'/g, "\\'")}', '${u.role}')">
+                                <div class="user-info">
+                                    <span class="user-name">${u.name || u.email}</span>
+                                    <span class="user-email">${u.email}</span>
+                                </div>
+                                <span class="user-role">${u.role || 'User'}</span>
+                            </div>
+                        `).join('');
+                        resultsDiv.classList.add('show');
+                    } else {
+                        document.getElementById(type + 'SearchResults').classList.remove('show');
+                    }
+                } catch (error) {
+                    console.error('Search error:', error);
+                }
+            }, 300);
+        }
+
+        function addRecipient(type, email, name, role) {
+            const recipient = { email, name: name || email, role: role || 'User' };
+
+            if (type === 'to') {
+                if (!emailModalState.toRecipients.find(r => r.email === email)) {
+                    emailModalState.toRecipients.push(recipient);
+                }
+            } else {
+                if (!emailModalState.ccRecipients.find(r => r.email === email)) {
+                    emailModalState.ccRecipients.push(recipient);
+                }
+            }
+
+            document.getElementById(type + 'SearchInput').value = '';
+            document.getElementById(type + 'SearchResults').classList.remove('show');
+            renderRecipients(type);
+        }
+
+        function closeEmailModal() {
+            document.getElementById('emailComposeModal').style.display = 'none';
+        }
+
+        async function sendEmailWithRecipients() {
+            if (emailModalState.toRecipients.length === 0) {
+                alert('Please add at least one recipient in the "To" field.');
+                return;
+            }
+
+            const sendBtn = document.getElementById('sendEmailBtn');
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '⏳ Sending...';
+
+            try {
+                const response = await fetch('/api/action-plan/submit-with-recipients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        documentNumber: auditData.documentNumber,
+                        storeName: auditData.storeName,
+                        auditDate: auditData.auditDate,
+                        score: auditData.totalScore ? Math.round(auditData.totalScore) + '%' : 'N/A',
+                        toRecipients: emailModalState.toRecipients,
+                        ccRecipients: emailModalState.ccRecipients
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    closeEmailModal();
+                    showToast('✅ Action plan submitted! Email sent to: ' + result.recipients.join(', '), 'success');
+                    
+                    const btn = document.getElementById('submitBtn');
+                    btn.innerHTML = '✅ Submitted';
+                    btn.style.background = '#059669';
+                } else {
+                    throw new Error(result.error || 'Failed to send');
+                }
+            } catch (error) {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '📤 Send to Auditor';
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Set up search input listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const toInput = document.getElementById('toSearchInput');
+            const ccInput = document.getElementById('ccSearchInput');
+
+            if (toInput) {
+                toInput.addEventListener('input', (e) => searchUsers('to', e.target.value));
+                toInput.addEventListener('blur', () => setTimeout(() => {
+                    const el = document.getElementById('toSearchResults');
+                    if (el) el.classList.remove('show');
+                }, 200));
+            }
+            if (ccInput) {
+                ccInput.addEventListener('input', (e) => searchUsers('cc', e.target.value));
+                ccInput.addEventListener('blur', () => setTimeout(() => {
+                    const el = document.getElementById('ccSearchResults');
+                    if (el) el.classList.remove('show');
+                }, 200));
             }
         });
     </script>
