@@ -46,9 +46,12 @@ class EmailNotificationService {
                     actualSender = meData.mail || meData.userPrincipalName;
                     console.log(`📧 [EMAIL] Sending from: ${actualSender} (${meData.displayName})`);
                     
-                    // Log if there's a mismatch (for debugging) but still send - token owner is correct
+                    // SECURITY: Block email if token belongs to a different user than expected
+                    // This prevents emails being sent from the wrong user's account
                     if (senderInfo && senderInfo.email && actualSender.toLowerCase() !== senderInfo.email.toLowerCase()) {
-                        console.warn(`⚠️ [EMAIL] Note: Token owner (${actualSender}) differs from senderInfo (${senderInfo.email})`);
+                        console.error(`❌ [EMAIL] SECURITY BLOCK: Token owner (${actualSender}) does NOT match expected sender (${senderInfo.email})`);
+                        console.error(`❌ [EMAIL] This could indicate a session mixup or token caching issue`);
+                        throw new Error(`Cannot send email: Session mismatch. Expected sender ${senderInfo.email} but token belongs to ${actualSender}. Please log out and log back in.`);
                     }
                 } else {
                     console.error(`📧 [EMAIL] Token verification failed, status: ${meResponse.status}`);

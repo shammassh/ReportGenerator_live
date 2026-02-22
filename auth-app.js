@@ -39,7 +39,10 @@ async function getValidAccessToken(req) {
     
     console.log('🔑 [TOKEN] getValidAccessToken called');
     console.log('🔑 [TOKEN] sessionToken exists:', !!sessionToken);
+    console.log('🔑 [TOKEN] sessionToken (first 20 chars):', sessionToken?.substring(0, 20));
     console.log('🔑 [TOKEN] user exists:', !!user);
+    console.log('🔑 [TOKEN] user.email:', user?.email);
+    console.log('🔑 [TOKEN] user.id:', user?.id);
     console.log('🔑 [TOKEN] user.accessToken length:', user?.accessToken?.length || 0);
     
     if (!user || !sessionToken) {
@@ -63,8 +66,16 @@ async function getValidAccessToken(req) {
     // Get session with refresh token
     const session = await SessionManager.getSession(sessionToken);
     console.log('🔑 [TOKEN] Session retrieved:', !!session);
+    console.log('🔑 [TOKEN] Session user_id:', session?.user_db_id);
+    console.log('🔑 [TOKEN] Session email:', session?.email);
     console.log('🔑 [TOKEN] Refresh token exists:', !!session?.azure_refresh_token);
     console.log('🔑 [TOKEN] Refresh token length:', session?.azure_refresh_token?.length || 0);
+    
+    // SECURITY CHECK: Verify session belongs to expected user
+    if (session && user && session.user_db_id !== user.id) {
+        console.error(`❌ [TOKEN] SECURITY: Session user mismatch! Expected user ${user.id} (${user.email}) but session belongs to user ${session.user_db_id} (${session.email})`);
+        return null;
+    }
     
     if (!session || !session.azure_refresh_token) {
         console.log('❌ [TOKEN] No refresh token available in session');
@@ -7121,28 +7132,8 @@ app.post('/api/action-plan/submit-compose-data', requireAuth, async (req, res) =
             }
         }
         
-        // Get Admins as additional CC option
-        const adminResult = await pool.request()
-            .query(`
-                SELECT id, email, display_name, role
-                FROM Users
-                WHERE role = 'Admin'
-                AND is_active = 1
-                AND email IS NOT NULL
-            `);
-        
-        for (const row of adminResult.recordset) {
-            if (!toRecipients.find(r => r.email === row.email) && 
-                !ccRecipients.find(r => r.email === row.email)) {
-                ccRecipients.push({
-                    id: row.id,
-                    email: row.email,
-                    name: row.display_name || row.email,
-                    role: row.role,
-                    source: 'Admin'
-                });
-            }
-        }
+        // NOTE: Admins are NOT automatically added to CC
+        // They can be manually added if needed by the sender
         
         // Get actual sender info from access token (who will actually send the email)
         let senderInfo = {
