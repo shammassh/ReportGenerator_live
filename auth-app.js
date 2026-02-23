@@ -4539,7 +4539,7 @@ app.get('/admin/email-templates', requireAuth, requireAutoRole('Admin'), (req, r
 });
 
 // Get all email templates
-app.get('/api/admin/email-templates', requireAuth, requireRole('Admin'), async (req, res) => {
+app.get('/api/admin/email-templates', requireAuth, requireAutoRole('Admin'), async (req, res) => {
     try {
         const templates = await emailTemplateService.getAllTemplates();
         res.json({ success: true, templates });
@@ -4550,7 +4550,7 @@ app.get('/api/admin/email-templates', requireAuth, requireRole('Admin'), async (
 });
 
 // Update email template
-app.put('/api/admin/email-templates/:key', requireAuth, requireRole('Admin'), async (req, res) => {
+app.put('/api/admin/email-templates/:key', requireAuth, requireAutoRole('Admin'), async (req, res) => {
     try {
         const templateKey = req.params.key;
         const updates = req.body;
@@ -4571,7 +4571,7 @@ app.put('/api/admin/email-templates/:key', requireAuth, requireRole('Admin'), as
 });
 
 // Initialize default templates
-app.post('/api/admin/email-templates/initialize', requireAuth, requireRole('Admin'), async (req, res) => {
+app.post('/api/admin/email-templates/initialize', requireAuth, requireAutoRole('Admin'), async (req, res) => {
     try {
         const result = await emailTemplateService.insertDefaultTemplates();
         if (result.success) {
@@ -4586,7 +4586,7 @@ app.post('/api/admin/email-templates/initialize', requireAuth, requireRole('Admi
 });
 
 // Reset template to default
-app.post('/api/admin/email-templates/:key/reset', requireAuth, requireRole('Admin'), async (req, res) => {
+app.post('/api/admin/email-templates/:key/reset', requireAuth, requireAutoRole('Admin'), async (req, res) => {
     try {
         const templateKey = req.params.key;
         const defaults = emailTemplateService.getDefaultTemplates();
@@ -4621,7 +4621,7 @@ app.post('/api/admin/email-templates/:key/reset', requireAuth, requireRole('Admi
 });
 
 // Send test email
-app.post('/api/admin/email-templates/test', requireAuth, requireRole('Admin'), async (req, res) => {
+app.post('/api/admin/email-templates/test', requireAuth, requireAutoRole('Admin'), async (req, res) => {
     try {
         const { templateKey, recipientEmail, subject, body } = req.body;
         
