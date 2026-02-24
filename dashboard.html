@@ -2832,7 +2832,8 @@
             const auditOpsButtons = [
                 { id: 'calendarBtn', elementId: 'calendarBtn' },
                 { id: 'startAuditBtn', elementId: 'startAuditBtn' },
-                { id: 'viewAuditsBtn', elementId: 'viewAuditsBtn' }
+                { id: 'viewAuditsBtn', elementId: 'viewAuditsBtn' },
+                { id: 'scoreCalculatorBtn', elementId: 'scoreCalculatorBtn' }
             ];
 
             let usedDatabase = false;
@@ -3028,13 +3029,15 @@
                         }
                     }
 
-                    // Show Score Calculator for Admin and SuperAuditor (not in System Admin category)
-                    if (userRole === 'Admin' || userRole === 'SuperAuditor') {
-                        // Show Score Calculator button for Admin and SuperAuditor
-                        const scoreCalculatorBtn = document.getElementById('scoreCalculatorBtn');
-                        if (scoreCalculatorBtn) {
-                            scoreCalculatorBtn.style.display = 'flex';
-                            console.log('✅ Score Calculator button display set to flex');
+                    // Score Calculator - only use hardcoded if database didn't handle it
+                    if (!usedDbForAuditOps) {
+                        // Show Score Calculator for Admin and SuperAuditor (fallback)
+                        if (userRole === 'Admin' || userRole === 'SuperAuditor') {
+                            const scoreCalculatorBtn = document.getElementById('scoreCalculatorBtn');
+                            if (scoreCalculatorBtn) {
+                                scoreCalculatorBtn.style.display = 'flex';
+                                console.log('✅ [Hardcoded] Score Calculator button display set to flex');
+                            }
                         }
                     }
 
