@@ -2827,6 +2827,31 @@
             return usedDatabase;
         }
 
+        function applyAuditOperationsPermissions(userRole) {
+            // Audit Operations buttons - use database if available
+            const auditOpsButtons = [
+                { id: 'calendarBtn', elementId: 'calendarBtn' },
+                { id: 'startAuditBtn', elementId: 'startAuditBtn' },
+                { id: 'viewAuditsBtn', elementId: 'viewAuditsBtn' }
+            ];
+
+            let usedDatabase = false;
+
+            auditOpsButtons.forEach(btn => {
+                const permission = hasPermission(btn.id, userRole);
+                if (permission !== null) {
+                    const element = document.getElementById(btn.elementId);
+                    if (element) {
+                        element.style.display = permission ? 'flex' : 'none';
+                        console.log(`🔑 [DB] ${btn.id}: ${permission ? 'SHOW' : 'HIDE'} for ${userRole}`);
+                    }
+                    usedDatabase = true;
+                }
+            });
+
+            return usedDatabase;
+        }
+
         // Check authentication and setup UI based on role
         async function checkAuthAndSetupUI() {
             try {
@@ -2944,12 +2969,20 @@
                         }
                     }
 
-                    // Show calendar button for Admin, SuperAuditor, and Auditor only (confidential)
-                    if (userRole === 'Admin' || userRole === 'SuperAuditor' || userRole === 'Auditor') {
-                        const calendarBtn = document.getElementById('calendarBtn');
-                        if (calendarBtn) {
-                            calendarBtn.style.display = 'flex';
-                            console.log('✅ Calendar button display set to flex for role:', userRole);
+                    // Phase 2: Try database permissions for Audit Operations (calendar, start audit, view audits)
+                    const usedDbForAuditOps = applyAuditOperationsPermissions(userRole);
+                    
+                    if (!usedDbForAuditOps) {
+                        // Fallback to hardcoded if database not available
+                        console.log('⚠️ Using hardcoded permissions for Audit Operations');
+                        
+                        // Show calendar button for Admin, SuperAuditor, and Auditor only (confidential)
+                        if (userRole === 'Admin' || userRole === 'SuperAuditor' || userRole === 'Auditor') {
+                            const calendarBtn = document.getElementById('calendarBtn');
+                            if (calendarBtn) {
+                                calendarBtn.style.display = 'flex';
+                                console.log('✅ Calendar button display set to flex for role:', userRole);
+                            }
                         }
                     }
 
