@@ -1664,6 +1664,11 @@ class TemplateEngine {
                                 <div class="search-results" id="ccSearchResults"></div>
                             </div>
                         </div>
+                        <div class="email-field">
+                            <label style="color: #ef4444; font-weight: bold;">Additional Message (Optional):</label>
+                            <textarea id="customMessageInput" placeholder="Add a custom message to include in the email..." style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid #ef4444; border-radius: 6px; font-family: inherit; font-size: 0.9rem; resize: vertical;"></textarea>
+                            <small style="color: #ef4444; font-size: 0.75rem;">This message will appear at the top of the email body.</small>
+                        </div>
                         <div class="email-preview">
                             <label>Email Preview:</label>
                             <div class="email-preview-content" id="emailPreviewContent"></div>
@@ -2214,12 +2219,13 @@ class TemplateEngine {
                             emailModalState.ccRecipients = result.ccRecipients || [];
                             emailModalState.auditInfo = result.auditInfo || {};
                             emailModalState.senderInfo = result.senderInfo || null;
+                            emailModalState.emailTemplate = result.emailTemplate || null;
                             
                             // Render recipients
                             renderRecipients('to');
                             renderRecipients('cc');
                             
-                            // Render email preview
+                            // Render email preview (from template)
                             renderEmailPreview();
                             
                             // Display sender from API (actual token owner) or fallback
@@ -2251,7 +2257,8 @@ class TemplateEngine {
                 let emailModalState = {
                     toRecipients: [],
                     ccRecipients: [],
-                    auditInfo: {}
+                    auditInfo: {},
+                    emailTemplate: null
                 };
                 
                 // Render recipients in container
@@ -2283,42 +2290,136 @@ class TemplateEngine {
                     renderRecipients(type);
                 }
                 
-                // Render email preview
+                // Replace placeholders in template
+                function replacePlaceholders(template, placeholders) {
+                    let result = template;
+                    for (const [key, value] of Object.entries(placeholders)) {
+                        const regex = new RegExp('{{' + key + '}}', 'gi');
+                        result = result.replace(regex, value || '');
+                    }
+                    return result;
+                }
+                
+                // Render email preview from template
                 function renderEmailPreview() {
                     const preview = document.getElementById('emailPreviewContent');
-                    const score = ${data.totalScore || 0};
-                    const scoreStatus = score >= 83 ? 'PASS ✅' : 'FAIL ❌';
-                    const scoreColor = score >= 83 ? '#10b981' : '#ef4444';
+                    const info = emailModalState.auditInfo || {};
+                    const template = emailModalState.emailTemplate;
                     
-                    preview.innerHTML = \`
-                        <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-                            <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 15px; text-align: center;">
-                                <strong>🍽️ Food Safety Audit Report</strong>
+                    // Build section scores HTML chart (email-compatible using bgcolor and fixed heights)
+                    let sectionScoresHtml = '';
+                    if (info.sectionScores && info.sectionScores.length > 0) {
+                        const maxBarHeight = 100;
+                        const barWidth = 40;
+                        
+                        sectionScoresHtml = '<table align="center" cellpadding="0" cellspacing="3" border="0" style="margin: 15px auto;">';
+                        
+                        // Row with score percentages on top
+                        sectionScoresHtml += '<tr>';
+                        sectionScoresHtml += '<td width="30" valign="bottom" align="right" style="font-size:8px;color:#666;">100%</td>';
+                        info.sectionScores.forEach(function(section) {
+                            const displayScore = (typeof section.score === 'number') ? section.score.toFixed(1) : section.score;
+                            sectionScoresHtml += '<td width="' + barWidth + '" align="center" valign="bottom" style="font-size:9px;font-weight:bold;color:#333;">' + displayScore + '%</td>';
+                        });
+                        sectionScoresHtml += '</tr>';
+                        
+                        // Row with the bars
+                        sectionScoresHtml += '<tr>';
+                        sectionScoresHtml += '<td width="30" valign="top" align="right" style="font-size:8px;color:#666;"></td>';
+                        
+                        info.sectionScores.forEach(function(section) {
+                            const sectionThreshold = section.threshold || 83;
+                            const barColor = section.score >= sectionThreshold ? '#10b981' : '#ef4444';
+                            const filledHeight = Math.round((section.score / 100) * maxBarHeight);
+                            const emptyHeight = maxBarHeight - filledHeight;
+                            
+                            sectionScoresHtml += '<td width="' + barWidth + '" valign="bottom" align="center">';
+                            sectionScoresHtml += '<table cellpadding="0" cellspacing="0" border="0" width="' + (barWidth - 8) + '" align="center">';
+                            if (emptyHeight > 0) {
+                                sectionScoresHtml += '<tr><td height="' + emptyHeight + '" bgcolor="#f3f4f6">&nbsp;</td></tr>';
+                            }
+                            if (filledHeight > 0) {
+                                sectionScoresHtml += '<tr><td height="' + filledHeight + '" bgcolor="' + barColor + '">&nbsp;</td></tr>';
+                            }
+                            sectionScoresHtml += '</table>';
+                            sectionScoresHtml += '</td>';
+                        });
+                        sectionScoresHtml += '</tr>';
+                        
+                        // Row with 0% label and bottom border
+                        sectionScoresHtml += '<tr>';
+                        sectionScoresHtml += '<td width="30" valign="top" align="right" style="font-size:8px;color:#666;">0%</td>';
+                        info.sectionScores.forEach(function() {
+                            sectionScoresHtml += '<td width="' + barWidth + '" height="2" bgcolor="#374151"></td>';
+                        });
+                        sectionScoresHtml += '</tr>';
+                        
+                        // Row with section names
+                        sectionScoresHtml += '<tr>';
+                        sectionScoresHtml += '<td></td>';
+                        info.sectionScores.forEach(function(section) {
+                            sectionScoresHtml += '<td width="' + barWidth + '" align="center" valign="top" style="font-size:7px;color:#333;padding-top:3px;word-break:break-word;">' + section.name + '</td>';
+                        });
+                        sectionScoresHtml += '</tr>';
+                        
+                        sectionScoresHtml += '</table>';
+                    }
+                    
+                    // Build placeholders
+                    const placeholders = {
+                        recipientName: emailModalState.toRecipients.length > 0 
+                            ? emailModalState.toRecipients[0].name || 'Store Manager' 
+                            : 'Store Manager',
+                        storeName: info.storeName || '${(data.storeName || '').replace(/'/g, "\\'")}',
+                        documentNumber: info.documentNumber || '${data.documentNumber}',
+                        auditDate: info.auditDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                        score: (info.score || ${data.totalScore || 0}).toFixed(1) + '%',
+                        sectionScores: sectionScoresHtml,
+                        reportUrl: info.reportUrl || 'https://fsaudit.gmrlapps.com/api/audits/reports/Audit_Report_${data.documentNumber}.html',
+                        dashboardUrl: 'https://fsaudit.gmrlapps.com/dashboard'
+                    };
+                    
+                    if (template && template.htmlBody) {
+                        // Use template from database with placeholders replaced
+                        const processedHtml = replacePlaceholders(template.htmlBody, placeholders);
+                        preview.innerHTML = processedHtml;
+                    } else {
+                        // Fallback to hardcoded template if no template found
+                        const score = ${data.totalScore || 0};
+                        const scoreStatus = score >= 83 ? 'PASS ✅' : 'FAIL ❌';
+                        const scoreColor = score >= 83 ? '#10b981' : '#ef4444';
+                        
+                        preview.innerHTML = \`
+                            <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                                <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 15px; text-align: center;">
+                                    <strong>🍽️ Food Safety Audit Report</strong>
+                                </div>
+                                <div style="padding: 15px;">
+                                    <p style="margin: 0 0 10px 0;">A new audit report has been published:</p>
+                                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                                        <tr>
+                                            <td style="padding: 6px 8px; border: 1px solid #e5e7eb; background: #f3f4f6; width: 30%;"><strong>Store</strong></td>
+                                            <td style="padding: 6px 8px; border: 1px solid #e5e7eb;">\${placeholders.storeName}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 6px 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Document #</strong></td>
+                                            <td style="padding: 6px 8px; border: 1px solid #e5e7eb;">\${placeholders.documentNumber}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 6px 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Score</strong></td>
+                                            <td style="padding: 6px 8px; border: 1px solid #e5e7eb;">
+                                                <span style="color: \${scoreColor}; font-weight: bold;">\${score.toFixed(1)}% - \${scoreStatus}</span>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                    \${sectionScoresHtml ? '<div style="margin-top: 15px;"><strong>📊 Section Scores:</strong>' + sectionScoresHtml + '</div>' : ''}
+                                    <p style="text-align: center; margin-top: 15px;">
+                                        <span style="display: inline-block; background: #2563eb; color: white; padding: 8px 16px; border-radius: 4px; font-size: 0.85rem;">View Full Report</span>
+                                    </p>
+                                </div>
                             </div>
-                            <div style="padding: 15px;">
-                                <p style="margin: 0 0 10px 0;">A new audit report has been published:</p>
-                                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
-                                    <tr>
-                                        <td style="padding: 6px 8px; border: 1px solid #e5e7eb; background: #f3f4f6; width: 30%;"><strong>Store</strong></td>
-                                        <td style="padding: 6px 8px; border: 1px solid #e5e7eb;">${(data.storeName || '').replace(/'/g, "\\'")}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 6px 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Document #</strong></td>
-                                        <td style="padding: 6px 8px; border: 1px solid #e5e7eb;">${data.documentNumber}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 6px 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Score</strong></td>
-                                        <td style="padding: 6px 8px; border: 1px solid #e5e7eb;">
-                                            <span style="color: \${scoreColor}; font-weight: bold;">\${score.toFixed(1)}% - \${scoreStatus}</span>
-                                        </td>
-                                    </tr>
-                                </table>
-                                <p style="text-align: center; margin-top: 15px;">
-                                    <span style="display: inline-block; background: #2563eb; color: white; padding: 8px 16px; border-radius: 4px; font-size: 0.85rem;">View Full Report</span>
-                                </p>
-                            </div>
-                        </div>
-                    \`;
+                        \`;
+                    }
                 }
                 
                 // Search for users
@@ -2441,6 +2542,7 @@ class TemplateEngine {
                     sendBtn.innerHTML = '⏳ Sending...';
                     
                     const fileName = window.location.pathname.split('/').pop();
+                    const customMessage = document.getElementById('customMessageInput')?.value || '';
                     
                     try {
                         const response = await fetch('/api/audits/send-report-with-recipients', {
@@ -2453,7 +2555,8 @@ class TemplateEngine {
                                 storeName: '${(data.storeName || '').replace(/'/g, "\\'")}',
                                 totalScore: ${data.totalScore || 0},
                                 toRecipients: emailModalState.toRecipients,
-                                ccRecipients: emailModalState.ccRecipients
+                                ccRecipients: emailModalState.ccRecipients,
+                                customMessage: customMessage
                             })
                         });
                         

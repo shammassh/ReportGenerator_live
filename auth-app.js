@@ -3447,16 +3447,92 @@ app.post('/api/email/compose-data', requireAuth, async (req, res) => {
             console.warn('Could not get sender info from token:', tokenError.message);
         }
         
+        // Fetch email template from EmailTemplates table
+        let emailTemplate = null;
+        try {
+            const templateResult = await pool.request()
+                .input('templateKey', sql.NVarChar, 'report_notification')
+                .query(`
+                    SELECT template_name, subject_template, html_body, available_placeholders
+                    FROM EmailTemplates
+                    WHERE template_key = @templateKey AND is_active = 1
+                `);
+            
+            if (templateResult.recordset.length > 0) {
+                const tmpl = templateResult.recordset[0];
+                emailTemplate = {
+                    name: tmpl.template_name,
+                    subject: tmpl.subject_template,
+                    htmlBody: tmpl.html_body,
+                    placeholders: JSON.parse(tmpl.available_placeholders || '[]')
+                };
+            }
+        } catch (templateError) {
+            console.warn('Could not fetch email template:', templateError.message);
+        }
+        
+        // Get additional audit info for template placeholders
+        let auditDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        let totalScore = 0;
+        let reportUrl = '';
+        let sectionScores = [];
+        
+        if (auditId) {
+            const auditDetailsResult = await pool.request()
+                .input('auditId', sql.Int, auditId)
+                .query('SELECT AuditDate, TotalScore FROM AuditInstances WHERE AuditID = @auditId');
+            
+            if (auditDetailsResult.recordset.length > 0) {
+                const auditDetails = auditDetailsResult.recordset[0];
+                if (auditDetails.AuditDate) {
+                    auditDate = new Date(auditDetails.AuditDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                }
+                totalScore = auditDetails.TotalScore || 0;
+            }
+            
+            // Fetch section scores with per-section passing grades
+            const sectionScoresResult = await pool.request()
+                .input('auditId', sql.Int, auditId)
+                .query(`
+                    SELECT 
+                        ss.SectionID,
+                        ss.SectionName, 
+                        ss.Percentage,
+                        ISNULL(sys.PassingGrade, 83) as PassingGrade
+                    FROM AuditSectionScores ss
+                    INNER JOIN AuditInstances ai ON ai.AuditID = ss.AuditID
+                    LEFT JOIN SystemSettings sys ON sys.SchemaID = ai.SchemaID 
+                        AND sys.SettingType = 'Section' 
+                        AND sys.EntityID = ss.SectionID
+                    WHERE ss.AuditID = @auditId
+                    ORDER BY ss.SectionID
+                `);
+            
+            sectionScores = sectionScoresResult.recordset.map(s => ({
+                name: s.SectionName,
+                score: parseFloat(s.Percentage) || 0,
+                threshold: s.PassingGrade || 83
+            }));
+        }
+        
+        // Build report URL
+        reportUrl = `https://fsaudit.gmrlapps.com/api/audits/reports/Audit_Report_${auditDocNumber}.html`;
+        
         res.json({
             success: true,
             auditInfo: {
                 auditId,
                 documentNumber: auditDocNumber,
-                storeName: auditStoreName
+                storeName: auditStoreName,
+                auditDate,
+                score: totalScore,
+                reportUrl,
+                sectionScores
             },
             toRecipients,
             ccRecipients,
-            senderInfo
+            senderInfo,
+            emailTemplate
         });
         
     } catch (error) {
@@ -3507,7 +3583,7 @@ app.get('/api/users/search-for-email', requireAuth, async (req, res) => {
 // Send report with custom recipients (from compose modal)
 app.post('/api/audits/send-report-with-recipients', requireAuth, requireRole('Admin', 'Auditor', 'SuperAuditor'), async (req, res) => {
     try {
-        const { auditId, documentNumber, fileName, storeName, totalScore, toRecipients, ccRecipients } = req.body;
+        const { auditId, documentNumber, fileName, storeName, totalScore, toRecipients, ccRecipients, customMessage } = req.body;
         
         if (!auditId || !documentNumber) {
             return res.status(400).json({ success: false, error: 'Audit ID and Document Number required' });
@@ -3552,6 +3628,60 @@ app.post('/api/audits/send-report-with-recipients', requireAuth, requireRole('Ad
                 `);
         }
         
+        // Fetch email template from database
+        let emailTemplate = null;
+        try {
+            const templateResult = await pool.request()
+                .input('templateKey', sql.NVarChar(50), 'report_notification')
+                .query(`
+                    SELECT template_name, subject_template, html_body
+                    FROM EmailTemplates
+                    WHERE template_key = @templateKey AND is_active = 1
+                `);
+            
+            if (templateResult.recordset.length > 0) {
+                emailTemplate = templateResult.recordset[0];
+            }
+        } catch (templateError) {
+            console.warn('Could not fetch email template:', templateError.message);
+        }
+        
+        // Get audit date for placeholders
+        let auditDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        let sectionScores = [];
+        try {
+            const auditResult = await pool.request()
+                .input('auditId', sql.Int, auditId)
+                .query('SELECT AuditDate FROM AuditInstances WHERE AuditID = @auditId');
+            if (auditResult.recordset.length > 0 && auditResult.recordset[0].AuditDate) {
+                auditDate = new Date(auditResult.recordset[0].AuditDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            }
+            
+            // Fetch section scores with per-section passing grades
+            const sectionScoresResult = await pool.request()
+                .input('auditId', sql.Int, auditId)
+                .query(`
+                    SELECT 
+                        ss.SectionID,
+                        ss.SectionName, 
+                        ss.Percentage,
+                        ISNULL(sys.PassingGrade, 83) as PassingGrade
+                    FROM AuditSectionScores ss
+                    INNER JOIN AuditInstances ai ON ai.AuditID = ss.AuditID
+                    LEFT JOIN SystemSettings sys ON sys.SchemaID = ai.SchemaID 
+                        AND sys.SettingType = 'Section' 
+                        AND sys.EntityID = ss.SectionID
+                    WHERE ss.AuditID = @auditId
+                    ORDER BY ss.SectionID
+                `);
+            
+            sectionScores = sectionScoresResult.recordset.map(s => ({
+                name: s.SectionName,
+                score: parseFloat(s.Percentage) || 0,
+                threshold: s.PassingGrade || 83
+            }));
+        } catch (e) { /* use default */ }
+        
         // Get valid access token for sending email
         const user = req.currentUser;
         const userEmail = user?.email;
@@ -3567,46 +3697,158 @@ app.post('/api/audits/send-report-with-recipients', requireAuth, requireRole('Ad
         }
         
         // Build email content
-        const reportUrl = `https://fsaudit.gmrlapps.com/reports/${fileName}`;
+        const reportUrl = `https://fsaudit.gmrlapps.com/api/audits/reports/Audit_Report_${documentNumber}.html`;
         const score = parseFloat(totalScore) || 0;
         const scoreStatus = score >= 83 ? 'PASS ✅' : 'FAIL ❌';
         const scoreColor = score >= 83 ? '#10b981' : '#ef4444';
         
-        const emailHtml = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 20px; text-align: center;">
-                    <h2 style="margin: 0;">🍽️ Food Safety Audit Report</h2>
+        // Build section scores HTML chart (email-compatible using bgcolor and fixed heights)
+        let sectionScoresHtml = '';
+        if (sectionScores && sectionScores.length > 0) {
+            const maxBarHeight = 150; // max height in pixels (increased from 100)
+            const barWidth = 55; // bar width in pixels (increased from 40)
+            
+            sectionScoresHtml = '<table align="center" cellpadding="0" cellspacing="4" border="0" style="margin: 20px auto;">';
+            
+            // Row with score percentages on top
+            sectionScoresHtml += '<tr>';
+            sectionScoresHtml += '<td width="35" valign="bottom" align="right" style="font-size:10px;color:#666;">100%</td>';
+            sectionScores.forEach((section) => {
+                const displayScore = section.score.toFixed(1);
+                sectionScoresHtml += `<td width="${barWidth}" align="center" valign="bottom" style="font-size:11px;font-weight:bold;color:#333;">${displayScore}%</td>`;
+            });
+            sectionScoresHtml += '</tr>';
+            
+            // Row with the bars - using multiple stacked cells
+            sectionScoresHtml += '<tr>';
+            sectionScoresHtml += '<td width="35" valign="top" align="right" style="font-size:10px;color:#666;"></td>';
+            
+            sectionScores.forEach((section) => {
+                const sectionThreshold = section.threshold || 83;
+                const barColor = section.score >= sectionThreshold ? '#10b981' : '#ef4444';
+                const filledHeight = Math.round((section.score / 100) * maxBarHeight);
+                const emptyHeight = maxBarHeight - filledHeight;
+                
+                // Using a nested table with actual pixel heights
+                sectionScoresHtml += `<td width="${barWidth}" valign="bottom" align="center">`;
+                sectionScoresHtml += `<table cellpadding="0" cellspacing="0" border="0" width="${barWidth - 10}" align="center">`;
+                if (emptyHeight > 0) {
+                    sectionScoresHtml += `<tr><td height="${emptyHeight}" bgcolor="#f3f4f6">&nbsp;</td></tr>`;
+                }
+                if (filledHeight > 0) {
+                    sectionScoresHtml += `<tr><td height="${filledHeight}" bgcolor="${barColor}">&nbsp;</td></tr>`;
+                }
+                sectionScoresHtml += '</table>';
+                sectionScoresHtml += '</td>';
+            });
+            sectionScoresHtml += '</tr>';
+            
+            // Row with 0% label and bottom border
+            sectionScoresHtml += '<tr>';
+            sectionScoresHtml += '<td width="35" valign="top" align="right" style="font-size:10px;color:#666;">0%</td>';
+            sectionScores.forEach(() => {
+                sectionScoresHtml += `<td width="${barWidth}" height="3" bgcolor="#374151"></td>`;
+            });
+            sectionScoresHtml += '</tr>';
+            
+            // Row with section names
+            sectionScoresHtml += '<tr>';
+            sectionScoresHtml += '<td></td>';
+            sectionScores.forEach((section) => {
+                sectionScoresHtml += `<td width="${barWidth}" align="center" valign="top" style="font-size:9px;color:#333;padding-top:5px;word-break:break-word;">${section.name}</td>`;
+            });
+            sectionScoresHtml += '</tr>';
+            
+            sectionScoresHtml += '</table>';
+        }
+        
+        // Placeholder replacement function
+        function replacePlaceholders(template, placeholders) {
+            let result = template;
+            for (const [key, value] of Object.entries(placeholders)) {
+                const regex = new RegExp('\\{\\{' + key + '\\}\\}', 'gi');
+                result = result.replace(regex, value || '');
+            }
+            return result;
+        }
+        
+        // Build custom message HTML if provided
+        let customMessageHtml = '';
+        if (customMessage && customMessage.trim()) {
+            // Convert newlines to <br> and escape HTML
+            const escapedMessage = customMessage
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\n/g, '<br>');
+            customMessageHtml = `
+                <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 15px; margin: 15px 0; border-radius: 0 6px 6px 0;">
+                    <strong style="color: #dc2626;">📝 Message from Auditor:</strong>
+                    <p style="margin: 8px 0 0 0; color: #b91c1c;">${escapedMessage}</p>
                 </div>
-                <div style="padding: 20px; background: #f9fafb;">
-                    <p>A new audit report has been published:</p>
-                    <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-                        <tr>
-                            <td style="padding: 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Store</strong></td>
-                            <td style="padding: 8px; border: 1px solid #e5e7eb;">${storeName}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Document #</strong></td>
-                            <td style="padding: 8px; border: 1px solid #e5e7eb;">${documentNumber}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Score</strong></td>
-                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
-                                <span style="color: ${scoreColor}; font-weight: bold;">${score.toFixed(1)}% - ${scoreStatus}</span>
-                            </td>
-                        </tr>
-                    </table>
-                    <p style="text-align: center; margin-top: 20px;">
-                        <a href="${reportUrl}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">View Full Report</a>
-                    </p>
-                    <p style="text-align: center; color: #6b7280; font-size: 12px; margin-top: 20px;">
-                        Or copy this link: ${reportUrl}
-                    </p>
+            `;
+        }
+        
+        // Build placeholders for first recipient (for recipientName)
+        const firstRecipientName = toRecipients[0]?.name || 'Store Manager';
+        const placeholders = {
+            recipientName: firstRecipientName,
+            storeName: storeName,
+            documentNumber: documentNumber,
+            auditDate: auditDate,
+            score: Math.round(score) + '%',
+            sectionScores: sectionScoresHtml,
+            customMessage: customMessageHtml,
+            reportUrl: reportUrl,
+            dashboardUrl: 'https://fsaudit.gmrlapps.com/dashboard'
+        };
+        
+        // Use template from database or fallback to hardcoded
+        let emailHtml;
+        let emailSubject;
+        
+        if (emailTemplate && emailTemplate.html_body) {
+            emailHtml = replacePlaceholders(emailTemplate.html_body, placeholders);
+            emailSubject = replacePlaceholders(emailTemplate.subject_template || 'Food Safety Audit Report - {{storeName}} ({{documentNumber}})', placeholders);
+        } else {
+            // Fallback hardcoded template
+            emailSubject = `Food Safety Audit Report - ${storeName} - ${documentNumber}`;
+            emailHtml = `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 20px; text-align: center;">
+                        <h2 style="margin: 0;">🍽️ Food Safety Audit Report</h2>
+                    </div>
+                    <div style="padding: 20px; background: #f9fafb;">
+                        <p>A new audit report has been published:</p>
+                        <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+                            <tr>
+                                <td style="padding: 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Store</strong></td>
+                                <td style="padding: 8px; border: 1px solid #e5e7eb;">${storeName}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Document #</strong></td>
+                                <td style="padding: 8px; border: 1px solid #e5e7eb;">${documentNumber}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border: 1px solid #e5e7eb; background: #f3f4f6;"><strong>Score</strong></td>
+                                <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                    <span style="color: ${scoreColor}; font-weight: bold;">${score.toFixed(1)}% - ${scoreStatus}</span>
+                                </td>
+                            </tr>
+                        </table>
+                        <p style="text-align: center; margin-top: 20px;">
+                            <a href="${reportUrl}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">View Full Report</a>
+                        </p>
+                        <p style="text-align: center; color: #6b7280; font-size: 12px; margin-top: 20px;">
+                            Or copy this link: ${reportUrl}
+                        </p>
+                    </div>
+                    <div style="background: #1f2937; color: #9ca3af; padding: 15px; text-align: center; font-size: 12px;">
+                        Food Safety Audit System - GMRL
+                    </div>
                 </div>
-                <div style="background: #1f2937; color: #9ca3af; padding: 15px; text-align: center; font-size: 12px;">
-                    Food Safety Audit System - GMRL
-                </div>
-            </div>
-        `;
+            `;
+        }
         
         // Send email via EmailNotificationService
         try {
@@ -3620,8 +3862,6 @@ app.post('/api/audits/send-report-with-recipients', requireAuth, requireRole('Ad
             // Combine TO and CC recipients
             const toEmails = toRecipients.map(r => r.email);
             const ccEmails = (ccRecipients || []).map(r => r.email);
-            
-            const emailSubject = `Food Safety Audit Report - ${storeName} - ${documentNumber}`;
             
             const result = await emailService.sendEmail(
                 toEmails,
