@@ -214,7 +214,7 @@ class DataService {
             const result = await this.pool.request()
                 .input('AuditID', sql.Int, auditId)
                 .query(`
-                    SELECT PictureID, ResponseID, FileName, FilePath, ContentType, PictureType, CreatedAt,
+                    SELECT PictureID, ResponseID, FileName, FilePath, ContentType, PictureType, Category, CreatedAt,
                            CASE WHEN FileData IS NOT NULL THEN DATALENGTH(FileData) ELSE 0 END as FileSize,
                            CASE WHEN FilePath IS NOT NULL AND FilePath != '' THEN 1 ELSE 0 END as HasFilePath
                     FROM AuditPictures
@@ -250,6 +250,7 @@ class DataService {
                     fileName: row.FileName,
                     contentType: row.ContentType,
                     pictureType: row.PictureType,
+                    category: row.Category || null,
                     createdAt: row.CreatedAt,
                     fileSize: row.FileSize || 0,
                     dataUrl: dataUrl,

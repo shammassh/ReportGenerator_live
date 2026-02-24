@@ -707,6 +707,7 @@ class TemplateEngine {
                         title: item.title || '',
                         finding: item.finding || '',
                         priority: item.priority || '',
+                        category: pic.category || null,
                         dataUrl: pic.dataUrl
                     });
                 }
@@ -731,11 +732,15 @@ class TemplateEngine {
             const priorityBadge = pic.priority 
                 ? `<span class="priority-badge ${priorityClass}">${escapeHtml(pic.priority)}</span>` 
                 : '';
+            const categoryBadge = pic.category 
+                ? `<span class="category-badge">📁 ${escapeHtml(pic.category)}</span>` 
+                : '';
 
             return `
                 <div class="finding-picture-card">
                     <div class="finding-picture-header">
                         <a href="#ref-${(pic.referenceValue || '').replace(/\./g, '-')}" onclick="scrollToRef('${(pic.referenceValue || '').replace(/\./g, '-')}'); return false;" class="finding-ref-badge" style="text-decoration: none; cursor: pointer;" title="Click to scroll to finding">#${escapeHtml(pic.referenceValue)}</a>
+                        ${categoryBadge}
                         ${priorityBadge}
                     </div>
                     <div class="finding-picture-image">
@@ -789,6 +794,8 @@ class TemplateEngine {
                     padding: 10px 15px;
                     background: #fef3c7;
                     border-bottom: 1px solid #fcd34d;
+                    gap: 8px;
+                    flex-wrap: wrap;
                 }
                 .finding-ref-badge {
                     background: #dc2626;
@@ -802,6 +809,15 @@ class TemplateEngine {
                 .finding-ref-badge:hover {
                     transform: scale(1.1);
                     box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
+                }
+                .category-badge {
+                    background: #8b5cf6;
+                    color: white;
+                    font-size: 0.75rem;
+                    padding: 4px 10px;
+                    border-radius: 12px;
+                    font-weight: 500;
+                    flex-shrink: 0;
                 }
                 .finding-picture-image {
                     width: 100%;
@@ -892,6 +908,7 @@ class TemplateEngine {
                         sectionName: section.sectionName || 'Unknown',
                         title: item.title || '',
                         comment: item.comment || '',
+                        category: pic.category || null,
                         dataUrl: pic.dataUrl
                     });
                 }
@@ -912,10 +929,14 @@ class TemplateEngine {
 
         // Build the gallery HTML
         const pictureCards = allGoodPictures.map((pic, index) => {
+            const categoryBadge = pic.category 
+                ? `<span class="good-category-badge">📁 ${escapeHtml(pic.category)}</span>` 
+                : '';
             return `
                 <div class="good-picture-card">
                     <div class="good-picture-header">
                         <a href="#ref-${(pic.referenceValue || '').replace(/\./g, '-')}" onclick="scrollToRef('${(pic.referenceValue || '').replace(/\./g, '-')}'); return false;" class="good-ref-badge" style="text-decoration: none; cursor: pointer;" title="Click to scroll to item">#${escapeHtml(pic.referenceValue)}</a>
+                        ${categoryBadge}
                         <span class="good-section-badge">${escapeHtml(pic.sectionName)}</span>
                     </div>
                     <div class="good-picture-image">
@@ -969,6 +990,8 @@ class TemplateEngine {
                     padding: 10px 15px;
                     background: #d1fae5;
                     border-bottom: 1px solid #6ee7b7;
+                    gap: 8px;
+                    flex-wrap: wrap;
                 }
                 .good-ref-badge {
                     background: #059669;
@@ -982,6 +1005,15 @@ class TemplateEngine {
                 .good-ref-badge:hover {
                     transform: scale(1.1);
                     box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
+                }
+                .good-category-badge {
+                    background: #8b5cf6;
+                    color: white;
+                    font-size: 0.75rem;
+                    padding: 4px 10px;
+                    border-radius: 12px;
+                    font-weight: 500;
+                    flex-shrink: 0;
                 }
                 .good-section-badge {
                     background: #10b981;
@@ -1058,6 +1090,7 @@ class TemplateEngine {
                         correctiveAction: item.correctiveAction || item.cr || '',
                         priority: item.priority || '',
                         selectedChoice: item.selectedChoice || '',
+                        category: pic.category || null,
                         dataUrl: pic.dataUrl
                     });
                 }
@@ -1082,11 +1115,15 @@ class TemplateEngine {
             const priorityBadge = pic.priority 
                 ? `<span class="corrective-priority-badge ${priorityClass}">${escapeHtml(pic.priority)}</span>` 
                 : '';
+            const categoryBadge = pic.category 
+                ? `<span class="corrective-category-badge">📁 ${escapeHtml(pic.category)}</span>` 
+                : '';
 
             return `
                 <div class="corrective-picture-card">
                     <div class="corrective-picture-header">
                         <a href="#ref-${(pic.referenceValue || '').replace(/\./g, '-')}" onclick="scrollToRef('${(pic.referenceValue || '').replace(/\./g, '-')}'); return false;" class="corrective-ref-badge" style="text-decoration: none; cursor: pointer;" title="Click to scroll to finding">#${escapeHtml(pic.referenceValue)}</a>
+                        ${categoryBadge}
                         ${priorityBadge}
                     </div>
                     <div class="corrective-picture-image">
@@ -1140,6 +1177,8 @@ class TemplateEngine {
                     padding: 10px 15px;
                     background: #dbeafe;
                     border-bottom: 1px solid #60a5fa;
+                    gap: 8px;
+                    flex-wrap: wrap;
                 }
                 .corrective-ref-badge {
                     background: #2563eb;
@@ -1153,6 +1192,15 @@ class TemplateEngine {
                 .corrective-ref-badge:hover {
                     transform: scale(1.1);
                     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+                }
+                .corrective-category-badge {
+                    background: #8b5cf6;
+                    color: white;
+                    font-size: 0.75rem;
+                    padding: 4px 10px;
+                    border-radius: 12px;
+                    font-weight: 500;
+                    flex-shrink: 0;
                 }
                 .corrective-priority-badge {
                     font-size: 0.75rem;
