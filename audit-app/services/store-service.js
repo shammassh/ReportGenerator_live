@@ -118,6 +118,7 @@ class StoreService {
                 .input('StoreName', sql.NVarChar(200), storeData.storeName)
                 .input('Location', sql.NVarChar(500), storeData.location || null)
                 .input('SchemaID', sql.Int, storeData.schemaId)
+                .input('Brand', sql.NVarChar(100), storeData.brand || null)
                 .input('CreatedBy', sql.NVarChar(200), storeData.createdBy || null)
                 .execute('sp_CreateStore');
             
@@ -140,6 +141,7 @@ class StoreService {
                 .input('StoreName', sql.NVarChar(200), storeData.storeName)
                 .input('Location', sql.NVarChar(500), storeData.location || null)
                 .input('SchemaID', sql.Int, storeData.schemaId)
+                .input('Brand', sql.NVarChar(100), storeData.brand || null)
                 .input('IsActive', sql.Bit, storeData.isActive !== false)
                 .execute('sp_UpdateStore');
             

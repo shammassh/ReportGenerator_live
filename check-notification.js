@@ -4,20 +4,17 @@ const config = require('./config/default').database;
 async function check() {
     const pool = await sql.connect(config);
     
-    // Check all columns for this notification - exact match with FSACSS
+    // Fix Cold Stone stores - set Brand
+    console.log('=== Fixing Cold Stone Stores ===');
     const result = await pool.request()
-        .query(`SELECT * FROM Notifications WHERE document_number LIKE '%FSACSS%0725-0005%'`);
+        .query(`UPDATE Stores SET Brand = 'Cold Stone' WHERE StoreName LIKE '%Cold Stone%' AND Brand IS NULL`);
+    console.log('Updated rows:', result.rowsAffected);
     
-    console.log('Notifications for FSACSS 0725-0005:');
-    console.log('Total found:', result.recordset.length);
-    
-    if (result.recordset.length > 0) {
-        const row = result.recordset[0];
-        console.log('\nFirst record columns:');
-        Object.keys(row).forEach(key => {
-            console.log(`  ${key}: ${row[key]}`);
-        });
-    }
+    // Verify
+    console.log('\n=== Verifying Cold Stone Stores ===');
+    const stores = await pool.request()
+        .query(`SELECT StoreID, StoreName, Brand FROM Stores WHERE StoreName LIKE '%Cold Stone%'`);
+    stores.recordset.forEach(s => console.log(' -', s.StoreID, s.StoreName, '| Brand:', s.Brand));
     
     await pool.close();
 }

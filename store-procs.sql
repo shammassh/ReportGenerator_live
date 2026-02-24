@@ -58,11 +58,12 @@ CREATE PROCEDURE sp_CreateStore
     @StoreName NVARCHAR(200),
     @Location NVARCHAR(500) = NULL,
     @SchemaID INT,
+    @Brand NVARCHAR(100) = NULL,
     @CreatedBy NVARCHAR(255) = NULL
 AS
 BEGIN
-    INSERT INTO Stores (StoreCode, StoreName, Location, SchemaID, CreatedBy)
-    VALUES (@StoreCode, @StoreName, @Location, @SchemaID, @CreatedBy);
+    INSERT INTO Stores (StoreCode, StoreName, Location, SchemaID, Brand, CreatedBy)
+    VALUES (@StoreCode, @StoreName, @Location, @SchemaID, @Brand, @CreatedBy);
     
     SELECT SCOPE_IDENTITY() AS StoreID;
 END;
@@ -79,6 +80,7 @@ CREATE PROCEDURE sp_UpdateStore
     @StoreName NVARCHAR(200),
     @Location NVARCHAR(500) = NULL,
     @SchemaID INT,
+    @Brand NVARCHAR(100) = NULL,
     @IsActive BIT = 1
 AS
 BEGIN
@@ -87,6 +89,7 @@ BEGIN
         StoreName = @StoreName,
         Location = @Location,
         SchemaID = @SchemaID,
+        Brand = @Brand,
         IsActive = @IsActive
     WHERE StoreID = @StoreID;
     

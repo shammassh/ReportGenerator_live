@@ -725,6 +725,12 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
+                            <label>Brand <span class="required">*</span></label>
+                            <select id="storeBrand" required>
+                                <option value="">Select a brand...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label>Location</label>
                             <input type="text" id="storeLocation" placeholder="e.g., Downtown Mall, Floor 2">
                         </div>
@@ -783,6 +789,12 @@
                 <div class="form-group">
                     <label>Store Name <span class="required">*</span></label>
                     <input type="text" id="editStoreName" required>
+                </div>
+                <div class="form-group">
+                    <label>Brand <span class="required">*</span></label>
+                    <select id="editStoreBrand" required>
+                        <option value="">Select a brand...</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Location</label>
@@ -956,11 +968,26 @@
                     
                     // Populate brand filter dropdown
                     const brandFilter = document.getElementById('brandFilter');
+                    const storeBrand = document.getElementById('storeBrand');
+                    const editStoreBrand = document.getElementById('editStoreBrand');
+                    
                     brands.forEach(brand => {
                         const option = document.createElement('option');
                         option.value = brand.BrandName.toLowerCase();
                         option.textContent = `${brand.BrandIcon || '🏪'} ${brand.BrandName}`;
                         brandFilter.appendChild(option);
+                        
+                        // Also add to create store brand dropdown
+                        const storeOption = document.createElement('option');
+                        storeOption.value = brand.BrandName;
+                        storeOption.textContent = `${brand.BrandIcon || '🏪'} ${brand.BrandName}`;
+                        storeBrand.appendChild(storeOption);
+                        
+                        // Also add to edit store brand dropdown
+                        const editOption = document.createElement('option');
+                        editOption.value = brand.BrandName;
+                        editOption.textContent = `${brand.BrandIcon || '🏪'} ${brand.BrandName}`;
+                        editStoreBrand.appendChild(editOption);
                     });
                 }
             } catch (error) {
@@ -1169,6 +1196,7 @@
             const storeData = {
                 storeCode: document.getElementById('storeCode').value,
                 storeName: document.getElementById('storeName').value,
+                brand: document.getElementById('storeBrand').value,
                 location: document.getElementById('storeLocation').value,
                 schemaId: parseInt(document.getElementById('storeSchema').value)
             };
@@ -1204,6 +1232,7 @@
             document.getElementById('editStoreId').value = storeId;
             document.getElementById('editStoreCode').value = store.storeCode;
             document.getElementById('editStoreName').value = store.storeName;
+            document.getElementById('editStoreBrand').value = store.brand || '';
             document.getElementById('editStoreLocation').value = store.location || '';
             document.getElementById('editStoreSchema').value = store.schemaId;
             document.getElementById('editStoreActive').value = store.isActive ? 'true' : 'false';
@@ -1400,6 +1429,7 @@
                 storeName: document.getElementById('editStoreName').value,
                 location: document.getElementById('editStoreLocation').value,
                 schemaId: parseInt(document.getElementById('editStoreSchema').value),
+                brand: document.getElementById('editStoreBrand').value || null,
                 isActive: document.getElementById('editStoreActive').value === 'true'
             };
 
