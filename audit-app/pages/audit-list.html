@@ -1262,15 +1262,14 @@
             updateFailingBranches();
         }
 
-        // Passing threshold (should match system setting)
-        const PASSING_THRESHOLD = 83;
-
         function updateFailingBranches() {
             // Group failing audits by cycle and year
+            // Use each audit's PassingGrade from SystemSettings (dynamic per schema)
             const failingByCycle = {};
             
             allAudits.forEach(audit => {
-                if (audit.Status === 'Completed' && audit.TotalScore !== null && audit.TotalScore < PASSING_THRESHOLD) {
+                const threshold = audit.PassingGrade || 83; // Use audit's PassingGrade, fallback to 83
+                if (audit.Status === 'Completed' && audit.TotalScore !== null && audit.TotalScore < threshold) {
                     const cycleKey = `${audit.AuditCycle || 'N/A'} ${audit.AuditYear || ''}`.trim();
                     if (!failingByCycle[cycleKey]) {
                         failingByCycle[cycleKey] = [];
