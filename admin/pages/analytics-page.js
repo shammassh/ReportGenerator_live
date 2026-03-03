@@ -90,6 +90,13 @@ class AnalyticsPage {
                     <p>Avg Score</p>
                 </div>
             </div>
+            <div class="summary-card fail">
+                <div class="card-icon">❌</div>
+                <div class="card-content">
+                    <h3 id="failedAudits">-</h3>
+                    <p>Failed Audits</p>
+                </div>
+            </div>
             <div class="summary-card clickable" onclick="showUnsolvedActionPlans()" title="Click to view unsolved items">
                 <div class="card-icon">📝</div>
                 <div class="card-content">
@@ -103,28 +110,126 @@ class AnalyticsPage {
         <!-- Filter Section -->
         <section class="filter-section">
             <div class="filter-group">
+                <label for="countryFilter">Country:</label>
+                <select id="countryFilter" onchange="refreshAnalytics()">
+                    <option value="">All Countries</option>
+                    <option value="Lebanon">&#127473;&#127463; Lebanon</option>
+                    <option value="Iraq">&#127470;&#127478; Iraq</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="brandFilter">Brand:</label>
+                <select id="brandFilter" onchange="onBrandChange()">
+                    <option value="">All Brands</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="schemaFilter">Scheme:</label>
+                <select id="schemaFilter" onchange="refreshAnalytics()">
+                    <option value="">All Schemes</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Stores:</label>
+                <div class="multi-select-dropdown" id="storeDropdown">
+                    <div class="multi-select-header" onclick="toggleDropdown('storeDropdown')">
+                        <span class="selected-text">All Stores</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="multi-select-options" id="storeOptions">
+                        <!-- Options populated dynamically -->
+                    </div>
+                </div>
+            </div>
+            <div class="filter-group">
+                <label for="resultFilter">Result:</label>
+                <select id="resultFilter" onchange="refreshAnalytics()">
+                    <option value="">All Results</option>
+                    <option value="pass">✅ Pass</option>
+                    <option value="fail">❌ Fail</option>
+                </select>
+            </div>
+            <div class="filter-group">
                 <label for="yearFilter">Year:</label>
                 <select id="yearFilter" onchange="refreshAnalytics()">
                     <option value="">All Years</option>
                 </select>
             </div>
             <div class="filter-group">
-                <label for="cycleFilter">Cycle:</label>
-                <select id="cycleFilter" onchange="refreshAnalytics()">
-                    <option value="">All Cycles</option>
-                    <option value="C1">C1</option>
-                    <option value="C2">C2</option>
-                    <option value="C3">C3</option>
-                    <option value="C4">C4</option>
-                    <option value="C5">C5</option>
-                    <option value="C6">C6</option>
-                </select>
+                <label>Months:</label>
+                <div class="multi-select-dropdown" id="monthDropdown">
+                    <div class="multi-select-header" onclick="toggleDropdown('monthDropdown')">
+                        <span class="selected-text">All Months</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="multi-select-options" id="monthOptions">
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="1" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> January
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="2" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> February
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="3" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> March
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="4" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> April
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="5" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> May
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="6" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> June
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="7" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> July
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="8" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> August
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="9" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> September
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="10" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> October
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="11" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> November
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="12" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> December
+                        </label>
+                    </div>
+                </div>
             </div>
             <div class="filter-group">
-                <label for="storeFilter">Store:</label>
-                <select id="storeFilter" onchange="refreshAnalytics()">
-                    <option value="">All Stores</option>
-                </select>
+                <label>Cycles:</label>
+                <div class="multi-select-dropdown" id="cycleDropdown">
+                    <div class="multi-select-header" onclick="toggleDropdown('cycleDropdown')">
+                        <span class="selected-text">All Cycles</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="multi-select-options" id="cycleOptions">
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="C1" onchange="updateDropdownText('cycleDropdown'); refreshAnalytics()"> C1
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="C2" onchange="updateDropdownText('cycleDropdown'); refreshAnalytics()"> C2
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="C3" onchange="updateDropdownText('cycleDropdown'); refreshAnalytics()"> C3
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="C4" onchange="updateDropdownText('cycleDropdown'); refreshAnalytics()"> C4
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="C5" onchange="updateDropdownText('cycleDropdown'); refreshAnalytics()"> C5
+                        </label>
+                        <label class="checkbox-option">
+                            <input type="checkbox" value="C6" onchange="updateDropdownText('cycleDropdown'); refreshAnalytics()"> C6
+                        </label>
+                    </div>
+                </div>
             </div>
             <button class="btn-refresh" onclick="refreshAnalytics()">🔄 Refresh</button>
         </section>
@@ -397,9 +502,59 @@ class AnalyticsPage {
             if (e.target.id === 'unsolvedModal') closeUnsolvedModal();
         });
 
+        // Global store list for filtering
+        let allStores = [];
+
         // Initialize filter dropdowns
         async function initFilters() {
             try {
+                console.log('Initializing filters...');
+                
+                // Load brands
+                const brandsResponse = await fetch('/api/admin/brands');
+                console.log('Brands response:', brandsResponse.status);
+                if (brandsResponse.ok) {
+                    const brands = await brandsResponse.json();
+                    console.log('Loaded brands:', brands);
+                    const brandSelect = document.getElementById('brandFilter');
+                    brands.forEach(brand => {
+                        const option = document.createElement('option');
+                        option.value = brand;
+                        option.textContent = brand;
+                        brandSelect.appendChild(option);
+                    });
+                } else {
+                    console.error('Failed to load brands:', brandsResponse.status);
+                }
+
+                // Load schemes
+                const schemesResponse = await fetch('/api/admin/schemes');
+                console.log('Schemes response:', schemesResponse.status);
+                if (schemesResponse.ok) {
+                    const schemes = await schemesResponse.json();
+                    console.log('Loaded schemes:', schemes.length);
+                    const schemaSelect = document.getElementById('schemaFilter');
+                    schemes.forEach(scheme => {
+                        const option = document.createElement('option');
+                        option.value = scheme.schemaId;
+                        option.textContent = scheme.schemaName;
+                        schemaSelect.appendChild(option);
+                    });
+                }
+
+                // Load stores
+                const storesResponse = await fetch('/api/admin/stores');
+                console.log('Stores response status:', storesResponse.status);
+                if (storesResponse.ok) {
+                    const storesData = await storesResponse.json();
+                    // Handle both array and {stores: [...]} formats
+                    allStores = Array.isArray(storesData) ? storesData : (storesData.stores || []);
+                    console.log('Loaded stores:', allStores.length, 'First store:', allStores[0]);
+                    populateStoreDropdown(allStores);
+                } else {
+                    console.error('Failed to load stores:', await storesResponse.text());
+                }
+
                 // Load years
                 const currentYear = new Date().getFullYear();
                 const yearSelect = document.getElementById('yearFilter');
@@ -409,32 +564,119 @@ class AnalyticsPage {
                     option.textContent = y;
                     yearSelect.appendChild(option);
                 }
-
-                // Load stores
-                const storesResponse = await fetch('/api/admin/stores');
-                if (storesResponse.ok) {
-                    const stores = await storesResponse.json();
-                    const storeSelect = document.getElementById('storeFilter');
-                    stores.forEach(store => {
-                        const option = document.createElement('option');
-                        option.value = store.storeId || store.StoreID;
-                        option.textContent = store.storeName || store.StoreName;
-                        storeSelect.appendChild(option);
-                    });
-                }
             } catch (error) {
                 console.error('Error initializing filters:', error);
             }
         }
 
+        // Populate store dropdown with filtered stores
+        function populateStoreDropdown(stores) {
+            const storeOptions = document.getElementById('storeOptions');
+            storeOptions.innerHTML = ''; // Clear existing
+            
+            stores.forEach(store => {
+                const label = document.createElement('label');
+                label.className = 'checkbox-option';
+                const storeId = store.store_id || store.StoreID || store.storeId;
+                const storeName = store.store_name || store.StoreName || store.storeName || 'Unknown';
+                const brand = store.brand || store.Brand || '';
+                const displayName = brand ? storeName + ' (' + brand + ')' : storeName;
+                label.innerHTML = \`
+                    <input type="checkbox" value="\${storeId}" onchange="updateDropdownText('storeDropdown'); refreshAnalytics()"> \${displayName}
+                \`;
+                storeOptions.appendChild(label);
+            });
+            
+            updateDropdownText('storeDropdown');
+        }
+
+        // Filter stores when brand changes
+        function onBrandChange() {
+            const selectedBrand = document.getElementById('brandFilter').value;
+            
+            if (selectedBrand) {
+                const filteredStores = allStores.filter(store => 
+                    (store.Brand || store.brand) === selectedBrand
+                );
+                populateStoreDropdown(filteredStores);
+            } else {
+                populateStoreDropdown(allStores);
+            }
+            
+            refreshAnalytics();
+        }
+
         // Get current filter values
         function getFilters() {
+            // Get multiple selected store IDs from checkboxes
+            const storeCheckboxes = document.querySelectorAll('#storeOptions input[type="checkbox"]:checked');
+            const selectedStores = Array.from(storeCheckboxes).map(cb => cb.value);
+            
+            // Get multiple selected months from checkboxes
+            const monthCheckboxes = document.querySelectorAll('#monthOptions input[type="checkbox"]:checked');
+            const selectedMonths = Array.from(monthCheckboxes).map(cb => cb.value);
+            
+            // Get multiple selected cycles from checkboxes
+            const cycleCheckboxes = document.querySelectorAll('#cycleOptions input[type="checkbox"]:checked');
+            const selectedCycles = Array.from(cycleCheckboxes).map(cb => cb.value);
+            
             return {
+                country: document.getElementById('countryFilter').value,
+                brand: document.getElementById('brandFilter').value,
+                schemaId: document.getElementById('schemaFilter').value,
+                storeIds: selectedStores.join(','),
+                result: document.getElementById('resultFilter').value,
                 year: document.getElementById('yearFilter').value,
-                cycle: document.getElementById('cycleFilter').value,
-                storeId: document.getElementById('storeFilter').value
+                months: selectedMonths.join(','),
+                cycles: selectedCycles.join(',')
             };
         }
+
+        // Toggle multi-select dropdown
+        function toggleDropdown(dropdownId) {
+            const dropdown = document.getElementById(dropdownId);
+            const options = dropdown.querySelector('.multi-select-options');
+            const isOpen = options.classList.contains('open');
+            
+            // Close all other dropdowns first
+            document.querySelectorAll('.multi-select-options.open').forEach(el => {
+                el.classList.remove('open');
+            });
+            
+            if (!isOpen) {
+                options.classList.add('open');
+            }
+        }
+
+        // Update dropdown header text based on selections
+        function updateDropdownText(dropdownId) {
+            const dropdown = document.getElementById(dropdownId);
+            const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]:checked');
+            const textSpan = dropdown.querySelector('.selected-text');
+            
+            const defaultTexts = {
+                'storeDropdown': 'All Stores',
+                'monthDropdown': 'All Months',
+                'cycleDropdown': 'All Cycles'
+            };
+            
+            if (checkboxes.length === 0) {
+                textSpan.textContent = defaultTexts[dropdownId] || 'All';
+            } else if (checkboxes.length === 1) {
+                textSpan.textContent = checkboxes[0].parentElement.textContent.trim();
+            } else {
+                textSpan.textContent = checkboxes.length + ' selected';
+            }
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.multi-select-dropdown')) {
+                document.querySelectorAll('.multi-select-options.open').forEach(el => {
+                    el.classList.remove('open');
+                });
+            }
+        });
 
         // Load all analytics data
         async function loadAnalytics() {
@@ -479,6 +721,7 @@ class AnalyticsPage {
             document.getElementById('totalAuditors').textContent = summary.totalAuditors || 0;
             document.getElementById('passRate').textContent = (summary.passRate || 0).toFixed(1) + '%';
             document.getElementById('avgScore').textContent = (summary.avgScore || 0).toFixed(1) + '%';
+            document.getElementById('failedAudits').textContent = summary.failedAudits || 0;
             
             // Action Plan Completion: show as "X/Y (Z%)"
             const solved = summary.actionPlansSolved || 0;

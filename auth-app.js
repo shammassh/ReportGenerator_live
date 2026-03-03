@@ -1329,6 +1329,75 @@ app.get('/admin/analytics', requireAuth, requireAutoRole('Admin', 'SuperAuditor'
     AnalyticsPage.render(req, res);
 });
 
+// Get brands for analytics filter
+app.get('/api/admin/brands', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request().query(`
+            SELECT DISTINCT Brand FROM Stores 
+            WHERE Brand IS NOT NULL AND IsActive = 1
+            ORDER BY Brand
+        `);
+        
+        res.json(result.recordset.map(r => r.Brand));
+    } catch (error) {
+        console.error('Error getting brands:', error);
+        res.status(500).json({ error: 'Failed to get brands' });
+    }
+});
+
+// Get schemes for analytics filter
+app.get('/api/admin/schemes', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request().query(`
+            SELECT SchemaID, SchemaName FROM AuditSchemas 
+            ORDER BY SchemaName
+        `);
+        
+        res.json(result.recordset.map(r => ({
+            schemaId: r.SchemaID,
+            schemaName: r.SchemaName
+        })));
+    } catch (error) {
+        console.error('Error getting schemes:', error);
+        res.status(500).json({ error: 'Failed to get schemes' });
+    }
+});
+
+// Get stores for analytics filter
+app.get('/api/admin/stores', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request().query(`
+            SELECT StoreID, StoreName, Brand FROM Stores 
+            WHERE IsActive = 1
+            ORDER BY Brand, StoreName
+        `);
+        
+        const stores = result.recordset.map(r => ({
+            storeId: r.StoreID,
+            storeName: r.StoreName,
+            brand: r.Brand
+        }));
+        
+        console.log(`📊 [API] Returning ${stores.length} stores for analytics filter`);
+        res.json(stores);
+    } catch (error) {
+        console.error('Error getting stores:', error);
+        res.status(500).json([]);  // Return empty array on error
+    }
+});
+
 // Analytics API - Get all analytics data
 app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
     try {
@@ -1336,21 +1405,63 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
         const dbConfig = require('./config/default').database;
         const pool = await sql.connect(dbConfig);
         
-        const { year, cycle, storeId } = req.query;
+        const { country, brand, schemaId, storeIds, result, year, months, cycles } = req.query;
+        
+        // Get dynamic threshold for passing score from SystemSettings
+        let passingThreshold = 87; // default
+        try {
+            const thresholdResult = await pool.request().query(`
+                SELECT TOP 1 ISNULL(PassingGrade, 87) AS PassingGrade
+                FROM SystemSettings 
+                WHERE SettingType = 'Overall'
+                ORDER BY SchemaID
+            `);
+            if (thresholdResult.recordset.length > 0) {
+                passingThreshold = thresholdResult.recordset[0].PassingGrade;
+            }
+        } catch (thresholdErr) {
+            console.warn('⚠️ Could not get dynamic threshold, using default 87:', thresholdErr.message);
+        }
         
         // Build WHERE clause for filters
         let whereClause = "WHERE ai.Status = 'Completed'";
+        if (country) whereClause += ` AND s.Country = '${country.replace(/'/g, "''")}'`;
+        if (brand) whereClause += ` AND s.Brand = '${brand.replace(/'/g, "''")}'`;
+        if (schemaId) whereClause += ` AND ai.SchemaID = ${parseInt(schemaId)}`;
+        // Handle multiple store IDs
+        if (storeIds && storeIds.trim()) {
+            const storeIdArray = storeIds.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0);
+            if (storeIdArray.length > 0) {
+                whereClause += ` AND ai.StoreID IN (${storeIdArray.join(',')})`;
+            }
+        }
+        if (result === 'pass') whereClause += ` AND ai.TotalScore >= ${passingThreshold}`;
+        if (result === 'fail') whereClause += ` AND ai.TotalScore < ${passingThreshold}`;
         if (year) whereClause += ` AND ai.Year = ${parseInt(year)}`;
-        if (cycle) whereClause += ` AND ai.Cycle = '${cycle}'`;
-        if (storeId) whereClause += ` AND ai.StoreID = ${parseInt(storeId)}`;
+        // Handle multiple months
+        if (months && months.trim()) {
+            const monthArray = months.split(',').map(m => parseInt(m)).filter(m => !isNaN(m) && m >= 1 && m <= 12);
+            if (monthArray.length > 0) {
+                whereClause += ` AND MONTH(ai.AuditDate) IN (${monthArray.join(',')})`;
+            }
+        }
+        // Handle multiple cycles
+        if (cycles && cycles.trim()) {
+            const cycleArray = cycles.split(',').filter(c => c && c.trim()).map(c => `'${c.trim().replace(/'/g, "''")}'`);
+            if (cycleArray.length > 0) {
+                whereClause += ` AND ai.Cycle IN (${cycleArray.join(',')})`;
+            }
+        }
         
-        // 1. Summary Statistics
+        // 1. Summary Statistics (join with Stores for Brand filter)
         const summaryResult = await pool.request().query(`
             SELECT 
                 COUNT(*) as TotalAudits,
-                AVG(CAST(TotalScore as FLOAT)) as AvgScore,
-                SUM(CASE WHEN TotalScore >= 83 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) as PassRate
+                AVG(CAST(ai.TotalScore as FLOAT)) as AvgScore,
+                SUM(CASE WHEN ai.TotalScore >= ${passingThreshold} THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) as PassRate,
+                SUM(CASE WHEN ai.TotalScore < ${passingThreshold} THEN 1 ELSE 0 END) as FailedAudits
             FROM AuditInstances ai
+            LEFT JOIN Stores s ON ai.StoreID = s.StoreID
             ${whereClause}
         `);
         
@@ -1379,11 +1490,13 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
             totalAudits: summaryResult.recordset[0]?.TotalAudits || 0,
             avgScore: summaryResult.recordset[0]?.AvgScore || 0,
             passRate: summaryResult.recordset[0]?.PassRate || 0,
+            failedAudits: summaryResult.recordset[0]?.FailedAudits || 0,
             totalStores: storesCount.recordset[0]?.cnt || 0,
             totalAuditors: auditorsCount.recordset[0]?.cnt || 0,
             actionPlansTotal: totalActionPlans,
             actionPlansSolved: solvedActionPlans,
-            actionPlanCompletionRate: actionPlanCompletionRate
+            actionPlanCompletionRate: actionPlanCompletionRate,
+            passingThreshold: passingThreshold
         };
         
         // 2. Trend Data (by month/cycle)
@@ -1393,8 +1506,9 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
                 ai.Year,
                 ai.Cycle,
                 COUNT(*) as AuditCount,
-                AVG(CAST(TotalScore as FLOAT)) as AvgScore
+                AVG(CAST(ai.TotalScore as FLOAT)) as AvgScore
             FROM AuditInstances ai
+            LEFT JOIN Stores s ON ai.StoreID = s.StoreID
             ${whereClause}
             GROUP BY ai.Year, ai.Cycle
             ORDER BY ai.Year, ai.Cycle
@@ -1413,10 +1527,11 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
             SELECT 
                 ai.Auditors as AuditorName,
                 COUNT(*) as AuditCount,
-                AVG(CAST(TotalScore as FLOAT)) as AvgScore,
-                MIN(TotalScore) as MinScore,
-                MAX(TotalScore) as MaxScore
+                AVG(CAST(ai.TotalScore as FLOAT)) as AvgScore,
+                MIN(ai.TotalScore) as MinScore,
+                MAX(ai.TotalScore) as MaxScore
             FROM AuditInstances ai
+            LEFT JOIN Stores s ON ai.StoreID = s.StoreID
             ${whereClause}
             GROUP BY ai.Auditors
             ORDER BY AvgScore DESC
@@ -1436,9 +1551,10 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
                 ss.SectionName,
                 COUNT(*) as TimesAudited,
                 AVG(ss.Percentage) as AvgScore,
-                SUM(CASE WHEN ss.Percentage < 83 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) as FailRate
+                SUM(CASE WHEN ss.Percentage < ${passingThreshold} THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) as FailRate
             FROM AuditSectionScores ss
             INNER JOIN AuditInstances ai ON ss.AuditID = ai.AuditID
+            LEFT JOIN Stores s ON ai.StoreID = s.StoreID
             ${whereClause}
             GROUP BY ss.SectionName
             ORDER BY AvgScore ASC
@@ -1459,6 +1575,7 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
                 AVG(ss.Percentage) as AvgScore
             FROM AuditSectionScores ss
             INNER JOIN AuditInstances ai ON ss.AuditID = ai.AuditID
+            LEFT JOIN Stores s ON ai.StoreID = s.StoreID
             ${whereClause}
             GROUP BY ai.StoreName, ss.SectionName
         `);
@@ -1469,6 +1586,7 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
                 ai.StoreName,
                 AVG(CAST(ai.TotalScore as FLOAT)) as OverallScore
             FROM AuditInstances ai
+            LEFT JOIN Stores s ON ai.StoreID = s.StoreID
             ${whereClause}
             GROUP BY ai.StoreName
         `);
@@ -1491,11 +1609,17 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
         
         const heatmap = { stores, sections, data: heatmapData };
         
-        // 6. Compliance Calendar
+        // 6. Compliance Calendar - Build separate WHERE for calendar (country and brand filters apply to stores)
+        let calendarWhereClause = "WHERE s.IsActive = 1";
+        if (country) calendarWhereClause += ` AND s.Country = '${country.replace(/'/g, "''")}'`;
+        if (brand) calendarWhereClause += ` AND s.Brand = '${brand.replace(/'/g, "''")}'`;
+        
         const calendarResult = await pool.request().query(`
             SELECT 
                 s.StoreName,
                 s.StoreID,
+                s.Brand,
+                s.Country,
                 MAX(ai.AuditDate) as LastAuditDate,
                 COUNT(ai.AuditID) as TotalAudits,
                 (SELECT TOP 1 TotalScore FROM AuditInstances 
@@ -1503,14 +1627,16 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
                  ORDER BY AuditDate DESC, AuditID DESC) as LastScore
             FROM Stores s
             LEFT JOIN AuditInstances ai ON s.StoreID = ai.StoreID AND ai.Status = 'Completed'
-            WHERE s.IsActive = 1
-            GROUP BY s.StoreID, s.StoreName
+            ${calendarWhereClause}
+            GROUP BY s.StoreID, s.StoreName, s.Brand, s.Country
             ORDER BY LastAuditDate DESC
         `);
         
         const complianceCalendar = calendarResult.recordset.map(r => ({
             storeId: r.StoreID,
             storeName: r.StoreName,
+            brand: r.Brand,
+            country: r.Country,
             lastAuditDate: r.LastAuditDate,
             totalAudits: r.TotalAudits || 0,
             lastScore: r.LastScore
