@@ -1568,6 +1568,7 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
         }));
         
         // 5. Heatmap Data (Store x Section)
+        console.log('📊 [Heatmap] Query WHERE clause:', whereClause);
         const heatmapResult = await pool.request().query(`
             SELECT 
                 ai.StoreName,
@@ -1579,6 +1580,7 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
             ${whereClause}
             GROUP BY ai.StoreName, ss.SectionName
         `);
+        console.log('📊 [Heatmap] Section scores found:', heatmapResult.recordset.length, 'rows');
         
         // Also get overall scores per store
         const storeOverallResult = await pool.request().query(`
@@ -1590,6 +1592,7 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
             ${whereClause}
             GROUP BY ai.StoreName
         `);
+        console.log('📊 [Heatmap] Stores with overall scores:', storeOverallResult.recordset.map(r => r.StoreName));
         
         // Build heatmap data structure
         const stores = [...new Set(heatmapResult.recordset.map(r => r.StoreName))];
