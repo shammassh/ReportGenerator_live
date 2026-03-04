@@ -4210,7 +4210,7 @@ app.get('/api/users/search-for-email', requireAuth, async (req, res) => {
 // Send report with custom recipients (from compose modal)
 app.post('/api/audits/send-report-with-recipients', requireAuth, requireRole('Admin', 'Auditor', 'SuperAuditor'), async (req, res) => {
     try {
-        const { auditId, documentNumber, fileName, storeName, totalScore, toRecipients, ccRecipients, customMessage } = req.body;
+        const { auditId, documentNumber, fileName, storeName, totalScore, toRecipients, ccRecipients, customMessage, urgentHrNotes } = req.body;
         
         if (!auditId || !documentNumber) {
             return res.status(400).json({ success: false, error: 'Audit ID and Document Number required' });
@@ -4435,6 +4435,23 @@ app.post('/api/audits/send-report-with-recipients', requireAuth, requireRole('Ad
             `;
         }
         
+        // Build urgent HR notes HTML if provided
+        let urgentHrNotesHtml = '';
+        if (urgentHrNotes && urgentHrNotes.trim()) {
+            // Convert newlines to <br> and escape HTML
+            const escapedHrNotes = urgentHrNotes
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\n/g, '<br>');
+            urgentHrNotesHtml = `
+                <div style="background: #fef2f2; border: 3px solid #dc2626; padding: 15px; margin: 15px 0; border-radius: 8px;">
+                    <strong style="color: #dc2626; font-size: 1.2em;">⚠️ URGENT - HR ATTENTION REQUIRED:</strong>
+                    <p style="margin: 10px 0 0 0; color: #dc2626; font-weight: bold; font-size: 1.1em;">${escapedHrNotes}</p>
+                </div>
+            `;
+        }
+        
         // Build placeholders for first recipient (for recipientName)
         const firstRecipientName = getGreetingName(toRecipients[0]?.name || 'Store Manager');
         const placeholders = {
@@ -4451,6 +4468,7 @@ app.post('/api/audits/send-report-with-recipients', requireAuth, requireRole('Ad
             passingGrade: passingGrade + '%',
             sectionScores: sectionScoresHtml,
             customMessage: customMessageHtml,
+            urgentHrNotes: urgentHrNotesHtml,
             reportUrl: reportUrl,
             dashboardUrl: 'https://fsaudit.gmrlapps.com/dashboard'
         };

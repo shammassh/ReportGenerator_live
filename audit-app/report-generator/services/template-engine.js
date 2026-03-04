@@ -1721,9 +1721,14 @@ class TemplateEngine {
                             </div>
                         </div>
                         <div class="email-field">
-                            <label style="color: #ef4444; font-weight: bold;">Additional Message (Optional):</label>
-                            <textarea id="customMessageInput" placeholder="Add a custom message to include in the email..." style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid #ef4444; border-radius: 6px; font-family: inherit; font-size: 0.9rem; resize: vertical;"></textarea>
-                            <small style="color: #ef4444; font-size: 0.75rem;">This message will appear at the top of the email body.</small>
+                            <label style="color: #374151; font-weight: bold;">Additional Message (Optional):</label>
+                            <textarea id="customMessageInput" placeholder="Add a custom message to include in the email..." style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-family: inherit; font-size: 0.9rem; resize: vertical;"></textarea>
+                            <small style="color: #6b7280; font-size: 0.75rem;">This message will appear in the email body.</small>
+                        </div>
+                        <div class="email-field">
+                            <label style="color: #dc2626; font-weight: bold;">⚠️ Urgent Notes for HR (Optional):</label>
+                            <textarea id="urgentHrNotesInput" placeholder="Add urgent points that require HR attention - these will appear in BOLD RED..." style="width: 100%; min-height: 80px; padding: 10px; border: 2px solid #dc2626; border-radius: 6px; font-family: inherit; font-size: 0.9rem; resize: vertical; background: #fef2f2;"></textarea>
+                            <small style="color: #dc2626; font-size: 0.75rem;">⚠️ These notes will be highlighted in <strong>BOLD RED</strong> for HR attention.</small>
                         </div>
                         <div class="email-preview">
                             <label>Email Preview:</label>
@@ -2599,6 +2604,7 @@ class TemplateEngine {
                     
                     const fileName = window.location.pathname.split('/').pop();
                     const customMessage = document.getElementById('customMessageInput')?.value || '';
+                    const urgentHrNotes = document.getElementById('urgentHrNotesInput')?.value || '';
                     
                     try {
                         const response = await fetch('/api/audits/send-report-with-recipients', {
@@ -2612,7 +2618,8 @@ class TemplateEngine {
                                 totalScore: ${data.totalScore || 0},
                                 toRecipients: emailModalState.toRecipients,
                                 ccRecipients: emailModalState.ccRecipients,
-                                customMessage: customMessage
+                                customMessage: customMessage,
+                                urgentHrNotes: urgentHrNotes
                             })
                         });
                         
