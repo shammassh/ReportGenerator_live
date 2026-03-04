@@ -606,7 +606,7 @@ class ReportGenerator {
     <div class="container">
         <div class="header">
             <span class="dept-badge">🏢 ${data.department} Department</span>
-            <h1>Follow-up Report</h1>
+            <h1>${data.department} Department Report</h1>
             <div class="header-info">
                 <span><strong>Document:</strong> ${data.documentNumber}</span>
                 <span><strong>Store:</strong> ${data.storeName}</span>
