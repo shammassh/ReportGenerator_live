@@ -2776,9 +2776,9 @@ class TemplateEngine {
                 // Download Temperature Readings as Excel
                 function downloadTemperatureExcel() {
                     try {
-                        // Extract temperature data from HTML tables
-                        const tempReadings = document.querySelector('.temperature-readings');
-                        if (!tempReadings) {
+                        // Extract temperature data from ALL temperature-readings containers in the document
+                        const allTempContainers = document.querySelectorAll('.temperature-readings');
+                        if (!allTempContainers || allTempContainers.length === 0) {
                             alert('No temperature data found');
                             return;
                         }
@@ -2794,50 +2794,66 @@ class TemplateEngine {
                         csvContent += 'Store,' + storeName + '\\n';
                         csvContent += '\\n';
                         
-                        // Findings table
-                        const badTable = tempReadings.querySelector('.temp-bad-table');
-                        if (badTable) {
+                        // Findings tables (collect from ALL containers and sections)
+                        let badCount = 0;
+                        let badRowsContent = '';
+                        allTempContainers.forEach(container => {
+                            const badTables = container.querySelectorAll('.temp-bad-table');
+                            badTables.forEach(badTable => {
+                                const badRows = badTable.querySelectorAll('tbody tr');
+                                badRows.forEach(row => {
+                                    const cells = row.querySelectorAll('td');
+                                    if (cells.length >= 6) {
+                                        badCount++;
+                                        const rowData = [
+                                            cells[0]?.textContent?.trim() || '',
+                                            cells[1]?.textContent?.trim() || '',
+                                            cells[2]?.textContent?.trim() || '',
+                                            cells[3]?.textContent?.trim() || '',
+                                            cells[4]?.textContent?.trim() || '',
+                                            '"' + (cells[5]?.textContent?.trim() || '').replace(/"/g, '""') + '"'
+                                        ];
+                                        badRowsContent += rowData.join(',') + '\\n';
+                                    }
+                                });
+                            });
+                        });
+                        
+                        if (badCount > 0) {
                             csvContent += 'FRIDGES WITH FINDINGS\\n';
                             csvContent += 'Section,Category,Unit,Display (°C),Probe (°C),Issue\\n';
-                            
-                            const badRows = badTable.querySelectorAll('tbody tr');
-                            badRows.forEach(row => {
-                                const cells = row.querySelectorAll('td');
-                                if (cells.length >= 6) {
-                                    const rowData = [
-                                        cells[0]?.textContent?.trim() || '',
-                                        cells[1]?.textContent?.trim() || '',
-                                        cells[2]?.textContent?.trim() || '',
-                                        cells[3]?.textContent?.trim() || '',
-                                        cells[4]?.textContent?.trim() || '',
-                                        '"' + (cells[5]?.textContent?.trim() || '').replace(/"/g, '""') + '"'
-                                    ];
-                                    csvContent += rowData.join(',') + '\\n';
-                                }
-                            });
+                            csvContent += badRowsContent;
                             csvContent += '\\n';
                         }
                         
-                        // Compliant table
-                        const goodTable = tempReadings.querySelector('.temp-good-table');
-                        if (goodTable) {
+                        // Compliant tables (collect from ALL containers and sections)
+                        let goodCount = 0;
+                        let goodRowsContent = '';
+                        allTempContainers.forEach(container => {
+                            const goodTables = container.querySelectorAll('.temp-good-table');
+                            goodTables.forEach(goodTable => {
+                                const goodRows = goodTable.querySelectorAll('tbody tr');
+                                goodRows.forEach(row => {
+                                    const cells = row.querySelectorAll('td');
+                                    if (cells.length >= 5) {
+                                        goodCount++;
+                                        const rowData = [
+                                            cells[0]?.textContent?.trim() || '',
+                                            cells[1]?.textContent?.trim() || '',
+                                            cells[2]?.textContent?.trim() || '',
+                                            cells[3]?.textContent?.trim() || '',
+                                            cells[4]?.textContent?.trim() || ''
+                                        ];
+                                        goodRowsContent += rowData.join(',') + '\\n';
+                                    }
+                                });
+                            });
+                        });
+                        
+                        if (goodCount > 0) {
                             csvContent += 'COMPLIANT FRIDGES\\n';
                             csvContent += 'Section,Category,Unit,Display (°C),Probe (°C)\\n';
-                            
-                            const goodRows = goodTable.querySelectorAll('tbody tr');
-                            goodRows.forEach(row => {
-                                const cells = row.querySelectorAll('td');
-                                if (cells.length >= 5) {
-                                    const rowData = [
-                                        cells[0]?.textContent?.trim() || '',
-                                        cells[1]?.textContent?.trim() || '',
-                                        cells[2]?.textContent?.trim() || '',
-                                        cells[3]?.textContent?.trim() || '',
-                                        cells[4]?.textContent?.trim() || ''
-                                    ];
-                                    csvContent += rowData.join(',') + '\\n';
-                                }
-                            });
+                            csvContent += goodRowsContent;
                         }
                         
                         // Create download
