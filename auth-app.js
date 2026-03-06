@@ -5082,8 +5082,8 @@ app.post('/api/audits/send-report-with-recipients', requireAuth, requireRole('Ad
                 .replace(/\n/g, '<br>');
             urgentHrNotesHtml = `
                 <div style="background: #fef2f2; border: 3px solid #dc2626; padding: 15px; margin: 15px 0; border-radius: 8px;">
-                    <strong style="color: #dc2626; font-size: 1.2em;">⚠️ URGENT - HR ATTENTION REQUIRED:</strong>
-                    <p style="margin: 10px 0 0 0; color: #dc2626; font-weight: bold; font-size: 1.1em;">${escapedHrNotes}</p>
+                    <strong style="color: #dc2626; font-size: 1.2em;">⚠️ HR ATTENTION REQUIRED:</strong>
+                    <p style="margin: 10px 0 0 0; color: #000000; font-weight: bold; font-size: 1.1em;">${escapedHrNotes}</p>
                 </div>
             `;
         }
