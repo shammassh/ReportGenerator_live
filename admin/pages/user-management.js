@@ -95,6 +95,7 @@ class UserManagementPage {
                     <option value="CleaningHead">Cleaning Head</option>
                     <option value="ProcurementHead">Procurement Head</option>
                     <option value="MaintenanceHead">Maintenance Head</option>
+                    <option value="Notification">Notification</option>
                     <option value="Pending">Pending Approval</option>
                 </select>
                 <select id="statusFilter" class="filter-select">

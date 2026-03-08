@@ -56,6 +56,7 @@ window.openEditUserModal = async function(user) {
                             <option value="CleaningHead" ${user.role === 'CleaningHead' ? 'selected' : ''}>Cleaning Head</option>
                             <option value="ProcurementHead" ${user.role === 'ProcurementHead' ? 'selected' : ''}>Procurement Head</option>
                             <option value="MaintenanceHead" ${user.role === 'MaintenanceHead' ? 'selected' : ''}>Maintenance Head</option>
+                            <option value="Notification" ${user.role === 'Notification' ? 'selected' : ''}>Notification</option>
                         </select>
                         <small class="form-hint">Assign appropriate role based on user's responsibilities</small>
                     </div>
