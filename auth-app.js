@@ -1120,6 +1120,28 @@ app.delete('/api/cycle-definitions/:defId', requireAuth, requireRole('Admin'), a
     }
 });
 
+// Get all cycles for analytics filter (distinct cycle names used in audits)
+app.get('/api/admin/cycles', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        // Get distinct cycles used in audits, plus all defined cycles
+        const result = await pool.request().query(`
+            SELECT DISTINCT CycleName as name FROM CycleDefinitions WHERE CycleName IS NOT NULL
+            UNION
+            SELECT DISTINCT Cycle as name FROM AuditInstances WHERE Cycle IS NOT NULL AND Cycle != ''
+            ORDER BY name
+        `);
+        
+        res.json(result.recordset.map(r => r.name));
+    } catch (error) {
+        console.error('Error getting cycles for analytics:', error);
+        res.status(500).json([]);
+    }
+});
+
 // Get cycles for a specific schema (used by Start Audit page)
 app.get('/api/schemas/:schemaId/cycles', requireAuth, async (req, res) => {
     try {
@@ -1665,7 +1687,7 @@ app.get('/api/admin/stores', requireAuth, requireRole('Admin', 'SuperAuditor'), 
         const pool = await sql.connect(dbConfig);
         
         const result = await pool.request().query(`
-            SELECT StoreID, StoreName, Brand FROM Stores 
+            SELECT StoreID, StoreName, Brand, Country FROM Stores 
             WHERE IsActive = 1
             ORDER BY Brand, StoreName
         `);
@@ -1673,7 +1695,8 @@ app.get('/api/admin/stores', requireAuth, requireRole('Admin', 'SuperAuditor'), 
         const stores = result.recordset.map(r => ({
             storeId: r.StoreID,
             storeName: r.StoreName,
-            brand: r.Brand
+            brand: r.Brand,
+            country: r.Country
         }));
         
         console.log(`📊 [API] Returning ${stores.length} stores for analytics filter`);
@@ -1684,6 +1707,56 @@ app.get('/api/admin/stores', requireAuth, requireRole('Admin', 'SuperAuditor'), 
     }
 });
 
+// Get Head of Operations for analytics filter
+app.get('/api/admin/head-of-operations', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request().query(`
+            SELECT DISTINCT u.id, u.display_name, u.email
+            FROM Users u
+            WHERE u.role = 'HeadOfOperations' AND u.is_active = 1
+            ORDER BY u.display_name
+        `);
+        
+        res.json(result.recordset.map(r => ({
+            id: r.id,
+            displayName: r.display_name,
+            email: r.email
+        })));
+    } catch (error) {
+        console.error('Error getting head of operations:', error);
+        res.status(500).json([]);
+    }
+});
+
+// Get Area Managers for analytics filter
+app.get('/api/admin/area-managers', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const dbConfig = require('./config/default').database;
+        const pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request().query(`
+            SELECT DISTINCT u.id, u.display_name, u.email
+            FROM Users u
+            WHERE u.role = 'AreaManager' AND u.is_active = 1
+            ORDER BY u.display_name
+        `);
+        
+        res.json(result.recordset.map(r => ({
+            id: r.id,
+            displayName: r.display_name,
+            email: r.email
+        })));
+    } catch (error) {
+        console.error('Error getting area managers:', error);
+        res.status(500).json([]);
+    }
+});
+
 // Analytics API - Get all analytics data
 app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'), async (req, res) => {
     try {
@@ -1691,7 +1764,7 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
         const dbConfig = require('./config/default').database;
         const pool = await sql.connect(dbConfig);
         
-        const { country, brand, schemaId, storeIds, result, year, months, cycles } = req.query;
+        const { countries, brands, storeIds, headOfOpsIds, areaManagerIds, results, years, months, cycles } = req.query;
         
         // Get dynamic threshold for passing score from SystemSettings
         let passingThreshold = 87; // default
@@ -1711,9 +1784,23 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
         
         // Build WHERE clause for filters
         let whereClause = "WHERE ai.Status = 'Completed'";
-        if (country) whereClause += ` AND s.Country = '${country.replace(/'/g, "''")}'`;
-        if (brand) whereClause += ` AND s.Brand = '${brand.replace(/'/g, "''")}'`;
-        if (schemaId) whereClause += ` AND ai.SchemaID = ${parseInt(schemaId)}`;
+        
+        // Handle multiple countries
+        if (countries && countries.trim()) {
+            const countryArray = countries.split(',').filter(c => c.trim()).map(c => `'${c.trim().replace(/'/g, "''")}'`);
+            if (countryArray.length > 0) {
+                whereClause += ` AND s.Country IN (${countryArray.join(',')})`;
+            }
+        }
+        
+        // Handle multiple brands (schemes)
+        if (brands && brands.trim()) {
+            const brandArray = brands.split(',').filter(b => b.trim()).map(b => `'${b.trim().replace(/'/g, "''")}'`);
+            if (brandArray.length > 0) {
+                whereClause += ` AND s.Brand IN (${brandArray.join(',')})`;
+            }
+        }
+        
         // Handle multiple store IDs
         if (storeIds && storeIds.trim()) {
             const storeIdArray = storeIds.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0);
@@ -1721,9 +1808,41 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
                 whereClause += ` AND ai.StoreID IN (${storeIdArray.join(',')})`;
             }
         }
-        if (result === 'pass') whereClause += ` AND ai.TotalScore >= ${passingThreshold}`;
-        if (result === 'fail') whereClause += ` AND ai.TotalScore < ${passingThreshold}`;
-        if (year) whereClause += ` AND ai.Year = ${parseInt(year)}`;
+        
+        // Handle Head of Operations filter - get stores in their assigned brands
+        if (headOfOpsIds && headOfOpsIds.trim()) {
+            const hopIdArray = headOfOpsIds.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0);
+            if (hopIdArray.length > 0) {
+                whereClause += ` AND s.Brand IN (SELECT Brand FROM UserBrandAssignments WHERE UserID IN (${hopIdArray.join(',')}))`;
+            }
+        }
+        
+        // Handle Area Manager filter - get stores they manage
+        if (areaManagerIds && areaManagerIds.trim()) {
+            const amIdArray = areaManagerIds.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0);
+            if (amIdArray.length > 0) {
+                whereClause += ` AND ai.StoreID IN (SELECT StoreID FROM UserAreaAssignments WHERE UserID IN (${amIdArray.join(',')}))`;
+            }
+        }
+        
+        // Handle multiple results (pass/fail)
+        if (results && results.trim()) {
+            const resultArray = results.split(',').filter(r => r.trim());
+            if (resultArray.length === 1) {
+                if (resultArray[0] === 'pass') whereClause += ` AND ai.TotalScore >= ${passingThreshold}`;
+                if (resultArray[0] === 'fail') whereClause += ` AND ai.TotalScore < ${passingThreshold}`;
+            }
+            // If both pass and fail selected, no filter needed
+        }
+        
+        // Handle multiple years
+        if (years && years.trim()) {
+            const yearArray = years.split(',').map(y => parseInt(y)).filter(y => !isNaN(y) && y > 2000);
+            if (yearArray.length > 0) {
+                whereClause += ` AND ai.Year IN (${yearArray.join(',')})`;
+            }
+        }
+        
         // Handle multiple months
         if (months && months.trim()) {
             const monthArray = months.split(',').map(m => parseInt(m)).filter(m => !isNaN(m) && m >= 1 && m <= 12);
@@ -1900,8 +2019,20 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
         
         // 6. Compliance Calendar - Build separate WHERE for calendar (country and brand filters apply to stores)
         let calendarWhereClause = "WHERE s.IsActive = 1";
-        if (country) calendarWhereClause += ` AND s.Country = '${country.replace(/'/g, "''")}'`;
-        if (brand) calendarWhereClause += ` AND s.Brand = '${brand.replace(/'/g, "''")}'`;
+        // Handle multiple countries for calendar
+        if (countries && countries.trim()) {
+            const countryArray = countries.split(',').filter(c => c.trim()).map(c => `'${c.trim().replace(/'/g, "''")}'`);
+            if (countryArray.length > 0) {
+                calendarWhereClause += ` AND s.Country IN (${countryArray.join(',')})`;
+            }
+        }
+        // Handle multiple brands for calendar
+        if (brands && brands.trim()) {
+            const brandArray = brands.split(',').filter(b => b.trim()).map(b => `'${b.trim().replace(/'/g, "''")}'`);
+            if (brandArray.length > 0) {
+                calendarWhereClause += ` AND s.Brand IN (${brandArray.join(',')})`;
+            }
+        }
         
         const calendarResult = await pool.request().query(`
             SELECT 

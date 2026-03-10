@@ -53,6 +53,169 @@ class AnalyticsPage {
 
     <!-- Main Content -->
     <main class="container">
+        <!-- Filter Section - At Top -->
+        <section class="filter-section">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>Country:</label>
+                    <div class="multi-select-dropdown" id="countryDropdown">
+                        <div class="multi-select-header" onclick="toggleDropdown('countryDropdown')">
+                            <span class="selected-text">All Countries</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="multi-select-options" id="countryOptions">
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="Lebanon" onchange="updateDropdownText('countryDropdown'); onCountryChange()"> 🇱🇧 Lebanon
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="Iraq" onchange="updateDropdownText('countryDropdown'); onCountryChange()"> 🇮🇶 Iraq
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Scheme:</label>
+                    <div class="multi-select-dropdown" id="schemeDropdown">
+                        <div class="multi-select-header" onclick="toggleDropdown('schemeDropdown')">
+                            <span class="selected-text">All Schemes</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="multi-select-options" id="schemeOptions">
+                            <!-- Options populated dynamically from brands -->
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Stores:</label>
+                    <div class="multi-select-dropdown" id="storeDropdown">
+                        <div class="multi-select-header" onclick="toggleDropdown('storeDropdown')">
+                            <span class="selected-text">All Stores</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="multi-select-options" id="storeOptions">
+                            <!-- Options populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Head of Operations:</label>
+                    <div class="multi-select-dropdown" id="headOfOpsDropdown">
+                        <div class="multi-select-header" onclick="toggleDropdown('headOfOpsDropdown')">
+                            <span class="selected-text">All Head of Ops</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="multi-select-options" id="headOfOpsOptions">
+                            <!-- Options populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Area Managers:</label>
+                    <div class="multi-select-dropdown" id="areaManagerDropdown">
+                        <div class="multi-select-header" onclick="toggleDropdown('areaManagerDropdown')">
+                            <span class="selected-text">All Area Managers</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="multi-select-options" id="areaManagerOptions">
+                            <!-- Options populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>Result:</label>
+                    <div class="multi-select-dropdown" id="resultDropdown">
+                        <div class="multi-select-header" onclick="toggleDropdown('resultDropdown')">
+                            <span class="selected-text">All Results</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="multi-select-options" id="resultOptions">
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="pass" onchange="updateDropdownText('resultDropdown'); refreshAnalytics()"> ✅ Pass
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="fail" onchange="updateDropdownText('resultDropdown'); refreshAnalytics()"> ❌ Fail
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Year:</label>
+                    <div class="multi-select-dropdown" id="yearDropdown">
+                        <div class="multi-select-header" onclick="toggleDropdown('yearDropdown')">
+                            <span class="selected-text">All Years</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="multi-select-options" id="yearOptions">
+                            <!-- Options populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Months:</label>
+                    <div class="multi-select-dropdown" id="monthDropdown">
+                        <div class="multi-select-header" onclick="toggleDropdown('monthDropdown')">
+                            <span class="selected-text">All Months</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="multi-select-options" id="monthOptions">
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="1" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> January
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="2" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> February
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="3" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> March
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="4" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> April
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="5" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> May
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="6" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> June
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="7" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> July
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="8" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> August
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="9" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> September
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="10" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> October
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="11" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> November
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" value="12" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> December
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Cycles:</label>
+                    <div class="multi-select-dropdown" id="cycleDropdown">
+                        <div class="multi-select-header" onclick="toggleDropdown('cycleDropdown')">
+                            <span class="selected-text">All Cycles</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="multi-select-options" id="cycleOptions">
+                            <!-- Cycles populated dynamically from cycle management -->
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-refresh" onclick="refreshAnalytics()">🔄 Refresh</button>
+                <button class="btn-clear" onclick="clearAllFilters()">✖ Clear</button>
+            </div>
+        </section>
+
         <!-- Summary Cards -->
         <section class="summary-cards">
             <div class="summary-card">
@@ -105,133 +268,6 @@ class AnalyticsPage {
                     <span class="click-hint">Click to view unsolved ➡️</span>
                 </div>
             </div>
-        </section>
-
-        <!-- Filter Section -->
-        <section class="filter-section">
-            <div class="filter-group">
-                <label for="countryFilter">Country:</label>
-                <select id="countryFilter" onchange="refreshAnalytics()">
-                    <option value="">All Countries</option>
-                    <option value="Lebanon">&#127473;&#127463; Lebanon</option>
-                    <option value="Iraq">&#127470;&#127478; Iraq</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="brandFilter">Brand:</label>
-                <select id="brandFilter" onchange="onBrandChange()">
-                    <option value="">All Brands</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="schemaFilter">Scheme:</label>
-                <select id="schemaFilter" onchange="refreshAnalytics()">
-                    <option value="">All Schemes</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label>Stores:</label>
-                <div class="multi-select-dropdown" id="storeDropdown">
-                    <div class="multi-select-header" onclick="toggleDropdown('storeDropdown')">
-                        <span class="selected-text">All Stores</span>
-                        <span class="dropdown-arrow">▼</span>
-                    </div>
-                    <div class="multi-select-options" id="storeOptions">
-                        <!-- Options populated dynamically -->
-                    </div>
-                </div>
-            </div>
-            <div class="filter-group">
-                <label for="resultFilter">Result:</label>
-                <select id="resultFilter" onchange="refreshAnalytics()">
-                    <option value="">All Results</option>
-                    <option value="pass">✅ Pass</option>
-                    <option value="fail">❌ Fail</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="yearFilter">Year:</label>
-                <select id="yearFilter" onchange="refreshAnalytics()">
-                    <option value="">All Years</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label>Months:</label>
-                <div class="multi-select-dropdown" id="monthDropdown">
-                    <div class="multi-select-header" onclick="toggleDropdown('monthDropdown')">
-                        <span class="selected-text">All Months</span>
-                        <span class="dropdown-arrow">▼</span>
-                    </div>
-                    <div class="multi-select-options" id="monthOptions">
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="1" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> January
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="2" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> February
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="3" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> March
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="4" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> April
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="5" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> May
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="6" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> June
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="7" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> July
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="8" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> August
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="9" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> September
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="10" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> October
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="11" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> November
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="12" onchange="updateDropdownText('monthDropdown'); refreshAnalytics()"> December
-                        </label>
-                    </div>
-                </div>
-            </div>
-            <div class="filter-group">
-                <label>Cycles:</label>
-                <div class="multi-select-dropdown" id="cycleDropdown">
-                    <div class="multi-select-header" onclick="toggleDropdown('cycleDropdown')">
-                        <span class="selected-text">All Cycles</span>
-                        <span class="dropdown-arrow">▼</span>
-                    </div>
-                    <div class="multi-select-options" id="cycleOptions">
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="C1" onchange="updateDropdownText('cycleDropdown'); refreshAnalytics()"> C1
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="C2" onchange="updateDropdownText('cycleDropdown'); refreshAnalytics()"> C2
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="C3" onchange="updateDropdownText('cycleDropdown'); refreshAnalytics()"> C3
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="C4" onchange="updateDropdownText('cycleDropdown'); refreshAnalytics()"> C4
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="C5" onchange="updateDropdownText('cycleDropdown'); refreshAnalytics()"> C5
-                        </label>
-                        <label class="checkbox-option">
-                            <input type="checkbox" value="C6" onchange="updateDropdownText('cycleDropdown'); refreshAnalytics()"> C6
-                        </label>
-                    </div>
-                </div>
-            </div>
-            <button class="btn-refresh" onclick="refreshAnalytics()">🔄 Refresh</button>
         </section>
 
         <!-- Custom Query Builder -->
@@ -504,42 +540,32 @@ class AnalyticsPage {
 
         // Global store list for filtering
         let allStores = [];
+        let allHeadOfOps = [];
+        let allAreaManagers = [];
 
         // Initialize filter dropdowns
         async function initFilters() {
             try {
                 console.log('Initializing filters...');
                 
-                // Load brands
+                // Load brands (now called Schemes)
                 const brandsResponse = await fetch('/api/admin/brands');
-                console.log('Brands response:', brandsResponse.status);
+                console.log('Brands/Schemes response:', brandsResponse.status);
                 if (brandsResponse.ok) {
                     const brands = await brandsResponse.json();
-                    console.log('Loaded brands:', brands);
-                    const brandSelect = document.getElementById('brandFilter');
+                    console.log('Loaded schemes:', brands);
+                    const schemeOptions = document.getElementById('schemeOptions');
+                    schemeOptions.innerHTML = '';
                     brands.forEach(brand => {
-                        const option = document.createElement('option');
-                        option.value = brand;
-                        option.textContent = brand;
-                        brandSelect.appendChild(option);
+                        const label = document.createElement('label');
+                        label.className = 'checkbox-option';
+                        label.innerHTML = \`
+                            <input type="checkbox" value="\${brand}" onchange="updateDropdownText('schemeDropdown'); onSchemeChange()"> \${brand}
+                        \`;
+                        schemeOptions.appendChild(label);
                     });
                 } else {
-                    console.error('Failed to load brands:', brandsResponse.status);
-                }
-
-                // Load schemes
-                const schemesResponse = await fetch('/api/admin/schemes');
-                console.log('Schemes response:', schemesResponse.status);
-                if (schemesResponse.ok) {
-                    const schemes = await schemesResponse.json();
-                    console.log('Loaded schemes:', schemes.length);
-                    const schemaSelect = document.getElementById('schemaFilter');
-                    schemes.forEach(scheme => {
-                        const option = document.createElement('option');
-                        option.value = scheme.schemaId;
-                        option.textContent = scheme.schemaName;
-                        schemaSelect.appendChild(option);
-                    });
+                    console.error('Failed to load schemes:', brandsResponse.status);
                 }
 
                 // Load stores
@@ -555,18 +581,103 @@ class AnalyticsPage {
                     console.error('Failed to load stores:', await storesResponse.text());
                 }
 
+                // Load Head of Operations
+                try {
+                    const headOfOpsResponse = await fetch('/api/admin/head-of-operations');
+                    if (headOfOpsResponse.ok) {
+                        allHeadOfOps = await headOfOpsResponse.json();
+                        populateHeadOfOpsDropdown(allHeadOfOps);
+                    }
+                } catch (e) {
+                    console.warn('Could not load Head of Operations:', e);
+                }
+
+                // Load Area Managers
+                try {
+                    const areaManagersResponse = await fetch('/api/admin/area-managers');
+                    if (areaManagersResponse.ok) {
+                        allAreaManagers = await areaManagersResponse.json();
+                        populateAreaManagerDropdown(allAreaManagers);
+                    }
+                } catch (e) {
+                    console.warn('Could not load Area Managers:', e);
+                }
+
+                // Load Cycles from cycle management
+                try {
+                    const cyclesResponse = await fetch('/api/admin/cycles');
+                    if (cyclesResponse.ok) {
+                        const cycles = await cyclesResponse.json();
+                        populateCycleDropdown(cycles);
+                    }
+                } catch (e) {
+                    console.warn('Could not load cycles:', e);
+                }
+
                 // Load years
                 const currentYear = new Date().getFullYear();
-                const yearSelect = document.getElementById('yearFilter');
+                const yearOptions = document.getElementById('yearOptions');
+                yearOptions.innerHTML = '';
                 for (let y = currentYear; y >= currentYear - 5; y--) {
-                    const option = document.createElement('option');
-                    option.value = y;
-                    option.textContent = y;
-                    yearSelect.appendChild(option);
+                    const label = document.createElement('label');
+                    label.className = 'checkbox-option';
+                    label.innerHTML = \`
+                        <input type="checkbox" value="\${y}" onchange="updateDropdownText('yearDropdown'); refreshAnalytics()"> \${y}
+                    \`;
+                    yearOptions.appendChild(label);
                 }
             } catch (error) {
                 console.error('Error initializing filters:', error);
             }
+        }
+
+        // Populate Cycle dropdown
+        function populateCycleDropdown(cycles) {
+            const options = document.getElementById('cycleOptions');
+            options.innerHTML = '';
+            cycles.forEach(cycle => {
+                const label = document.createElement('label');
+                label.className = 'checkbox-option';
+                label.innerHTML = \`
+                    <input type="checkbox" value="\${cycle}" onchange="updateDropdownText('cycleDropdown'); refreshAnalytics()"> \${cycle}
+                \`;
+                options.appendChild(label);
+            });
+            updateDropdownText('cycleDropdown');
+        }
+
+        // Populate Head of Operations dropdown
+        function populateHeadOfOpsDropdown(headOfOps) {
+            const options = document.getElementById('headOfOpsOptions');
+            options.innerHTML = '';
+            headOfOps.forEach(person => {
+                const label = document.createElement('label');
+                label.className = 'checkbox-option';
+                const name = person.display_name || person.displayName || person.name || 'Unknown';
+                const id = person.id || person.user_id || person.userId;
+                label.innerHTML = \`
+                    <input type="checkbox" value="\${id}" onchange="updateDropdownText('headOfOpsDropdown'); refreshAnalytics()"> \${name}
+                \`;
+                options.appendChild(label);
+            });
+            updateDropdownText('headOfOpsDropdown');
+        }
+
+        // Populate Area Manager dropdown
+        function populateAreaManagerDropdown(areaManagers) {
+            const options = document.getElementById('areaManagerOptions');
+            options.innerHTML = '';
+            areaManagers.forEach(person => {
+                const label = document.createElement('label');
+                label.className = 'checkbox-option';
+                const name = person.display_name || person.displayName || person.name || 'Unknown';
+                const id = person.id || person.user_id || person.userId;
+                label.innerHTML = \`
+                    <input type="checkbox" value="\${id}" onchange="updateDropdownText('areaManagerDropdown'); refreshAnalytics()"> \${name}
+                \`;
+                options.appendChild(label);
+            });
+            updateDropdownText('areaManagerDropdown');
         }
 
         // Populate store dropdown with filtered stores
@@ -590,13 +701,14 @@ class AnalyticsPage {
             updateDropdownText('storeDropdown');
         }
 
-        // Filter stores when brand changes
-        function onBrandChange() {
-            const selectedBrand = document.getElementById('brandFilter').value;
+        // Filter stores when scheme (brand) changes
+        function onSchemeChange() {
+            const schemeCheckboxes = document.querySelectorAll('#schemeOptions input[type="checkbox"]:checked');
+            const selectedSchemes = Array.from(schemeCheckboxes).map(cb => cb.value);
             
-            if (selectedBrand) {
+            if (selectedSchemes.length > 0) {
                 const filteredStores = allStores.filter(store => 
-                    (store.Brand || store.brand) === selectedBrand
+                    selectedSchemes.includes(store.Brand || store.brand)
                 );
                 populateStoreDropdown(filteredStores);
             } else {
@@ -606,11 +718,71 @@ class AnalyticsPage {
             refreshAnalytics();
         }
 
+        // Filter when country changes
+        function onCountryChange() {
+            const countryCheckboxes = document.querySelectorAll('#countryOptions input[type="checkbox"]:checked');
+            const selectedCountries = Array.from(countryCheckboxes).map(cb => cb.value);
+            
+            if (selectedCountries.length > 0) {
+                const filteredStores = allStores.filter(store => 
+                    selectedCountries.includes(store.Country || store.country)
+                );
+                populateStoreDropdown(filteredStores);
+            } else {
+                populateStoreDropdown(allStores);
+            }
+            
+            refreshAnalytics();
+        }
+
+        // Clear all filters
+        function clearAllFilters() {
+            // Uncheck all checkboxes in all dropdowns
+            document.querySelectorAll('.multi-select-options input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+            
+            // Reset dropdown texts
+            ['countryDropdown', 'schemeDropdown', 'storeDropdown', 'headOfOpsDropdown', 'areaManagerDropdown', 
+             'resultDropdown', 'yearDropdown', 'monthDropdown', 'cycleDropdown'].forEach(id => {
+                updateDropdownText(id);
+            });
+            
+            // Repopulate stores
+            populateStoreDropdown(allStores);
+            
+            refreshAnalytics();
+        }
+
         // Get current filter values
         function getFilters() {
+            // Get multiple selected countries
+            const countryCheckboxes = document.querySelectorAll('#countryOptions input[type="checkbox"]:checked');
+            const selectedCountries = Array.from(countryCheckboxes).map(cb => cb.value);
+            
+            // Get multiple selected schemes (formerly brands)
+            const schemeCheckboxes = document.querySelectorAll('#schemeOptions input[type="checkbox"]:checked');
+            const selectedSchemes = Array.from(schemeCheckboxes).map(cb => cb.value);
+            
             // Get multiple selected store IDs from checkboxes
             const storeCheckboxes = document.querySelectorAll('#storeOptions input[type="checkbox"]:checked');
             const selectedStores = Array.from(storeCheckboxes).map(cb => cb.value);
+            
+            // Get multiple selected Head of Operations
+            const headOfOpsCheckboxes = document.querySelectorAll('#headOfOpsOptions input[type="checkbox"]:checked');
+            const selectedHeadOfOps = Array.from(headOfOpsCheckboxes).map(cb => cb.value);
+            
+            // Get multiple selected Area Managers
+            const areaManagerCheckboxes = document.querySelectorAll('#areaManagerOptions input[type="checkbox"]:checked');
+            const selectedAreaManagers = Array.from(areaManagerCheckboxes).map(cb => cb.value);
+            
+            // Get multiple selected results
+            const resultCheckboxes = document.querySelectorAll('#resultOptions input[type="checkbox"]:checked');
+            const selectedResults = Array.from(resultCheckboxes).map(cb => cb.value);
+            
+            // Get multiple selected years
+            const yearCheckboxes = document.querySelectorAll('#yearOptions input[type="checkbox"]:checked');
+            const selectedYears = Array.from(yearCheckboxes).map(cb => cb.value);
             
             // Get multiple selected months from checkboxes
             const monthCheckboxes = document.querySelectorAll('#monthOptions input[type="checkbox"]:checked');
@@ -621,12 +793,13 @@ class AnalyticsPage {
             const selectedCycles = Array.from(cycleCheckboxes).map(cb => cb.value);
             
             return {
-                country: document.getElementById('countryFilter').value,
-                brand: document.getElementById('brandFilter').value,
-                schemaId: document.getElementById('schemaFilter').value,
+                countries: selectedCountries.join(','),
+                brands: selectedSchemes.join(','),  // API still uses 'brands' param
                 storeIds: selectedStores.join(','),
-                result: document.getElementById('resultFilter').value,
-                year: document.getElementById('yearFilter').value,
+                headOfOpsIds: selectedHeadOfOps.join(','),
+                areaManagerIds: selectedAreaManagers.join(','),
+                results: selectedResults.join(','),
+                years: selectedYears.join(','),
                 months: selectedMonths.join(','),
                 cycles: selectedCycles.join(',')
             };
@@ -651,11 +824,18 @@ class AnalyticsPage {
         // Update dropdown header text based on selections
         function updateDropdownText(dropdownId) {
             const dropdown = document.getElementById(dropdownId);
+            if (!dropdown) return;
             const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]:checked');
             const textSpan = dropdown.querySelector('.selected-text');
             
             const defaultTexts = {
+                'countryDropdown': 'All Countries',
+                'schemeDropdown': 'All Schemes',
                 'storeDropdown': 'All Stores',
+                'headOfOpsDropdown': 'All Head of Ops',
+                'areaManagerDropdown': 'All Area Managers',
+                'resultDropdown': 'All Results',
+                'yearDropdown': 'All Years',
                 'monthDropdown': 'All Months',
                 'cycleDropdown': 'All Cycles'
             };
