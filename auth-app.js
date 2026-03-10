@@ -2164,6 +2164,83 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
             lastScore: r.LastScore
         }));
         
+        // 7. Non-conformities Analysis
+        // Get audits with non-conformity counts
+        const ncAuditsResult = await pool.request().query(`
+            SELECT 
+                ai.AuditID,
+                ai.DocumentNumber,
+                ai.StoreName,
+                ai.AuditDate,
+                ai.Cycle,
+                ai.TotalScore,
+                CASE WHEN ai.TotalScore >= ${passingThreshold} THEN 'Pass' ELSE 'Fail' END as Result,
+                (SELECT COUNT(*) FROM AuditResponses ar 
+                 WHERE ar.AuditID = ai.AuditID 
+                 AND ar.SelectedChoice IN ('No', 'Partially')) as NCCount
+            FROM AuditInstances ai
+            LEFT JOIN Stores s ON ai.StoreID = s.StoreID
+            ${whereClause}
+            ORDER BY ai.StoreName, ai.AuditDate DESC
+        `);
+        
+        const ncAudits = ncAuditsResult.recordset.map(r => ({
+            auditId: r.AuditID,
+            documentNumber: r.DocumentNumber,
+            storeName: r.StoreName,
+            auditDate: r.AuditDate,
+            cycle: r.Cycle,
+            score: r.TotalScore,
+            result: r.Result,
+            ncCount: r.NCCount || 0
+        }));
+        
+        // Get repetitive findings (same store, same reference point, multiple audits)
+        const repetitiveFindingsResult = await pool.request().query(`
+            SELECT 
+                ai.StoreName,
+                ar.ReferenceValue,
+                ar.Title,
+                ar.SectionName,
+                COUNT(DISTINCT ai.AuditID) as OccurrenceCount,
+                STRING_AGG(ai.Cycle, ', ') WITHIN GROUP (ORDER BY ai.AuditDate) as Cycles,
+                STRING_AGG(ai.DocumentNumber, ', ') WITHIN GROUP (ORDER BY ai.AuditDate) as DocumentNumbers,
+                MIN(ai.AuditDate) as FirstOccurrence,
+                MAX(ai.AuditDate) as LastOccurrence
+            FROM AuditResponses ar
+            INNER JOIN AuditInstances ai ON ar.AuditID = ai.AuditID
+            LEFT JOIN Stores s ON ai.StoreID = s.StoreID
+            ${whereClause}
+            AND ar.SelectedChoice IN ('No', 'Partially')
+            GROUP BY ai.StoreName, ar.ReferenceValue, ar.Title, ar.SectionName
+            HAVING COUNT(DISTINCT ai.AuditID) > 1
+            ORDER BY OccurrenceCount DESC, ai.StoreName, ar.ReferenceValue
+        `);
+        
+        const repetitiveFindings = repetitiveFindingsResult.recordset.map(r => ({
+            storeName: r.StoreName,
+            referenceValue: r.ReferenceValue,
+            title: r.Title,
+            sectionName: r.SectionName,
+            occurrenceCount: r.OccurrenceCount,
+            cycles: r.Cycles,
+            documentNumbers: r.DocumentNumbers,
+            firstOccurrence: r.FirstOccurrence,
+            lastOccurrence: r.LastOccurrence
+        }));
+        
+        const ncAnalysis = {
+            audits: ncAudits,
+            repetitiveFindings: repetitiveFindings,
+            summary: {
+                totalAudits: ncAudits.length,
+                totalNC: ncAudits.reduce((sum, a) => sum + a.ncCount, 0),
+                avgNCPerAudit: ncAudits.length > 0 ? (ncAudits.reduce((sum, a) => sum + a.ncCount, 0) / ncAudits.length).toFixed(1) : 0,
+                totalRepetitiveFindings: repetitiveFindings.length,
+                storesWithRepetitive: [...new Set(repetitiveFindings.map(r => r.storeName))].length
+            }
+        };
+        
         res.json({
             success: true,
             summary,
@@ -2172,7 +2249,8 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
             sectionWeakness,
             sectionDrilldown,
             heatmap,
-            complianceCalendar
+            complianceCalendar,
+            ncAnalysis
         });
         
     } catch (error) {

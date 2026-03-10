@@ -1409,3 +1409,155 @@ body {
 .heatmap-cycle-view .overall-cell.cell-fail {
     background: #fee2e2 !important;
 }
+
+/* Non-conformities Analysis Styles */
+.nc-section {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.nc-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.nc-section h3 {
+    font-size: 1.1rem;
+    color: #1e293b;
+    margin-bottom: 0.75rem;
+}
+
+.nc-description {
+    color: #64748b;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.nc-summary-stats {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.nc-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.nc-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.nc-stat-label {
+    font-size: 0.75rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.nc-audit-table {
+    font-size: 0.85rem;
+}
+
+.nc-audit-table th,
+.nc-audit-table td {
+    padding: 0.6rem 0.75rem;
+}
+
+.nc-count {
+    font-weight: 600;
+    text-align: center;
+}
+
+.nc-count.high {
+    color: #dc2626;
+    background: #fee2e2;
+}
+
+.nc-count.medium {
+    color: #d97706;
+    background: #fef3c7;
+}
+
+.report-link {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.report-link:hover {
+    text-decoration: underline;
+}
+
+/* Repetitive Findings Table */
+.repetitive-findings-table {
+    font-size: 0.85rem;
+}
+
+.repetitive-findings-table th,
+.repetitive-findings-table td {
+    padding: 0.6rem 0.75rem;
+}
+
+.repetitive-row.critical {
+    background: #fef2f2;
+    border-left: 3px solid #dc2626;
+}
+
+.ref-value {
+    font-weight: 600;
+    color: #3b82f6;
+    white-space: nowrap;
+}
+
+.finding-title {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.occurrence-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.occurrence-badge.warning {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.occurrence-badge.critical {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.doc-links {
+    max-width: 200px;
+}
+
+.doc-link {
+    display: inline-block;
+    color: #3b82f6;
+    text-decoration: none;
+    font-size: 0.75rem;
+    margin: 2px;
+    padding: 2px 6px;
+    background: #eff6ff;
+    border-radius: 4px;
+}
+
+.doc-link:hover {
+    background: #dbeafe;
+    text-decoration: underline;
+}

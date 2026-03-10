@@ -381,6 +381,28 @@ class AnalyticsPage {
                     <p class="loading-text">Loading heatmap...</p>
                 </div>
             </section>
+
+            <!-- Non-conformities Analysis -->
+            <section class="chart-card full-width">
+                <h2>🚫 Non-conformities Analysis</h2>
+                
+                <!-- Audits with N/C Summary Table -->
+                <div class="nc-section">
+                    <h3>📋 Audits Summary</h3>
+                    <div id="ncAuditTable" class="data-table-container">
+                        <p class="loading-text">Loading audit data...</p>
+                    </div>
+                </div>
+                
+                <!-- Repetitive Findings -->
+                <div class="nc-section">
+                    <h3>🔄 Repetitive Findings (Across All Cycles)</h3>
+                    <p class="nc-description">Findings that appear in multiple audits for the same store at the same reference point.</p>
+                    <div id="repetitiveFindingsTable" class="data-table-container">
+                        <p class="loading-text">Loading repetitive findings...</p>
+                    </div>
+                </div>
+            </section>
         </div>
     </main>
 
@@ -875,6 +897,7 @@ class AnalyticsPage {
                 renderAuditorPerformance(analyticsData.auditorPerformance);
                 renderSectionAnalysis(analyticsData.sectionWeakness, analyticsData.sectionDrilldown);
                 renderHeatmap(analyticsData.heatmap);
+                renderNCAnalysis(analyticsData.ncAnalysis);
             } catch (error) {
                 console.error('Error loading analytics:', error);
                 alert('Error loading analytics: ' + error.message);
@@ -1528,6 +1551,114 @@ class AnalyticsPage {
             \`;
 
             container.innerHTML = html;
+        }
+
+        // =============================================
+        // NON-CONFORMITIES ANALYSIS
+        // =============================================
+        
+        function renderNCAnalysis(ncAnalysis) {
+            if (!ncAnalysis) {
+                document.getElementById('ncAuditTable').innerHTML = '<p class="no-data">No data available</p>';
+                document.getElementById('repetitiveFindingsTable').innerHTML = '<p class="no-data">No data available</p>';
+                return;
+            }
+            
+            const { audits, repetitiveFindings, summary } = ncAnalysis;
+            
+            // Render Audits Summary Table
+            let auditsHtml = \`
+                <div class="nc-summary-stats">
+                    <div class="nc-stat">
+                        <span class="nc-stat-value">\${summary.totalAudits}</span>
+                        <span class="nc-stat-label">Total Audits</span>
+                    </div>
+                    <div class="nc-stat">
+                        <span class="nc-stat-value">\${summary.totalNC}</span>
+                        <span class="nc-stat-label">Total N/C</span>
+                    </div>
+                    <div class="nc-stat">
+                        <span class="nc-stat-value">\${summary.avgNCPerAudit}</span>
+                        <span class="nc-stat-label">Avg N/C per Audit</span>
+                    </div>
+                </div>
+                <table class="data-table nc-audit-table">
+                    <thead>
+                        <tr>
+                            <th>Store</th>
+                            <th>Audit #</th>
+                            <th>Report</th>
+                            <th>Date</th>
+                            <th>Cycle</th>
+                            <th>Result</th>
+                            <th>Score</th>
+                            <th>N/C</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        \${audits.length > 0 ? audits.map(a => \`
+                            <tr>
+                                <td>\${a.storeName}</td>
+                                <td>\${a.documentNumber}</td>
+                                <td><a href="/reports/\${a.documentNumber}.html" target="_blank" class="report-link">📄 View</a></td>
+                                <td>\${new Date(a.auditDate).toLocaleDateString()}</td>
+                                <td>\${a.cycle || '-'}</td>
+                                <td class="\${a.result === 'Pass' ? 'pass' : 'fail'}">\${a.result}</td>
+                                <td class="\${a.score >= 83 ? 'pass' : 'fail'}">\${a.score ? a.score.toFixed(1) : 0}%</td>
+                                <td class="nc-count \${a.ncCount > 10 ? 'high' : a.ncCount > 5 ? 'medium' : ''}">\${a.ncCount}</td>
+                            </tr>
+                        \`).join('') : '<tr><td colspan="8" class="no-data">No audits found</td></tr>'}
+                    </tbody>
+                </table>
+            \`;
+            document.getElementById('ncAuditTable').innerHTML = auditsHtml;
+            
+            // Render Repetitive Findings Table
+            let repetitiveHtml = \`
+                <div class="nc-summary-stats">
+                    <div class="nc-stat">
+                        <span class="nc-stat-value">\${summary.totalRepetitiveFindings}</span>
+                        <span class="nc-stat-label">Repetitive Findings</span>
+                    </div>
+                    <div class="nc-stat">
+                        <span class="nc-stat-value">\${summary.storesWithRepetitive}</span>
+                        <span class="nc-stat-label">Stores Affected</span>
+                    </div>
+                </div>
+                <table class="data-table repetitive-findings-table">
+                    <thead>
+                        <tr>
+                            <th>Store</th>
+                            <th>Ref #</th>
+                            <th>Section</th>
+                            <th>Finding</th>
+                            <th>Occurrences</th>
+                            <th>Cycles</th>
+                            <th>Documents</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        \${repetitiveFindings.length > 0 ? repetitiveFindings.map(r => \`
+                            <tr class="repetitive-row \${r.occurrenceCount >= 3 ? 'critical' : ''}">
+                                <td>\${r.storeName}</td>
+                                <td class="ref-value">\${r.referenceValue || '-'}</td>
+                                <td>\${r.sectionName}</td>
+                                <td class="finding-title" title="\${r.title}">\${r.title.length > 60 ? r.title.substring(0, 60) + '...' : r.title}</td>
+                                <td class="occurrence-count">
+                                    <span class="occurrence-badge \${r.occurrenceCount >= 3 ? 'critical' : 'warning'}">\${r.occurrenceCount}x</span>
+                                </td>
+                                <td>\${r.cycles}</td>
+                                <td class="doc-links">
+                                    \${r.documentNumbers.split(', ').map(doc => 
+                                        \`<a href="/reports/\${doc}.html" target="_blank" class="doc-link">\${doc}</a>\`
+                                    ).join(' ')}
+                                </td>
+                            </tr>
+                        \`).join('') : '<tr><td colspan="7" class="no-data">No repetitive findings found - Good job! 🎉</td></tr>'}
+                    </tbody>
+                </table>
+            \`;
+            document.getElementById('repetitiveFindingsTable').innerHTML = repetitiveHtml;
         }
 
         // =============================================
