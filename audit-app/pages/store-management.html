@@ -451,7 +451,7 @@
         /* Multi-select dropdown */
         .multi-select-container {
             position: relative;
-            min-width: 500px;
+            width: 100%;
         }
 
         .multi-select-dropdown {
@@ -483,7 +483,7 @@
             top: 100%;
             left: 0;
             right: 0;
-            min-width: 500px;
+            width: 100%;
             background: white;
             border: 2px solid #667eea;
             border-top: none;
@@ -491,12 +491,12 @@
             max-height: 400px;
             overflow-y: auto;
             z-index: 1000;
-            display: none;
+            display: block;
             box-shadow: 0 8px 25px rgba(0,0,0,0.15);
         }
 
-        .multi-select-options.show {
-            display: block;
+        .multi-select-options.hidden {
+            display: none;
         }
 
         .manager-search-box {
@@ -530,11 +530,11 @@
         }
 
         .multi-select-option {
-            padding: 14px 18px;
+            padding: 16px 18px;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 16px;
             border-bottom: 1px solid #f0f0f0;
             transition: all 0.15s ease;
         }
@@ -544,10 +544,17 @@
         }
 
         .multi-select-option.selected {
-            background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+            background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
+            border-left: 4px solid #10b981;
         }
 
         .multi-select-option input[type="checkbox"] {
+            width: 24px;
+            height: 24px;
+            accent-color: #10b981;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
             width: 20px;
             height: 20px;
             accent-color: #667eea;
@@ -558,18 +565,21 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
+            min-width: 0;
         }
 
         .manager-name {
             font-weight: 600;
             color: #1e293b;
-            font-size: 18px;
+            font-size: 16px;
         }
 
         .manager-email {
-            font-size: 15px;
-            color: #475569;
+            font-size: 14px;
+            color: #667eea;
+            font-weight: 500;
+            word-break: break-all;
         }
 
         .manager-role-badge {
@@ -720,7 +730,7 @@
             border-radius: 15px;
             padding: 30px;
             width: 90%;
-            max-width: 500px;
+            max-width: 650px;
             max-height: 90vh;
             overflow-y: auto;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
@@ -730,6 +740,44 @@
         #assignManagersModal .modal {
             max-width: 700px;
             width: 95%;
+            max-height: 95vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #assignManagersModal .multi-select-container {
+            position: relative;
+        }
+
+        #assignManagersModal .multi-select-options {
+            position: relative;
+            top: 0;
+            max-height: 400px;
+            border-radius: 12px;
+            border: 2px solid #667eea;
+            margin-top: 5px;
+        }
+
+        /* Wider modal for edit store */
+        #editStoreModal .modal {
+            max-width: 700px;
+            width: 95%;
+            max-height: 95vh;
+            overflow-y: auto;
+        }
+
+        #editStoreModal .multi-select-container {
+            position: relative;
+        }
+
+        #editStoreModal .multi-select-options {
+            position: relative;
+            top: 0;
+            max-height: 300px;
+            border-radius: 12px;
+            border: 2px solid #667eea;
+            margin-top: 5px;
         }
 
         .modal-header {
@@ -937,14 +985,30 @@
             </div>
             <div id="assignManagersContent">
                 <input type="hidden" id="assignStoreId">
-                <p id="assignStoreName" style="font-weight: 600; margin-bottom: 15px;"></p>
+                <p id="assignStoreName" style="font-weight: 600; margin-bottom: 15px; font-size: 18px;"></p>
+                
+                <!-- Selected Managers Display -->
+                <div id="selectedManagersDisplay" style="margin-bottom: 15px; min-height: 40px;">
+                    <!-- Selected managers will appear here as tags -->
+                </div>
+                
                 <div class="form-group">
-                    <label>Select Store Managers (max 4)</label>
-                    <div class="multi-select-container">
-                        <div class="multi-select-dropdown" id="assignManagersDropdown" onclick="toggleAssignDropdown()">
-                            <span class="placeholder-text" id="assignManagersPlaceholder">Click to select managers...</span>
-                        </div>
-                        <div class="multi-select-options" id="assignManagersOptions"></div>
+                    <label style="font-size: 16px; margin-bottom: 10px; display: block;">Select Store Managers (max 4)</label>
+                    
+                    <!-- Search Box -->
+                    <input type="text" 
+                           id="managerSearchInput"
+                           placeholder="🔍 Type name or email to search..." 
+                           oninput="handleManagerSearch(this.value)"
+                           style="width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; margin-bottom: 10px;">
+                    
+                    <!-- Manager Count -->
+                    <div id="managerCountDisplay" style="padding: 10px 16px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 0 8px 8px 0; margin-bottom: 10px; font-size: 14px;">
+                    </div>
+                    
+                    <!-- Managers List (Always Visible) -->
+                    <div id="assignManagersList" style="max-height: 350px; overflow-y: auto; border: 2px solid #e0e0e0; border-radius: 10px;">
+                        <!-- Managers will be rendered here -->
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1417,22 +1481,57 @@
             
             // Render selected tags
             if (selectedEditManagers.length === 0) {
-                dropdown.innerHTML = '<span class="placeholder-text">Click to select managers...</span>';
+                dropdown.innerHTML = '<span class="placeholder-text">🔍 Click to search and select managers...</span>';
             } else {
                 dropdown.innerHTML = selectedEditManagers.map(userId => {
                     const manager = availableManagers.find(m => m.userId === userId);
-                    return `<span class="selected-tag">${manager?.displayName || manager?.email || userId} <span class="remove" onclick="event.stopPropagation(); removeEditManager(${userId})">×</span></span>`;
+                    return `<span class="selected-tag">👤 ${manager?.displayName || manager?.email || userId} <span class="remove" onclick="event.stopPropagation(); removeEditManager(${userId})">×</span></span>`;
                 }).join('');
             }
             
-            // Render options
-            options.innerHTML = availableManagers.map(m => `
-                <div class="multi-select-option ${selectedEditManagers.includes(m.userId) ? 'selected' : ''}" 
-                     onclick="event.stopPropagation(); toggleEditManager(${m.userId})">
-                    <input type="checkbox" ${selectedEditManagers.includes(m.userId) ? 'checked' : ''} onclick="event.stopPropagation();">
-                    <span>${m.displayName || m.email} <small style="color: #999;">(${m.role})</small></span>
+            // Render options with search
+            options.innerHTML = `
+                <div class="manager-search-box">
+                    <input type="text" 
+                           placeholder="🔍 Type name or email to search..." 
+                           id="editManagerSearch"
+                           onclick="event.stopPropagation();"
+                           oninput="filterEditManagers(this.value)"
+                           style="font-size: 16px;">
                 </div>
-            `).join('');
+                <div class="manager-count" style="background: #f0fdf4; border-left: 4px solid #10b981;">
+                    📋 <strong>${availableManagers.length}</strong> managers available ${selectedEditManagers.length > 0 ? `• <strong style="color: #10b981;">${selectedEditManagers.length}/4 selected ✓</strong>` : ''}
+                </div>
+                <div id="editManagersList">
+                    ${availableManagers.map(m => `
+                        <div class="multi-select-option ${selectedEditManagers.includes(m.userId) ? 'selected' : ''}" 
+                             onclick="event.stopPropagation(); toggleEditManager(${m.userId})"
+                             data-name="${(m.displayName || '').toLowerCase()}"
+                             data-email="${(m.email || '').toLowerCase()}">
+                            <input type="checkbox" ${selectedEditManagers.includes(m.userId) ? 'checked' : ''} onclick="event.stopPropagation();">
+                            <div class="manager-info">
+                                <span class="manager-name">👤 ${m.displayName || 'No Name'}</span>
+                                <span class="manager-email">📧 ${m.email}</span>
+                            </div>
+                            <span class="manager-role-badge ${m.role}">${m.role}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        function filterEditManagers(searchTerm) {
+            const search = searchTerm.toLowerCase();
+            const items = document.querySelectorAll('#editManagersList .multi-select-option');
+            items.forEach(item => {
+                const name = item.dataset.name || '';
+                const email = item.dataset.email || '';
+                if (name.includes(search) || email.includes(search)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
         }
 
         function toggleManagersDropdown() {
@@ -1483,18 +1582,23 @@
         }
 
         function renderAssignManagersDropdown() {
-            const dropdown = document.getElementById('assignManagersDropdown');
-            const options = document.getElementById('assignManagersOptions');
+            const selectedDisplay = document.getElementById('selectedManagersDisplay');
+            const countDisplay = document.getElementById('managerCountDisplay');
+            const managersList = document.getElementById('assignManagersList');
             
+            // Render selected managers as tags at the top
             if (selectedAssignManagers.length === 0) {
-                dropdown.innerHTML = '<span class="placeholder-text">🔍 Click to search and select managers...</span>';
+                selectedDisplay.innerHTML = '<span style="color: #999; font-size: 14px;">No managers selected yet</span>';
             } else {
-                dropdown.innerHTML = selectedAssignManagers.map(userId => {
+                selectedDisplay.innerHTML = selectedAssignManagers.map(userId => {
                     const manager = availableManagers.find(m => m.userId === userId);
                     const displayName = manager?.displayName || manager?.email || userId;
-                    return `<span class="selected-tag">👤 ${displayName} <span class="remove" onclick="event.stopPropagation(); removeAssignManager(${userId})">×</span></span>`;
+                    return `<span class="selected-tag" style="margin: 3px;">👤 ${displayName} <span class="remove" onclick="removeAssignManager(${userId})" style="cursor:pointer;">×</span></span>`;
                 }).join('');
             }
+            
+            // Update count display
+            countDisplay.innerHTML = `📋 <strong>${availableManagers.length}</strong> managers available ${selectedAssignManagers.length > 0 ? `• <strong style="color: #10b981;">${selectedAssignManagers.length}/4 selected ✓</strong>` : ''}`;
 
             // Filter managers based on search
             const filteredManagers = availableManagers.filter(m => {
@@ -1503,40 +1607,31 @@
                        (m.email || '').toLowerCase().includes(searchLower);
             });
             
-            options.innerHTML = `
-                <div class="manager-search-box">
-                    <input type="text" 
-                           placeholder="🔍 Type to search managers..." 
-                           value="${managerSearchTerm}"
-                           onclick="event.stopPropagation();"
-                           oninput="handleManagerSearch(this.value)">
-                </div>
-                <div class="manager-count">
-                    📋 Showing ${filteredManagers.length} of ${availableManagers.length} managers ${selectedAssignManagers.length > 0 ? `• ${selectedAssignManagers.length}/4 selected` : ''}
-                </div>
-                ${filteredManagers.map(m => `
+            // Render manager list
+            if (filteredManagers.length === 0) {
+                managersList.innerHTML = '<div style="padding: 30px; text-align: center; color: #666;">No managers found matching your search</div>';
+            } else {
+                managersList.innerHTML = filteredManagers.map(m => `
                     <div class="multi-select-option ${selectedAssignManagers.includes(m.userId) ? 'selected' : ''}" 
-                         onclick="event.stopPropagation(); toggleAssignManager(${m.userId})">
-                        <input type="checkbox" ${selectedAssignManagers.includes(m.userId) ? 'checked' : ''} onclick="event.stopPropagation();">
+                         onclick="toggleAssignManager(${m.userId})" style="cursor: pointer;">
+                        <input type="checkbox" ${selectedAssignManagers.includes(m.userId) ? 'checked' : ''} onclick="event.stopPropagation(); toggleAssignManager(${m.userId});">
                         <div class="manager-info">
-                            <span class="manager-name">${m.displayName || 'No Name'}</span>
-                            <span class="manager-email">${m.email}</span>
+                            <span class="manager-name">👤 ${m.displayName || 'No Name'}</span>
+                            <span class="manager-email">📧 ${m.email}</span>
                         </div>
                         <span class="manager-role-badge ${m.role}">${m.role}</span>
                     </div>
-                `).join('')}
-            `;
+                `).join('');
+            }
         }
 
         function handleManagerSearch(value) {
             managerSearchTerm = value;
             renderAssignManagersDropdown();
-            // Keep dropdown open and focus on search
-            document.getElementById('assignManagersOptions').classList.add('show');
         }
 
         function toggleAssignDropdown() {
-            document.getElementById('assignManagersOptions').classList.toggle('show');
+            // No longer needed - list is always visible
         }
 
         function toggleAssignManager(userId) {
