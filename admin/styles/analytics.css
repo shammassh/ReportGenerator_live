@@ -1663,3 +1663,91 @@ body {
 .priority-low {
     color: #059669;
 }
+
+/* =============================================
+   BRANCH RANKINGS
+   ============================================= */
+
+.section-description {
+    color: #64748b;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.rankings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+    gap: 1.5rem;
+}
+
+.rankings-scheme-card {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+}
+
+.scheme-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #3b82f6;
+}
+
+.rankings-table {
+    width: 100%;
+}
+
+.rankings-table th {
+    background: #f1f5f9;
+    font-weight: 600;
+    text-align: left;
+    padding: 0.75rem;
+}
+
+.rankings-table td {
+    vertical-align: top;
+    padding: 0.75rem;
+}
+
+.cycle-cell {
+    font-weight: 600;
+    white-space: nowrap;
+    width: 100px;
+}
+
+.top-rank-cell, .bottom-rank-cell {
+    min-width: 200px;
+}
+
+.rank-item {
+    display: block;
+    padding: 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+.rank-item.top {
+    color: #166534;
+}
+
+.rank-item.bottom {
+    color: #b91c1c;
+}
+
+.rank-score {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+/* =============================================
+   STORE SCORES BAR CHART
+   ============================================= */
+
+.store-scores-chart {
+    height: 450px;
+    min-height: 400px;
+    padding: 1rem;
+}
+

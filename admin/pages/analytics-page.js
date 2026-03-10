@@ -430,6 +430,24 @@ class AnalyticsPage {
                     </div>
                 </div>
             </section>
+
+            <!-- Branch Rankings -->
+            <section class="chart-card full-width">
+                <h2>🏆 Branch Rankings</h2>
+                <p class="section-description">Top 3 and Bottom 3 performing branches by scheme and cycle.</p>
+                <div id="branchRankingsTable" class="data-table-container">
+                    <p class="loading-text">Loading rankings...</p>
+                </div>
+            </section>
+
+            <!-- Average Store Scores Chart -->
+            <section class="chart-card full-width">
+                <h2 id="storeScoresChartTitle">📊 Average Food Safety Audits Per Store</h2>
+                <p class="section-description">Store performance with target passing grade line.</p>
+                <div class="chart-container store-scores-chart">
+                    <canvas id="storeScoresChart"></canvas>
+                </div>
+            </section>
         </div>
     </main>
 
@@ -925,7 +943,9 @@ class AnalyticsPage {
                 renderSectionAnalysis(analyticsData.sectionWeakness, analyticsData.sectionDrilldown);
                 renderHeatmap(analyticsData.heatmap);
                 renderNCAnalysis(analyticsData.ncAnalysis);
+                renderBranchRankings(analyticsData.branchRankings);
                 renderActionPlanAnalysis(analyticsData.actionPlanAnalysis);
+                renderStoreScoresChart(analyticsData.heatmap, analyticsData.summary.passingThreshold);
             } catch (error) {
                 console.error('Error loading analytics:', error);
                 alert('Error loading analytics: ' + error.message);
@@ -1687,6 +1707,236 @@ class AnalyticsPage {
                 </table>
             \`;
             document.getElementById('repetitiveFindingsTable').innerHTML = repetitiveHtml;
+        }
+
+        // =============================================
+        // BRANCH RANKINGS
+        // =============================================
+        
+        function renderBranchRankings(rankings) {
+            const container = document.getElementById('branchRankingsTable');
+            
+            if (!rankings || rankings.length === 0) {
+                container.innerHTML = '<p class="no-data">No ranking data available</p>';
+                return;
+            }
+            
+            // Group rankings by scheme for better display
+            const groupedByScheme = {};
+            for (const r of rankings) {
+                if (!groupedByScheme[r.scheme]) {
+                    groupedByScheme[r.scheme] = [];
+                }
+                groupedByScheme[r.scheme].push(r);
+            }
+            
+            let html = '<div class="rankings-grid">';
+            
+            for (const scheme of Object.keys(groupedByScheme).sort()) {
+                const schemeRankings = groupedByScheme[scheme];
+                
+                html += \`
+                    <div class="rankings-scheme-card">
+                        <h4 class="scheme-title">\${scheme}</h4>
+                        <table class="data-table rankings-table">
+                            <thead>
+                                <tr>
+                                    <th>Cycle</th>
+                                    <th>🥇 Highest Grade</th>
+                                    <th>📉 Lowest Grade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                \`;
+                
+                // Sort by cycle name
+                schemeRankings.sort((a, b) => a.cycle.localeCompare(b.cycle));
+                
+                for (const r of schemeRankings) {
+                    const top3Html = r.top3.map((b, i) => 
+                        \`<span class="rank-item top">\${i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} \${b.storeName} <span class="rank-score">(\${b.avgScore}%)</span></span>\`
+                    ).join('');
+                    
+                    const bottom3Html = r.bottom3.map((b, i) => 
+                        \`<span class="rank-item bottom">\${b.storeName} <span class="rank-score">(\${b.avgScore}%)</span></span>\`
+                    ).join('');
+                    
+                    html += \`
+                        <tr>
+                            <td class="cycle-cell">\${r.cycle}</td>
+                            <td class="top-rank-cell">\${top3Html || '<span class="no-data">-</span>'}</td>
+                            <td class="bottom-rank-cell">\${bottom3Html || '<span class="no-data">-</span>'}</td>
+                        </tr>
+                    \`;
+                }
+                
+                html += \`
+                            </tbody>
+                        </table>
+                    </div>
+                \`;
+            }
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // =============================================
+        // STORE SCORES BAR CHART
+        // =============================================
+        
+        let storeScoresChart = null;
+        
+        function renderStoreScoresChart(heatmapData, passingThreshold) {
+            // Get selected years for title
+            const yearCheckboxes = document.querySelectorAll('#yearOptions input[type="checkbox"]:checked');
+            const selectedYears = Array.from(yearCheckboxes).map(cb => cb.value);
+            
+            let yearText = '';
+            if (selectedYears.length === 1) {
+                yearText = 'from January til December ' + selectedYears[0];
+            } else if (selectedYears.length > 1) {
+                yearText = 'for ' + selectedYears.join(', ');
+            } else {
+                yearText = '(All Years)';
+            }
+            
+            // Update chart title
+            document.getElementById('storeScoresChartTitle').textContent = 
+                '📊 Average Food Safety Audits Per Store ' + yearText;
+            
+            if (!heatmapData || !heatmapData.data) {
+                return;
+            }
+            
+            // Extract store scores from heatmap data
+            const storeScores = [];
+            for (const [storeName, sections] of Object.entries(heatmapData.data)) {
+                if (sections._overall !== undefined) {
+                    storeScores.push({
+                        store: storeName,
+                        score: Math.round(sections._overall * 10) / 10
+                    });
+                }
+            }
+            
+            // Sort by score descending
+            storeScores.sort((a, b) => b.score - a.score);
+            
+            const labels = storeScores.map(s => s.store);
+            const scores = storeScores.map(s => s.score);
+            const threshold = passingThreshold || 90;
+            
+            // Generate colors based on pass/fail
+            const barColors = scores.map(score => 
+                score >= threshold ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)'
+            );
+            const borderColors = scores.map(score => 
+                score >= threshold ? 'rgba(34, 197, 94, 1)' : 'rgba(239, 68, 68, 1)'
+            );
+            
+            // Destroy existing chart
+            if (storeScoresChart) {
+                storeScoresChart.destroy();
+            }
+            
+            const ctx = document.getElementById('storeScoresChart').getContext('2d');
+            
+            storeScoresChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Average Score',
+                            data: scores,
+                            backgroundColor: barColors,
+                            borderColor: borderColors,
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            barThickness: 'flex',
+                            maxBarThickness: 50
+                        },
+                        {
+                            label: 'Target (Food Safety Score ≥ ' + threshold + '%)',
+                            data: Array(labels.length).fill(threshold),
+                            type: 'line',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.dataset.type === 'line') {
+                                        return 'Target: ' + context.raw + '%';
+                                    }
+                                    return context.dataset.label + ': ' + context.raw + '%';
+                                }
+                            }
+                        },
+                        datalabels: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: 50,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Score (%)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Stores'
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'datalabels',
+                    afterDatasetsDraw: function(chart) {
+                        const ctx = chart.ctx;
+                        chart.data.datasets.forEach((dataset, datasetIndex) => {
+                            // Only show labels for bar chart, not line
+                            if (dataset.type === 'line') return;
+                            
+                            const meta = chart.getDatasetMeta(datasetIndex);
+                            meta.data.forEach((bar, index) => {
+                                const value = dataset.data[index];
+                                ctx.fillStyle = '#1e293b';
+                                ctx.font = 'bold 9px Arial';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'bottom';
+                                ctx.fillText(value + '%', bar.x, bar.y - 3);
+                            });
+                        });
+                    }
+                }]
+            });
         }
 
         // =============================================

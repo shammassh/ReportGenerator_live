@@ -2303,6 +2303,63 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
             }
         };
         
+        // 9. Branch Rankings by Scheme and Cycle (Top 3 and Bottom 3)
+        const branchRankingsResult = await pool.request().query(`
+            SELECT 
+                s.Brand as Scheme,
+                ai.Cycle,
+                ai.StoreName,
+                AVG(CAST(ai.TotalScore as FLOAT)) as AvgScore,
+                RANK() OVER (PARTITION BY s.Brand, ai.Cycle ORDER BY AVG(CAST(ai.TotalScore as FLOAT)) DESC) as RankTop,
+                RANK() OVER (PARTITION BY s.Brand, ai.Cycle ORDER BY AVG(CAST(ai.TotalScore as FLOAT)) ASC) as RankBottom
+            FROM AuditInstances ai
+            INNER JOIN Stores s ON ai.StoreID = s.StoreID
+            ${whereClause}
+            GROUP BY s.Brand, ai.Cycle, ai.StoreName
+            ORDER BY s.Brand, ai.Cycle, AvgScore DESC
+        `);
+        
+        // Build branch rankings per scheme per cycle
+        const branchRankings = {};
+        for (const row of branchRankingsResult.recordset) {
+            const scheme = row.Scheme || 'Unknown';
+            const cycle = row.Cycle || 'Unknown';
+            const key = scheme + '|' + cycle;
+            
+            if (!branchRankings[key]) {
+                branchRankings[key] = {
+                    scheme: scheme,
+                    cycle: cycle,
+                    top3: [],
+                    bottom3: []
+                };
+            }
+            
+            // Add to top 3 if rank is 1, 2, or 3
+            if (row.RankTop <= 3) {
+                branchRankings[key].top3.push({
+                    rank: row.RankTop,
+                    storeName: row.StoreName,
+                    avgScore: Math.round(row.AvgScore * 10) / 10
+                });
+            }
+            
+            // Add to bottom 3 if rank is 1, 2, or 3 (from bottom)
+            if (row.RankBottom <= 3) {
+                branchRankings[key].bottom3.push({
+                    rank: row.RankBottom,
+                    storeName: row.StoreName,
+                    avgScore: Math.round(row.AvgScore * 10) / 10
+                });
+            }
+        }
+        
+        // Sort top3 by rank ascending, bottom3 by score ascending (lowest first)
+        for (const key of Object.keys(branchRankings)) {
+            branchRankings[key].top3.sort((a, b) => a.rank - b.rank);
+            branchRankings[key].bottom3.sort((a, b) => a.avgScore - b.avgScore);
+        }
+        
         res.json({
             success: true,
             summary,
@@ -2313,7 +2370,8 @@ app.get('/api/admin/analytics', requireAuth, requireRole('Admin', 'SuperAuditor'
             heatmap,
             complianceCalendar,
             ncAnalysis,
-            actionPlanAnalysis
+            actionPlanAnalysis,
+            branchRankings: Object.values(branchRankings)
         });
         
     } catch (error) {
