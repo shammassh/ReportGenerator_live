@@ -188,6 +188,13 @@ body {
     color: #64748b;
 }
 
+.rate-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #475569;
+    margin-left: 0.25rem;
+}
+
 /* Filter Section */
 .filter-section {
     display: flex;

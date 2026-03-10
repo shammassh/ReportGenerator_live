@@ -229,42 +229,35 @@ class AnalyticsPage {
                 <div class="card-icon">🏪</div>
                 <div class="card-content">
                     <h3 id="totalStores">-</h3>
-                    <p>Active Stores</p>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="card-icon">👥</div>
-                <div class="card-content">
-                    <h3 id="totalAuditors">-</h3>
-                    <p>Active Auditors</p>
-                </div>
-            </div>
-            <div class="summary-card pass">
-                <div class="card-icon">✅</div>
-                <div class="card-content">
-                    <h3 id="passRate">-</h3>
-                    <p>Pass Rate</p>
+                    <p>Number of Selected Stores</p>
                 </div>
             </div>
             <div class="summary-card">
                 <div class="card-icon">📈</div>
                 <div class="card-content">
                     <h3 id="avgScore">-</h3>
-                    <p>Avg Score</p>
+                    <p>Average Score</p>
+                </div>
+            </div>
+            <div class="summary-card pass">
+                <div class="card-icon">✅</div>
+                <div class="card-content">
+                    <h3 id="passRate">-</h3>
+                    <p>Pass Rate <span id="passCount" class="rate-count"></span></p>
                 </div>
             </div>
             <div class="summary-card fail">
                 <div class="card-icon">❌</div>
                 <div class="card-content">
-                    <h3 id="failedAudits">-</h3>
-                    <p>Failed Audits</p>
+                    <h3 id="failRate">-</h3>
+                    <p>Fail Rate <span id="failCount" class="rate-count"></span></p>
                 </div>
             </div>
             <div class="summary-card clickable" onclick="showUnsolvedActionPlans()" title="Click to view unsolved items">
                 <div class="card-icon">📝</div>
                 <div class="card-content">
                     <h3 id="actionPlanCompletion">-</h3>
-                    <p>Action Plans Solved</p>
+                    <p>Number of Findings Solved</p>
                     <span class="click-hint">Click to view unsolved ➡️</span>
                 </div>
             </div>
@@ -896,12 +889,23 @@ class AnalyticsPage {
 
         // Render summary cards
         function renderSummaryCards(summary) {
-            document.getElementById('totalAudits').textContent = summary.totalAudits || 0;
+            const totalAudits = summary.totalAudits || 0;
+            const failedAudits = summary.failedAudits || 0;
+            const passedAudits = totalAudits - failedAudits;
+            const passRate = summary.passRate || 0;
+            const failRate = totalAudits > 0 ? (failedAudits * 100.0 / totalAudits) : 0;
+            
+            document.getElementById('totalAudits').textContent = totalAudits;
             document.getElementById('totalStores').textContent = summary.totalStores || 0;
-            document.getElementById('totalAuditors').textContent = summary.totalAuditors || 0;
-            document.getElementById('passRate').textContent = (summary.passRate || 0).toFixed(1) + '%';
             document.getElementById('avgScore').textContent = (summary.avgScore || 0).toFixed(1) + '%';
-            document.getElementById('failedAudits').textContent = summary.failedAudits || 0;
+            
+            // Pass Rate with count (e.g., "85.5%" with "10/12" below)
+            document.getElementById('passRate').textContent = passRate.toFixed(1) + '%';
+            document.getElementById('passCount').textContent = '(' + passedAudits + '/' + totalAudits + ')';
+            
+            // Fail Rate with count (e.g., "14.5%" with "2/12" below)
+            document.getElementById('failRate').textContent = failRate.toFixed(1) + '%';
+            document.getElementById('failCount').textContent = '(' + failedAudits + '/' + totalAudits + ')';
             
             // Action Plan Completion: show as "X/Y (Z%)"
             const solved = summary.actionPlansSolved || 0;
