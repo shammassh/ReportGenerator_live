@@ -361,6 +361,22 @@ class AnalyticsPage {
             <!-- Heatmap -->
             <section class="chart-card full-width">
                 <h2>🗺️ Store vs Section Heatmap</h2>
+                <div class="heatmap-controls">
+                    <div class="heatmap-view-toggle">
+                        <label>View Mode:</label>
+                        <select id="heatmapViewMode" onchange="changeHeatmapView()">
+                            <option value="average">Average (All Cycles)</option>
+                            <option value="by-cycle">Per Cycle Breakdown</option>
+                        </select>
+                    </div>
+                    <div class="heatmap-cycle-select" id="heatmapCycleSelect" style="display: none;">
+                        <label>Show Cycles:</label>
+                        <select id="heatmapCycles" multiple size="4" onchange="updateHeatmapCycles()">
+                            <!-- Populated dynamically -->
+                        </select>
+                        <button class="btn-small" onclick="selectAllHeatmapCycles()">Select All</button>
+                    </div>
+                </div>
                 <div class="heatmap-container" id="heatmapContainer">
                     <p class="loading-text">Loading heatmap...</p>
                 </div>
@@ -1293,8 +1309,40 @@ class AnalyticsPage {
             if (modal) modal.remove();
         }
 
+        // Store heatmap data globally for view switching
+        let currentHeatmapData = null;
+
+        // Change heatmap view mode
+        function changeHeatmapView() {
+            const viewMode = document.getElementById('heatmapViewMode').value;
+            const cycleSelect = document.getElementById('heatmapCycleSelect');
+            
+            if (viewMode === 'by-cycle') {
+                cycleSelect.style.display = 'flex';
+            } else {
+                cycleSelect.style.display = 'none';
+            }
+            
+            renderHeatmap(currentHeatmapData);
+        }
+
+        // Select all cycles in heatmap
+        function selectAllHeatmapCycles() {
+            const select = document.getElementById('heatmapCycles');
+            for (let option of select.options) {
+                option.selected = true;
+            }
+            renderHeatmap(currentHeatmapData);
+        }
+
+        // Update heatmap when cycles selection changes
+        function updateHeatmapCycles() {
+            renderHeatmap(currentHeatmapData);
+        }
+
         // Render heatmap
         function renderHeatmap(heatmapData) {
+            currentHeatmapData = heatmapData;
             const container = document.getElementById('heatmapContainer');
             
             if (!heatmapData || !heatmapData.stores || heatmapData.stores.length === 0) {
@@ -1302,56 +1350,125 @@ class AnalyticsPage {
                 return;
             }
 
-            const { stores, sections, data } = heatmapData;
+            const { stores, sections, cycles, data, dataByCycle } = heatmapData;
+            const viewMode = document.getElementById('heatmapViewMode')?.value || 'average';
+            
+            // Populate cycle selector
+            const cycleSelect = document.getElementById('heatmapCycles');
+            if (cycleSelect && cycles && cycles.length > 0) {
+                const currentSelected = Array.from(cycleSelect.selectedOptions).map(o => o.value);
+                cycleSelect.innerHTML = cycles.map(c => 
+                    \`<option value="\${c}" \${currentSelected.includes(c) || currentSelected.length === 0 ? 'selected' : ''}>\${c}</option>\`
+                ).join('');
+            }
 
-            // Create heatmap table
-            let html = \`
-                <div class="heatmap-scroll">
-                    <table class="heatmap-table">
-                        <thead>
-                            <tr>
-                                <th class="store-header">Store</th>
-                                \${sections.map(s => \`<th class="section-header" title="\${s}">\${s.split(' ').slice(0, 2).join(' ')}</th>\`).join('')}
-                                <th class="overall-header">Overall</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            \`;
-
-            stores.forEach(store => {
-                const storeData = data[store] || {};
-                html += \`<tr><td class="store-name">\${store}</td>\`;
+            if (viewMode === 'by-cycle' && dataByCycle && cycles && cycles.length > 0) {
+                // Per-cycle view - show each store's performance per cycle
+                const selectedCycles = Array.from(cycleSelect?.selectedOptions || []).map(o => o.value);
+                const cyclesToShow = selectedCycles.length > 0 ? selectedCycles : cycles;
                 
-                sections.forEach(section => {
-                    const score = storeData[section];
-                    const cellClass = score !== undefined 
-                        ? (score >= 83 ? 'cell-pass' : 'cell-fail')
+                let html = \`
+                    <div class="heatmap-scroll">
+                        <table class="heatmap-table heatmap-cycle-view">
+                            <thead>
+                                <tr>
+                                    <th class="store-header" rowspan="2">Store</th>
+                                    \${cyclesToShow.map(c => \`<th class="cycle-header" colspan="1">\${c}</th>\`).join('')}
+                                    <th class="overall-header" rowspan="2">Average</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                \`;
+
+                stores.forEach(store => {
+                    const storeAvgData = data[store] || {};
+                    const storeCycleData = dataByCycle[store] || {};
+                    
+                    html += \`<tr><td class="store-name">\${store}</td>\`;
+                    
+                    // Show score for each selected cycle
+                    cyclesToShow.forEach(cycle => {
+                        const cycleData = storeCycleData[cycle] || {};
+                        const score = cycleData._overall;
+                        const cellClass = score !== undefined 
+                            ? (score >= 83 ? 'cell-pass' : 'cell-fail')
+                            : 'cell-na';
+                        const displayScore = score !== undefined ? score.toFixed(0) + '%' : '-';
+                        html += \`<td class="heatmap-cell \${cellClass}" title="\${store}: \${cycle} - \${displayScore}">\${displayScore}</td>\`;
+                    });
+
+                    // Average across all cycles
+                    const overall = storeAvgData._overall;
+                    const overallClass = overall !== undefined 
+                        ? (overall >= 83 ? 'cell-pass' : 'cell-fail')
                         : 'cell-na';
-                    const displayScore = score !== undefined ? score.toFixed(0) + '%' : '-';
-                    html += \`<td class="heatmap-cell \${cellClass}" title="\${store}: \${section} - \${displayScore}">\${displayScore}</td>\`;
+                    const overallDisplay = overall !== undefined ? overall.toFixed(0) + '%' : '-';
+                    html += \`<td class="heatmap-cell \${overallClass} overall-cell"><strong>\${overallDisplay}</strong></td>\`;
+                    html += \`</tr>\`;
                 });
 
-                const overall = storeData._overall;
-                const overallClass = overall !== undefined 
-                    ? (overall >= 83 ? 'cell-pass' : 'cell-fail')
-                    : 'cell-na';
-                const overallDisplay = overall !== undefined ? overall.toFixed(0) + '%' : '-';
-                html += \`<td class="heatmap-cell \${overallClass} overall-cell">\${overallDisplay}</td>\`;
-                html += \`</tr>\`;
-            });
+                html += \`
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="heatmap-legend">
+                        <span class="legend-item"><span class="legend-color cell-pass"></span> Pass (≥83%)</span>
+                        <span class="legend-item"><span class="legend-color cell-fail"></span> Fail (<83%)</span>
+                        <span class="legend-item"><span class="legend-color cell-na"></span> No Data</span>
+                    </div>
+                \`;
 
-            html += \`
-                        </tbody>
-                    </table>
-                </div>
-                <div class="heatmap-legend">
-                    <span class="legend-item"><span class="legend-color cell-pass"></span> Pass (≥83%)</span>
-                    <span class="legend-item"><span class="legend-color cell-fail"></span> Fail (<83%)</span>
-                    <span class="legend-item"><span class="legend-color cell-na"></span> No Data</span>
-                </div>
-            \`;
+                container.innerHTML = html;
+            } else {
+                // Average view - original heatmap (Store x Section)
+                let html = \`
+                    <div class="heatmap-scroll">
+                        <table class="heatmap-table">
+                            <thead>
+                                <tr>
+                                    <th class="store-header">Store</th>
+                                    \${sections.map(s => \`<th class="section-header" title="\${s}">\${s.split(' ').slice(0, 2).join(' ')}</th>\`).join('')}
+                                    <th class="overall-header">Overall</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                \`;
 
-            container.innerHTML = html;
+                stores.forEach(store => {
+                    const storeData = data[store] || {};
+                    html += \`<tr><td class="store-name">\${store}</td>\`;
+                    
+                    sections.forEach(section => {
+                        const score = storeData[section];
+                        const cellClass = score !== undefined 
+                            ? (score >= 83 ? 'cell-pass' : 'cell-fail')
+                            : 'cell-na';
+                        const displayScore = score !== undefined ? score.toFixed(0) + '%' : '-';
+                        html += \`<td class="heatmap-cell \${cellClass}" title="\${store}: \${section} - \${displayScore}">\${displayScore}</td>\`;
+                    });
+
+                    const overall = storeData._overall;
+                    const overallClass = overall !== undefined 
+                        ? (overall >= 83 ? 'cell-pass' : 'cell-fail')
+                        : 'cell-na';
+                    const overallDisplay = overall !== undefined ? overall.toFixed(0) + '%' : '-';
+                    html += \`<td class="heatmap-cell \${overallClass} overall-cell">\${overallDisplay}</td>\`;
+                    html += \`</tr>\`;
+                });
+
+                html += \`
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="heatmap-legend">
+                        <span class="legend-item"><span class="legend-color cell-pass"></span> Pass (≥83%)</span>
+                        <span class="legend-item"><span class="legend-color cell-fail"></span> Fail (<83%)</span>
+                        <span class="legend-item"><span class="legend-color cell-na"></span> No Data</span>
+                    </div>
+                \`;
+
+                container.innerHTML = html;
+            }
         }
 
         // Render compliance calendar

@@ -1329,3 +1329,83 @@ body {
     background: #e2e8f0;
     color: #64748b;
 }
+
+/* Heatmap Controls */
+.heatmap-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.heatmap-view-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.heatmap-view-toggle label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #475569;
+}
+
+.heatmap-view-toggle select {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background: #ffffff;
+    cursor: pointer;
+}
+
+.heatmap-cycle-select {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.heatmap-cycle-select label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #475569;
+    margin-top: 0.4rem;
+}
+
+.heatmap-cycle-select select {
+    min-width: 150px;
+    padding: 0.3rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    background: #ffffff;
+}
+
+.heatmap-cycle-select select option {
+    padding: 0.3rem 0.5rem;
+}
+
+.heatmap-cycle-view .cycle-header {
+    background: #e0f2fe;
+    color: #0369a1;
+    font-weight: 600;
+    min-width: 80px;
+}
+
+.heatmap-cycle-view .overall-cell {
+    background: #fef3c7 !important;
+    font-weight: 600;
+}
+
+.heatmap-cycle-view .overall-cell.cell-pass {
+    background: #d1fae5 !important;
+}
+
+.heatmap-cycle-view .overall-cell.cell-fail {
+    background: #fee2e2 !important;
+}
