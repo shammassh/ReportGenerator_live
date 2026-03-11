@@ -123,9 +123,14 @@ class ReportGenerator {
             console.log('🌡️ Step 7: Fetching temperature readings...');
             const temperatureReadings = await this.dataService.getTemperatureReadings(auditId);
 
-            // 7.5 Fetch historical audits for same store (for C1-C6 display)
+            // 7.5 Fetch historical audits for same store and schema (for cycle-based display)
             console.log('📜 Step 7.5: Fetching historical audits...');
-            const historicalAudits = await this.dataService.getHistoricalAudits(auditData.storeId, auditId);
+            const historicalAudits = await this.dataService.getHistoricalAudits(
+                auditData.storeId, 
+                auditData.schemaId, 
+                auditId, 
+                auditData.cycle
+            );
 
             // 7.6 Fetch categories for data table grouping
             console.log('📂 Step 7.6: Fetching categories...');

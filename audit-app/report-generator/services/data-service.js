@@ -591,28 +591,33 @@ class DataService {
     }
 
     /**
-     * Get historical audits for a store (for C1-C6 display)
-     * Returns the last 6 audits for the store, ordered by date (oldest first)
+     * Get historical audits for a store (for cycle-based display)
+     * Returns audits for the same store and schema, ordered by cycle number
      * @param {number} storeId - Store ID
+     * @param {number} schemaId - Schema ID (same audit type)
      * @param {number} currentAuditId - Current audit ID to exclude
-     * @returns {Promise<Array>} - Array of historical audit data with section scores
+     * @param {number} currentCycle - Current cycle number
+     * @returns {Promise<Array>} - Array of historical audit data with section scores, keyed by cycle
      */
-    async getHistoricalAudits(storeId, currentAuditId) {
+    async getHistoricalAudits(storeId, schemaId, currentAuditId, currentCycle) {
         try {
-            console.log(`📜 Fetching historical audits for store: ${storeId}`);
+            console.log(`📜 Fetching historical audits for store: ${storeId}, schema: ${schemaId}, current cycle: ${currentCycle}`);
 
-            // Get last 5 audits before the current one (C2-C6)
+            // Get all completed audits for same store and schema, excluding current
+            // Order by Cycle ASC so we can map them correctly
             const auditsResult = await this.pool.request()
                 .input('StoreID', sql.Int, storeId)
+                .input('SchemaID', sql.Int, schemaId)
                 .input('CurrentAuditID', sql.Int, currentAuditId)
                 .query(`
-                    SELECT TOP 5 
-                        ai.AuditID, ai.DocumentNumber, ai.TotalScore, ai.AuditDate, ai.Cycle
+                    SELECT 
+                        ai.AuditID, ai.DocumentNumber, ai.TotalScore, ai.AuditDate, ai.Cycle, ai.Year
                     FROM AuditInstances ai
                     WHERE ai.StoreID = @StoreID 
+                        AND ai.SchemaID = @SchemaID
                         AND ai.AuditID != @CurrentAuditID
                         AND ai.Status = 'Completed'
-                    ORDER BY ai.AuditDate ASC
+                    ORDER BY ai.Cycle ASC
                 `);
 
             const historicalAudits = [];
@@ -636,21 +641,38 @@ class DataService {
                     sectionMax[score.SectionName] = score.MaxScore || 0;
                 }
 
+                // Store by cycle number as key
                 historicalAudits.push({
                     auditId: audit.AuditID,
                     documentNumber: audit.DocumentNumber,
-                    totalScore: Math.round(audit.TotalScore || 0),
+                    totalScore: parseFloat((audit.TotalScore || 0).toFixed(2)),
                     auditDate: audit.AuditDate,
-                    cycle: audit.Cycle,
+                    cycle: audit.Cycle,  // Keep original format (e.g., "C2")
+                    year: audit.Year,
                     sectionScores,
                     sectionEarned,
                     sectionMax
                 });
             }
 
-            console.log(`   ✅ Found ${historicalAudits.length} historical audits`);
+            // Create a map by cycle number for easy lookup
+            // Support both numeric (1, 2) and string ("C1", "C2") keys
+            const cycleMap = {};
+            for (const audit of historicalAudits) {
+                // Extract numeric part from cycle (e.g., "C2" -> 2)
+                const cycleNum = parseInt(String(audit.cycle).replace(/[^0-9]/g, '')) || 0;
+                cycleMap[cycleNum] = audit;           // Numeric key: cycleMap[2]
+                cycleMap[audit.cycle] = audit;        // String key: cycleMap["C2"]
+            }
 
-            return historicalAudits;
+            console.log(`   ✅ Found ${historicalAudits.length} historical audits for cycles: ${historicalAudits.map(a => a.cycle).join(', ')}`);
+
+            // Return both the array and cycle map for flexible access
+            return {
+                audits: historicalAudits,
+                cycleMap: cycleMap,
+                currentCycle: currentCycle
+            };
         } catch (error) {
             console.error('❌ Error fetching historical audits:', error);
             return [];

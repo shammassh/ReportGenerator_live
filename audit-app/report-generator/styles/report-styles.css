@@ -375,6 +375,13 @@ body.summary-mode .container::after {
     text-align: center;
 }
 
+/* Current cycle header - highlighted */
+.data-table th.current-cycle {
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
+    color: white;
+    font-weight: 700;
+}
+
 .data-table .section-row td {
     text-align: center;
 }

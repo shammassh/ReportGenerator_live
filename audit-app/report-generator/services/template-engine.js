@@ -1580,21 +1580,42 @@ class TemplateEngine {
 
         const threshold = data.threshold || 83;
         const categories = data.categories || [];
-        const historicalAudits = data.historicalAudits || [];
+        
+        // Handle new structure: { audits: [], cycleMap: {}, currentCycle: N }
+        const historicalData = data.historicalAudits || {};
+        const cycleMap = historicalData.cycleMap || {};
+        
+        // Extract numeric cycle from cycleRaw (handles "C2" -> 2 or just "2" -> 2)
+        const rawCycle = data.cycleRaw || historicalData.currentCycle || '1';
+        const currentCycle = typeof rawCycle === 'string' 
+            ? parseInt(rawCycle.replace(/[^0-9]/g, '')) || 1
+            : rawCycle;
+        
+        // Determine which cycles to display (C1 through C6, where current cycle is highlighted)
+        // Show cycles 1-6, or adjust based on current cycle
+        const cyclesToShow = [];
+        for (let i = 1; i <= 6; i++) {
+            cyclesToShow.push(i);
+        }
 
-        // Helper to get historical score for a section (2 decimal places)
-        const getHistoricalScore = (sectionName, cycleIndex) => {
-            if (cycleIndex >= historicalAudits.length) return '-';
-            const audit = historicalAudits[cycleIndex];
+        // Helper to get historical score for a section by cycle number
+        // cycleMap keys could be "C1", "C2" or 1, 2 - handle both
+        const getCycleData = (cycleNum) => {
+            return cycleMap[cycleNum] || cycleMap[`C${cycleNum}`] || cycleMap[String(cycleNum)];
+        };
+        
+        const getHistoricalScore = (sectionName, cycleNum) => {
+            if (cycleNum === currentCycle) return null; // Current cycle shown in first column
+            const audit = getCycleData(cycleNum);
             if (!audit || !audit.sectionScores) return '-';
             const score = audit.sectionScores[sectionName];
             return score !== undefined ? `${parseFloat(score).toFixed(2)}%` : '-';
         };
 
-        // Helper to get historical total score (2 decimal places)
-        const getHistoricalTotal = (cycleIndex) => {
-            if (cycleIndex >= historicalAudits.length) return '-';
-            const audit = historicalAudits[cycleIndex];
+        // Helper to get historical total score by cycle number
+        const getHistoricalTotal = (cycleNum) => {
+            if (cycleNum === currentCycle) return null; // Current cycle shown in first column
+            const audit = getCycleData(cycleNum);
             return audit && audit.totalScore !== undefined ? `${parseFloat(audit.totalScore).toFixed(2)}%` : '-';
         };
 
@@ -1612,10 +1633,10 @@ class TemplateEngine {
             return totalMax > 0 ? parseFloat(((totalEarned / totalMax) * 100).toFixed(2)) : 0;
         };
 
-        // Helper to get historical category score (weighted: sum of earned / sum of max)
-        const getHistoricalCategoryScore = (categorySections, cycleIndex) => {
-            if (cycleIndex >= historicalAudits.length) return '-';
-            const audit = historicalAudits[cycleIndex];
+        // Helper to get historical category score by cycle number (weighted: sum of earned / sum of max)
+        const getHistoricalCategoryScore = (categorySections, cycleNum) => {
+            if (cycleNum === currentCycle) return null; // Current cycle shown in first column
+            const audit = getCycleData(cycleNum);
             if (!audit || !audit.sectionScores) return '-';
 
             // Historical data may only have percentage, so fall back to weighted average of percentages
@@ -1653,16 +1674,18 @@ class TemplateEngine {
                 const categoryScore = getCategoryScore(category.sections, data.sectionScores);
                 const catScoreClass = categoryScore >= threshold ? 'score-pass' : 'score-fail';
 
+                // Build historical category scores for cycles 1-6 (excluding current)
+                const historicalCatCells = cyclesToShow
+                    .filter(c => c !== currentCycle)
+                    .map(c => `<td class="category-score"><strong>${getHistoricalCategoryScore(category.sections, c)}</strong></td>`)
+                    .join('');
+
                 // Category header row
                 tableRows += `
                     <tr class="category-row">
                         <td class="category-name"><strong>${escapeHtml(category.categoryName)}</strong></td>
                         <td class="category-score ${catScoreClass}"><strong>${categoryScore}%</strong></td>
-                        <td class="category-score"><strong>${getHistoricalCategoryScore(category.sections, 0)}</strong></td>
-                        <td class="category-score"><strong>${getHistoricalCategoryScore(category.sections, 1)}</strong></td>
-                        <td class="category-score"><strong>${getHistoricalCategoryScore(category.sections, 2)}</strong></td>
-                        <td class="category-score"><strong>${getHistoricalCategoryScore(category.sections, 3)}</strong></td>
-                        <td class="category-score"><strong>${getHistoricalCategoryScore(category.sections, 4)}</strong></td>
+                        ${historicalCatCells}
                     </tr>
                 `;
 
@@ -1671,15 +1694,18 @@ class TemplateEngine {
                     const sectionScore = data.sectionScores.find(s => s.sectionId === catSection.sectionId);
                     if (sectionScore) {
                         const scoreClass = sectionScore.percentage >= threshold ? 'score-pass' : 'score-fail';
+                        
+                        // Build historical section scores for cycles 1-6 (excluding current)
+                        const historicalSecCells = cyclesToShow
+                            .filter(c => c !== currentCycle)
+                            .map(c => `<td>${getHistoricalScore(sectionScore.sectionName, c)}</td>`)
+                            .join('');
+                        
                         tableRows += `
                             <tr class="section-row">
                                 <td class="section-name" style="padding-left: 24px;">${escapeHtml(sectionScore.sectionName)}</td>
                                 <td class="${scoreClass}">${parseFloat(sectionScore.percentage).toFixed(2)}%</td>
-                                <td>${getHistoricalScore(sectionScore.sectionName, 0)}</td>
-                                <td>${getHistoricalScore(sectionScore.sectionName, 1)}</td>
-                                <td>${getHistoricalScore(sectionScore.sectionName, 2)}</td>
-                                <td>${getHistoricalScore(sectionScore.sectionName, 3)}</td>
-                                <td>${getHistoricalScore(sectionScore.sectionName, 4)}</td>
+                                ${historicalSecCells}
                             </tr>
                         `;
                     }
@@ -1696,21 +1722,24 @@ class TemplateEngine {
                 tableRows += `
                     <tr class="category-row">
                         <td class="category-name"><strong>Other Sections</strong></td>
-                        <td colspan="6"></td>
+                        <td colspan="${cyclesToShow.length}"></td>
                     </tr>
                 `;
                 
                 for (const section of uncategorizedSections) {
                     const scoreClass = section.percentage >= threshold ? 'score-pass' : 'score-fail';
+                    
+                    // Build historical section scores for cycles 1-6 (excluding current)
+                    const historicalSecCells = cyclesToShow
+                        .filter(c => c !== currentCycle)
+                        .map(c => `<td>${getHistoricalScore(section.sectionName, c)}</td>`)
+                        .join('');
+                    
                     tableRows += `
                         <tr class="section-row">
                             <td class="section-name" style="padding-left: 24px;">${escapeHtml(section.sectionName)}</td>
                             <td class="${scoreClass}">${parseFloat(section.percentage).toFixed(2)}%</td>
-                            <td>${getHistoricalScore(section.sectionName, 0)}</td>
-                            <td>${getHistoricalScore(section.sectionName, 1)}</td>
-                            <td>${getHistoricalScore(section.sectionName, 2)}</td>
-                            <td>${getHistoricalScore(section.sectionName, 3)}</td>
-                            <td>${getHistoricalScore(section.sectionName, 4)}</td>
+                            ${historicalSecCells}
                         </tr>
                     `;
                 }
@@ -1719,15 +1748,18 @@ class TemplateEngine {
             // No categories - just list sections
             for (const section of data.sectionScores) {
                 const scoreClass = section.percentage >= threshold ? 'score-pass' : 'score-fail';
+                
+                // Build historical section scores for cycles 1-6 (excluding current)
+                const historicalSecCells = cyclesToShow
+                    .filter(c => c !== currentCycle)
+                    .map(c => `<td>${getHistoricalScore(section.sectionName, c)}</td>`)
+                    .join('');
+                
                 tableRows += `
                     <tr class="section-row">
                         <td class="section-name">${escapeHtml(section.sectionName)}</td>
                         <td class="${scoreClass}">${parseFloat(section.percentage).toFixed(2)}%</td>
-                        <td>${getHistoricalScore(section.sectionName, 0)}</td>
-                        <td>${getHistoricalScore(section.sectionName, 1)}</td>
-                        <td>${getHistoricalScore(section.sectionName, 2)}</td>
-                        <td>${getHistoricalScore(section.sectionName, 3)}</td>
-                        <td>${getHistoricalScore(section.sectionName, 4)}</td>
+                        ${historicalSecCells}
                     </tr>
                 `;
             }
@@ -1737,6 +1769,19 @@ class TemplateEngine {
         const overallScore = data.totalScore || 0;
         const overallClass = overallScore >= threshold ? 'score-pass' : 'score-fail';
 
+        // Build header columns - current cycle first (highlighted), then other cycles
+        const currentCycleHeader = `<th class="current-cycle">C${currentCycle}</th>`;
+        const historicalHeaders = cyclesToShow
+            .filter(c => c !== currentCycle)
+            .map(c => `<th>C${c}</th>`)
+            .join('');
+
+        // Build total row cells - current cycle first, then historical
+        const historicalTotalCells = cyclesToShow
+            .filter(c => c !== currentCycle)
+            .map(c => `<td><strong>${getHistoricalTotal(c)}</strong></td>`)
+            .join('');
+
         return `
             <div class="data-table-section">
                 <h2>📊 Audit Summary</h2>
@@ -1744,12 +1789,8 @@ class TemplateEngine {
                     <thead>
                         <tr>
                             <th>Description</th>
-                            <th>C1</th>
-                            <th>C2</th>
-                            <th>C3</th>
-                            <th>C4</th>
-                            <th>C5</th>
-                            <th>C6</th>
+                            ${currentCycleHeader}
+                            ${historicalHeaders}
                         </tr>
                     </thead>
                     <tbody>
@@ -1759,11 +1800,7 @@ class TemplateEngine {
                         <tr class="data-table-total">
                             <td><strong>Total Score</strong></td>
                             <td class="${overallClass}"><strong>${parseFloat(overallScore).toFixed(2)}%</strong></td>
-                            <td><strong>${getHistoricalTotal(0)}</strong></td>
-                            <td><strong>${getHistoricalTotal(1)}</strong></td>
-                            <td><strong>${getHistoricalTotal(2)}</strong></td>
-                            <td><strong>${getHistoricalTotal(3)}</strong></td>
-                            <td><strong>${getHistoricalTotal(4)}</strong></td>
+                            ${historicalTotalCells}
                         </tr>
                     </tfoot>
                 </table>
