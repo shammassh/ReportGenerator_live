@@ -4128,6 +4128,93 @@ app.get('/api/admin/escalation-job/preview', requireAuth, requireRole('Admin'), 
     }
 });
 
+// Get all pending audits awaiting action plan submission (forecast view)
+app.get('/api/admin/escalation-job/pending-audits', requireAuth, requireRole('Admin'), async (req, res) => {
+    try {
+        const sql = require('mssql');
+        const pool = await sql.connect({
+            server: process.env.SQL_SERVER,
+            database: process.env.SQL_DATABASE,
+            user: process.env.SQL_USER,
+            password: process.env.SQL_PASSWORD,
+            options: { encrypt: false, trustServerCertificate: true }
+        });
+        
+        // Get settings for deadline calculation
+        const settingsResult = await pool.request().query(`
+            SELECT DeadlineDays, ReminderDaysBefore, GracePeriodHours 
+            FROM ActionPlanEscalationSettings
+        `);
+        const settings = settingsResult.recordset[0] || { DeadlineDays: 7, ReminderDaysBefore: '3,1', GracePeriodHours: 24 };
+        const reminderDays = settings.ReminderDaysBefore.split(',').map(d => parseInt(d.trim()));
+        
+        // Get all completed audits without action plan submission
+        const result = await pool.request().query(`
+            WITH AuditDeadlines AS (
+                SELECT 
+                    ai.AuditID,
+                    ai.DocumentNumber,
+                    ai.StoreName,
+                    ai.StoreCode,
+                    ai.AuditDate,
+                    MIN(n.sent_at) as ReportSentAt,
+                    DATEADD(DAY, ${settings.DeadlineDays}, MIN(n.sent_at)) as Deadline,
+                    DATEDIFF(DAY, GETDATE(), DATEADD(DAY, ${settings.DeadlineDays}, MIN(n.sent_at))) as DaysRemaining,
+                    CASE 
+                        WHEN DATEADD(HOUR, ${settings.GracePeriodHours}, DATEADD(DAY, ${settings.DeadlineDays}, MIN(n.sent_at))) < GETDATE() THEN 'Overdue'
+                        WHEN DATEADD(DAY, ${settings.DeadlineDays}, MIN(n.sent_at)) < GETDATE() THEN 'Grace Period'
+                        WHEN DATEDIFF(DAY, GETDATE(), DATEADD(DAY, ${settings.DeadlineDays}, MIN(n.sent_at))) <= ${Math.max(...reminderDays)} THEN 'Reminder Due'
+                        ELSE 'On Track'
+                    END as Status
+                FROM AuditInstances ai
+                INNER JOIN Notifications n ON n.document_number = ai.DocumentNumber 
+                    AND n.notification_type IN ('ReportPublished', 'FullReportGenerated', 'AuditReport')
+                    AND n.status = 'Sent'
+                WHERE ai.Status = 'Completed'
+                AND NOT EXISTS (
+                    SELECT 1 FROM Notifications n2 
+                    WHERE n2.document_number = ai.DocumentNumber 
+                    AND n2.notification_type = 'ActionPlanSubmitted'
+                    AND n2.status = 'Sent'
+                )
+                GROUP BY ai.AuditID, ai.DocumentNumber, ai.StoreName, ai.StoreCode, ai.AuditDate
+            )
+            SELECT * FROM AuditDeadlines
+            ORDER BY DaysRemaining ASC
+        `);
+        
+        // Group by status
+        const audits = result.recordset;
+        const grouped = {
+            overdue: audits.filter(a => a.Status === 'Overdue'),
+            gracePeriod: audits.filter(a => a.Status === 'Grace Period'),
+            reminderDue: audits.filter(a => a.Status === 'Reminder Due'),
+            onTrack: audits.filter(a => a.Status === 'On Track')
+        };
+        
+        res.json({
+            success: true,
+            settings: {
+                deadlineDays: settings.DeadlineDays,
+                reminderDays: reminderDays,
+                gracePeriodHours: settings.GracePeriodHours
+            },
+            summary: {
+                total: audits.length,
+                overdue: grouped.overdue.length,
+                gracePeriod: grouped.gracePeriod.length,
+                reminderDue: grouped.reminderDue.length,
+                onTrack: grouped.onTrack.length
+            },
+            audits: grouped
+        });
+        
+    } catch (error) {
+        console.error('[EscalationJob] Error fetching pending audits:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Trigger manual run
 app.post('/api/admin/escalation-job/run', requireAuth, requireRole('Admin'), async (req, res) => {
     try {

@@ -962,6 +962,60 @@
             </div>
         </div>
 
+        <!-- Pending Audits Forecast Panel -->
+        <div class="logs-panel" style="margin-bottom: 2rem;">
+            <div class="logs-header">
+                <h2><i class="fas fa-calendar-alt"></i> Pending Action Plans - Deadline Forecast</h2>
+                <button class="btn btn-primary" onclick="fetchPendingAudits()" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            
+            <!-- Summary Stats -->
+            <div class="status-grid" style="margin-bottom: 1rem; padding: 0;">
+                <div class="status-card" style="background: #fef2f2; padding: 1rem; border-left: 4px solid #ef4444;">
+                    <h3 style="font-size: 0.75rem; color: #991b1b;">🔴 Overdue</h3>
+                    <div class="status-value" id="pendingOverdue" style="font-size: 1.5rem; color: #ef4444;">0</div>
+                </div>
+                <div class="status-card" style="background: #fffbeb; padding: 1rem; border-left: 4px solid #f59e0b;">
+                    <h3 style="font-size: 0.75rem; color: #92400e;">🟡 Grace Period</h3>
+                    <div class="status-value" id="pendingGrace" style="font-size: 1.5rem; color: #f59e0b;">0</div>
+                </div>
+                <div class="status-card" style="background: #fef3c7; padding: 1rem; border-left: 4px solid #d97706;">
+                    <h3 style="font-size: 0.75rem; color: #92400e;">🟠 Reminder Due</h3>
+                    <div class="status-value" id="pendingReminder" style="font-size: 1.5rem; color: #d97706;">0</div>
+                </div>
+                <div class="status-card" style="background: #f0fdf4; padding: 1rem; border-left: 4px solid #10b981;">
+                    <h3 style="font-size: 0.75rem; color: #166534;">🟢 On Track</h3>
+                    <div class="status-value" id="pendingOnTrack" style="font-size: 1.5rem; color: #10b981;">0</div>
+                </div>
+            </div>
+            
+            <!-- Pending Audits Table -->
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="logs-table">
+                    <thead style="position: sticky; top: 0; background: white; z-index: 1;">
+                        <tr>
+                            <th>Status</th>
+                            <th>Document #</th>
+                            <th>Store</th>
+                            <th>Report Sent</th>
+                            <th>Deadline</th>
+                            <th>Days Remaining</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pendingAuditsBody">
+                        <tr>
+                            <td colspan="6" class="empty-state">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading pending audits...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Automated Notifications Panel -->
         <div class="logs-panel" style="margin-bottom: 2rem;">
             <div class="logs-header">
@@ -1137,6 +1191,15 @@
             });
         }
 
+        // Format date only
+        function formatDate(dateStr) {
+            if (!dateStr) return '--';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-GB', { 
+                day: '2-digit', month: 'short', year: 'numeric'
+            });
+        }
+
         // Format relative time
         function formatRelativeTime(dateStr) {
             if (!dateStr) return '--';
@@ -1154,6 +1217,83 @@
                 if (diffMins < 60) return `in ${diffMins} min`;
                 if (diffMins < 1440) return `in ${Math.round(diffMins/60)} hours`;
                 return `in ${Math.round(diffMins/1440)} days`;
+            }
+        }
+
+        // Fetch pending audits forecast
+        async function fetchPendingAudits() {
+            try {
+                const response = await fetch('/api/admin/escalation-job/pending-audits');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update summary counts
+                    document.getElementById('pendingOverdue').textContent = data.summary.overdue;
+                    document.getElementById('pendingGrace').textContent = data.summary.gracePeriod;
+                    document.getElementById('pendingReminder').textContent = data.summary.reminderDue;
+                    document.getElementById('pendingOnTrack').textContent = data.summary.onTrack;
+                    
+                    // Build table rows
+                    const tbody = document.getElementById('pendingAuditsBody');
+                    const allAudits = [
+                        ...data.audits.overdue.map(a => ({...a, statusClass: 'overdue'})),
+                        ...data.audits.gracePeriod.map(a => ({...a, statusClass: 'grace'})),
+                        ...data.audits.reminderDue.map(a => ({...a, statusClass: 'reminder'})),
+                        ...data.audits.onTrack.map(a => ({...a, statusClass: 'ontrack'}))
+                    ];
+                    
+                    if (allAudits.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="6" class="empty-state">
+                                    <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                                    <p>No pending action plans</p>
+                                </td>
+                            </tr>
+                        `;
+                        return;
+                    }
+                    
+                    tbody.innerHTML = allAudits.map(audit => {
+                        let statusBadge = '';
+                        let daysDisplay = '';
+                        
+                        if (audit.Status === 'Overdue') {
+                            statusBadge = '<span style="background: #fef2f2; color: #dc2626; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">🔴 OVERDUE</span>';
+                            daysDisplay = `<span style="color: #dc2626; font-weight: 700;">${Math.abs(audit.DaysRemaining)} days overdue</span>`;
+                        } else if (audit.Status === 'Grace Period') {
+                            statusBadge = '<span style="background: #fffbeb; color: #d97706; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">🟡 GRACE</span>';
+                            daysDisplay = `<span style="color: #d97706; font-weight: 700;">${Math.abs(audit.DaysRemaining)} days overdue (grace)</span>`;
+                        } else if (audit.Status === 'Reminder Due') {
+                            statusBadge = '<span style="background: #fef3c7; color: #b45309; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">🟠 REMINDER</span>';
+                            daysDisplay = `<span style="color: #b45309; font-weight: 600;">${audit.DaysRemaining} days left</span>`;
+                        } else {
+                            statusBadge = '<span style="background: #f0fdf4; color: #16a34a; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">🟢 ON TRACK</span>';
+                            daysDisplay = `<span style="color: #16a34a;">${audit.DaysRemaining} days left</span>`;
+                        }
+                        
+                        return `
+                            <tr>
+                                <td>${statusBadge}</td>
+                                <td style="font-weight: 500;">${audit.DocumentNumber}</td>
+                                <td>${audit.StoreName}</td>
+                                <td>${formatDate(audit.ReportSentAt)}</td>
+                                <td>${formatDate(audit.Deadline)}</td>
+                                <td>${daysDisplay}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (error) {
+                console.error('Error fetching pending audits:', error);
+                document.getElementById('pendingAuditsBody').innerHTML = `
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+                            <p>Error loading pending audits</p>
+                        </td>
+                    </tr>
+                `;
             }
         }
 
@@ -1821,7 +1961,7 @@
 
         // Refresh all data
         async function refreshData() {
-            await Promise.all([fetchStatus(), fetchSettings(), fetchLogs(), fetchAutomatedNotifications()]);
+            await Promise.all([fetchStatus(), fetchSettings(), fetchLogs(), fetchAutomatedNotifications(), fetchPendingAudits()]);
         }
 
         // Initialize
