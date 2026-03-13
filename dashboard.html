@@ -772,12 +772,34 @@
             align-items: center;
             gap: 8px;
             box-shadow: 0 4px 12px rgba(71, 85, 105, 0.3);
+            position: relative;
         }
 
         .job-monitor-btn:hover {
             transform: translateY(-3px) scale(1.02);
             box-shadow: 0 8px 20px rgba(51, 65, 85, 0.4);
             background: linear-gradient(135deg, #334155 0%, #475569 100%);
+        }
+
+        .sender-warning-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            animation: pulse-warning 2s infinite;
+        }
+
+        @keyframes pulse-warning {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
         }
 
         .email-templates-btn {
@@ -2418,6 +2440,7 @@
                         <button class="job-monitor-btn" id="jobMonitorBtn" onclick="window.location.href='/admin/job-monitor'" style="display: none;">
                             <span>⚙️</span>
                             Job Monitor
+                            <span class="sender-warning-badge" id="senderWarningBadge" style="display: none;">⚠️</span>
                         </button>
                     </div>
                 </div>
@@ -2692,7 +2715,28 @@
             if (typeof initImpersonationPanel === 'function') {
                 initImpersonationPanel();
             }
+            
+            // Check system sender status (for admins)
+            checkSystemSenderStatus();
         });
+
+        // Check system sender session status for admins
+        async function checkSystemSenderStatus() {
+            try {
+                const response = await fetch('/api/admin/escalation-job/sender-status');
+                if (!response.ok) return; // Not admin or error
+                
+                const data = await response.json();
+                const badge = document.getElementById('senderWarningBadge');
+                
+                if (badge && (data.warningLevel === 'critical' || data.warningLevel === 'warning')) {
+                    badge.style.display = 'flex';
+                    badge.title = data.statusMessage || 'System sender session needs attention';
+                }
+            } catch (error) {
+                // Silently fail - user might not be admin
+            }
+        }
 
         // ==========================================
         // Notification Bell Functions

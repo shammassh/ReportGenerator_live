@@ -3975,23 +3975,56 @@ app.get('/api/admin/escalation-job/sender-status', requireAuth, requireRole('Adm
                 success: true,
                 hasSession: false,
                 email: systemSenderEmail,
-                message: 'No session found. Please login with this account.'
+                status: 'error',
+                statusMessage: 'No session found. Please login with this account.',
+                warningLevel: 'critical'
             });
         }
         
         const session = result.recordset[0];
-        const isExpired = new Date(session.expires_at) < new Date();
+        const now = new Date();
+        const expiresAt = new Date(session.expires_at);
+        // Handle NULL created_at - use expires_at minus 1 hour as fallback (token usually expires in 1 hour)
+        const createdAt = session.created_at ? new Date(session.created_at) : new Date(expiresAt.getTime() - 60 * 60 * 1000);
+        const isExpired = expiresAt < now;
+        
+        // Calculate session age in days
+        const sessionAgeDays = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+        const daysUntilRefreshExpiry = 90 - sessionAgeDays; // Refresh tokens typically expire after 90 days of inactivity
+        
+        // Determine warning level
+        let warningLevel = 'ok';
+        let statusMessage = 'Session is active and healthy';
+        
+        if (isExpired) {
+            warningLevel = 'critical';
+            statusMessage = 'Session expired. Please login again.';
+        } else if (daysUntilRefreshExpiry <= 7) {
+            warningLevel = 'critical';
+            statusMessage = `Session expires in ${daysUntilRefreshExpiry} days! Login required soon.`;
+        } else if (daysUntilRefreshExpiry <= 30) {
+            warningLevel = 'warning';
+            statusMessage = `Session expires in ${daysUntilRefreshExpiry} days. Consider re-login.`;
+        } else if (daysUntilRefreshExpiry <= 60) {
+            warningLevel = 'info';
+            statusMessage = `Session healthy. ${daysUntilRefreshExpiry} days until refresh token expiry.`;
+        }
         
         res.json({
             success: true,
             hasSession: true,
             email: session.email,
             displayName: session.display_name,
+            createdAt: session.created_at,
             expiresAt: session.expires_at,
             isExpired: isExpired,
             hasAccessToken: session.hasAccessToken === 1,
             hasRefreshToken: session.hasRefreshToken === 1,
-            canSendEmails: !isExpired && session.hasAccessToken === 1
+            canSendEmails: !isExpired && session.hasAccessToken === 1,
+            sessionAgeDays: sessionAgeDays,
+            daysUntilRefreshExpiry: daysUntilRefreshExpiry,
+            warningLevel: warningLevel,
+            statusMessage: statusMessage
         });
         
     } catch (error) {

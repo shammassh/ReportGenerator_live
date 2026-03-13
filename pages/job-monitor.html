@@ -12,6 +12,7 @@
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
+            --info: #3b82f6;
             --gray-50: #f9fafb;
             --gray-100: #f3f4f6;
             --gray-200: #e5e7eb;
@@ -22,6 +23,53 @@
             --gray-800: #1f2937;
             --gray-900: #111827;
         }
+
+        /* System Sender Alert Styles */
+        .sender-alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            border-left: 4px solid;
+        }
+        .sender-alert i {
+            font-size: 24px;
+            margin-top: 2px;
+        }
+        .sender-alert strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+        .sender-alert p {
+            margin: 0;
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        .sender-alert.critical {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border-color: var(--danger);
+            color: #991b1b;
+        }
+        .sender-alert.critical i { color: var(--danger); }
+        .sender-alert.warning {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border-color: var(--warning);
+            color: #92400e;
+        }
+        .sender-alert.warning i { color: var(--warning); }
+        .sender-alert.info {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-color: var(--info);
+            color: #1e40af;
+        }
+        .sender-alert.info i { color: var(--info); }
+        .sender-alert.ok {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-color: var(--success);
+            color: #166534;
+        }
+        .sender-alert.ok i { color: var(--success); }
 
         * {
             margin: 0;
@@ -838,6 +886,9 @@
             </div>
         </div>
 
+        <!-- System Sender Session Alert -->
+        <div id="senderDetails" style="margin-bottom: 20px;"></div>
+
         <!-- Statistics Cards -->
         <div class="status-grid">
             <div class="status-card">
@@ -1163,25 +1214,70 @@
                 const data = await response.json();
                 
                 const senderStatusEl = document.getElementById('senderStatus');
+                const senderDetailsEl = document.getElementById('senderDetails');
                 
                 if (!data.hasSession) {
-                    senderStatusEl.innerHTML = '<span style="color: var(--danger);">❌ No session - Please login with this account</span>';
-                } else if (data.isExpired) {
-                    senderStatusEl.innerHTML = '<span style="color: var(--warning);">⚠️ Session expired - Please login again</span>';
-                } else if (!data.canSendEmails) {
-                    senderStatusEl.innerHTML = '<span style="color: var(--warning);">⚠️ Missing tokens - Please login again</span>';
+                    senderStatusEl.innerHTML = '<span style="color: var(--danger);">❌ No session</span>';
+                    senderDetailsEl.innerHTML = `
+                        <div class="sender-alert critical">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <div>
+                                <strong>CRITICAL: No active session for ${data.email}</strong>
+                                <p>Please login with this account to enable automated notifications.</p>
+                            </div>
+                        </div>
+                    `;
+                } else if (data.warningLevel === 'critical') {
+                    senderStatusEl.innerHTML = '<span style="color: var(--danger);">❌ ' + data.statusMessage + '</span>';
+                    senderDetailsEl.innerHTML = `
+                        <div class="sender-alert critical">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <div>
+                                <strong>CRITICAL: ${data.statusMessage}</strong>
+                                <p>Email: ${data.email} | Session Age: ${data.sessionAgeDays} days</p>
+                                <p>Please login with this account immediately to renew the session.</p>
+                            </div>
+                        </div>
+                    `;
+                } else if (data.warningLevel === 'warning') {
+                    senderStatusEl.innerHTML = '<span style="color: var(--warning);">⚠️ ' + data.statusMessage + '</span>';
+                    senderDetailsEl.innerHTML = `
+                        <div class="sender-alert warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <div>
+                                <strong>WARNING: ${data.statusMessage}</strong>
+                                <p>Email: ${data.email} | Session Age: ${data.sessionAgeDays} days</p>
+                                <p>Consider logging in with this account to refresh the session.</p>
+                            </div>
+                        </div>
+                    `;
+                } else if (data.warningLevel === 'info') {
+                    senderStatusEl.innerHTML = '<span style="color: var(--info);">ℹ️ Active</span>';
+                    senderDetailsEl.innerHTML = `
+                        <div class="sender-alert info">
+                            <i class="fas fa-info-circle"></i>
+                            <div>
+                                <strong>${data.statusMessage}</strong>
+                                <p>Email: ${data.email} | Session Age: ${data.sessionAgeDays} days</p>
+                            </div>
+                        </div>
+                    `;
                 } else {
-                    const expiresAt = new Date(data.expiresAt);
-                    const hoursLeft = Math.round((expiresAt - new Date()) / (1000 * 60 * 60));
-                    if (hoursLeft < 24) {
-                        senderStatusEl.innerHTML = `<span style="color: var(--warning);">⚠️ Active (expires in ${hoursLeft}h)</span>`;
-                    } else {
-                        senderStatusEl.innerHTML = `<span style="color: var(--success);">✅ Active</span>`;
-                    }
+                    senderStatusEl.innerHTML = '<span style="color: var(--success);">✅ Active & Healthy</span>';
+                    senderDetailsEl.innerHTML = `
+                        <div class="sender-alert ok">
+                            <i class="fas fa-check-circle"></i>
+                            <div>
+                                <strong>${data.statusMessage}</strong>
+                                <p>Email: ${data.email} | Session Age: ${data.sessionAgeDays} days | ${data.daysUntilRefreshExpiry} days until refresh expires</p>
+                            </div>
+                        </div>
+                    `;
                 }
             } catch (error) {
                 console.error('Error fetching sender status:', error);
                 document.getElementById('senderStatus').innerHTML = '<span style="color: var(--gray-500);">Unable to check</span>';
+                document.getElementById('senderDetails').innerHTML = '';
             }
         }
 
