@@ -1101,10 +1101,10 @@
                     return;
                 }
 
-                container.innerHTML = schemas.map(schema => `
+                container.innerHTML = schemas.map((schema, index) => `
                     <div class="schema-card" id="schema-card-${schema.schemaId}">
                         <div class="schema-header" onclick="selectSchema(${schema.schemaId})">
-                            <span class="schema-name">📋 ${schema.schemaName}</span>
+                            <span class="schema-name">📋 ${index + 1}. ${schema.schemaName}</span>
                             <div style="display: flex; gap: 8px;">
                                 <span class="card-badge" style="background: #0ea5e9; color: white;">${schema.cycleTypeName || 'Monthly'}</span>
                                 <span class="card-badge">${schema.sectionCount} sections</span>
