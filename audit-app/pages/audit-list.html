@@ -1406,6 +1406,7 @@
             // IMPORTANT: Use rounded score to match the card display (Math.round)
             const failingBySchema = {};
             const schemaThresholds = {};
+            const cycleNameMap = {}; // Store cycle names for display
             
             allAudits.forEach(audit => {
                 const threshold = audit.PassingGrade || 83;
@@ -1421,7 +1422,9 @@
                     if (!failingBySchema[schemaName]) {
                         failingBySchema[schemaName] = {};
                     }
-                    const cycleKey = `${audit.AuditCycle || 'N/A'} ${audit.AuditYear || ''}`.trim();
+                    // Use cycle name from CycleDefinitions if available
+                    const cycleName = audit.AuditCycleName || audit.AuditCycle || 'N/A';
+                    const cycleKey = `${audit.AuditCycle || 'N/A'}|${audit.AuditYear || ''}|${cycleName}`;
                     if (!failingBySchema[schemaName][cycleKey]) {
                         failingBySchema[schemaName][cycleKey] = [];
                     }
@@ -1485,18 +1488,29 @@
                 </div>
             `;
             
-            // Sort cycles (most recent first)
+            // Sort cycles (most recent first) - cycleKey format: "C1|2026|January"
             const sortedCycles = Object.keys(schemaData).sort((a, b) => {
-                const [cycleA, yearA] = a.split(' ');
-                const [cycleB, yearB] = b.split(' ');
-                if (yearA !== yearB) return (parseInt(yearB) || 0) - (parseInt(yearA) || 0);
-                return cycleB.localeCompare(cycleA);
+                const partsA = a.split('|');
+                const partsB = b.split('|');
+                const yearA = parseInt(partsA[1]) || 0;
+                const yearB = parseInt(partsB[1]) || 0;
+                if (yearA !== yearB) return yearB - yearA;
+                // Sort by cycle number (C1, C2, etc.)
+                const cycleNumA = parseInt(partsA[0].replace('C', '')) || 0;
+                const cycleNumB = parseInt(partsB[0].replace('C', '')) || 0;
+                return cycleNumB - cycleNumA;
             });
 
-            // Render cycle tabs for this schema
-            const cycleTabsHtml = sortedCycles.map((cycle, idx) => {
-                const count = schemaData[cycle].length;
-                return `<button class="cycle-tab ${idx === 0 ? 'active' : ''}" onclick="showFailingForCycle('${cycle}')">${cycle} <span class="fail-count">${count}</span></button>`;
+            // Render cycle tabs for this schema - show "C1 January 2026" or "C1 Jan-Feb 2026"
+            const cycleTabsHtml = sortedCycles.map((cycleKey, idx) => {
+                const parts = cycleKey.split('|');
+                const cycleNum = parts[0] || 'N/A';
+                const year = parts[1] || '';
+                const cycleName = parts[2] || '';
+                // Show: "C1 January 2026" or "C1 Jan-Feb 2026"
+                const displayLabel = cycleName ? `${cycleNum} ${cycleName} ${year}`.trim() : `${cycleNum} ${year}`.trim();
+                const count = schemaData[cycleKey].length;
+                return `<button class="cycle-tab ${idx === 0 ? 'active' : ''}" onclick="showFailingForCycle('${cycleKey.replace(/'/g, "\\'")}')">${displayLabel} <span class="fail-count">${count}</span></button>`;
             }).join('');
 
             document.getElementById('cycleTabs').innerHTML = cycleTabsHtml || '<span class="empty-state-small" style="padding: 10px;">✅ No failing audits for this schema</span>';
@@ -1514,8 +1528,10 @@
 
         function showFailingForCycle(cycleKey) {
             // Update active tab
+            // Update active tab - match by full cycleKey
             document.querySelectorAll('.cycle-tab').forEach(tab => {
-                tab.classList.toggle('active', tab.textContent.includes(cycleKey.split(' ')[0]));
+                const tabCycleKey = tab.getAttribute('onclick')?.match(/showFailingForCycle\('([^']+)'\)/)?.[1] || '';
+                tab.classList.toggle('active', tabCycleKey === cycleKey);
             });
 
             const failingAudits = window.failingByCycle[cycleKey] || [];

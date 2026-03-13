@@ -934,6 +934,9 @@ class AuditService {
                     a.AuditDate,
                     a.Cycle AS AuditCycle,
                     a.Year AS AuditYear,
+                    cd.CycleName AS AuditCycleName,
+                    s.CycleTypeID,
+                    ct.TypeName AS CycleTypeName,
                     a.Auditors,
                     a.Status,
                     CASE 
@@ -972,6 +975,8 @@ class AuditService {
                     orig.DocumentNumber AS OriginalDocumentNumber
                 FROM AuditInstances a
                 INNER JOIN AuditSchemas s ON a.SchemaID = s.SchemaID
+                LEFT JOIN CycleTypes ct ON s.CycleTypeID = ct.CycleTypeID
+                LEFT JOIN CycleDefinitions cd ON ct.CycleTypeID = cd.CycleTypeID AND a.Cycle = cd.CycleNumber
                 LEFT JOIN SystemSettings ss ON ss.SchemaID = a.SchemaID AND ss.SettingType = 'Overall'
                 LEFT JOIN AuditInstances orig ON a.OriginalAuditID = orig.AuditID
                 ORDER BY a.CreatedAt DESC
