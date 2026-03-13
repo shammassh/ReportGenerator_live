@@ -598,6 +598,66 @@
             background: #f3e8ff;
             color: #7c3aed;
         }
+
+        /* Auto-refresh controls */
+        .refresh-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #f0f4ff;
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-left: auto;
+        }
+
+        .last-updated {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .refresh-btn.spinning .refresh-icon {
+            animation: spin 1s linear infinite;
+        }
+
+        .auto-refresh-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .auto-refresh-toggle input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .countdown {
+            font-size: 11px;
+            color: #667eea;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -606,6 +666,17 @@
         <div class="header">
             <div class="header-left">
                 <h1>🔄 Cycle Dashboard</h1>
+            </div>
+            <div class="refresh-controls">
+                <span class="last-updated" id="lastUpdated">Last updated: --</span>
+                <label class="auto-refresh-toggle">
+                    <input type="checkbox" id="autoRefreshToggle" checked onchange="toggleAutoRefresh()">
+                    Auto-refresh
+                    <span class="countdown" id="countdown">(30s)</span>
+                </label>
+                <button class="refresh-btn" id="refreshBtn" onclick="manualRefresh()">
+                    <span class="refresh-icon">🔄</span> Refresh
+                </button>
             </div>
             <a href="/dashboard" class="back-btn">
                 <span>←</span> Back to Dashboard
@@ -628,12 +699,18 @@
             <div class="filters-section">
                 <div class="filter-group">
                     <label>📋 Select Schema (Checklist Type)</label>
-                    <select id="schemaSelect" onchange="loadCycleData()">
+                    <select id="schemaSelect" onchange="onSchemaChange()">
                         <option value="">-- Select Schema --</option>
                     </select>
                 </div>
+                <div class="filter-group" id="cycleSelectGroup" style="display: none; min-width: 200px;">
+                    <label>🔄 Select Cycle</label>
+                    <select id="cycleSelect" onchange="loadCycleData()">
+                        <option value="">-- Select Cycle --</option>
+                    </select>
+                </div>
                 <div class="cycle-info" id="cycleInfo" style="display: none;">
-                    <div class="cycle-info-label">Current Cycle</div>
+                    <div class="cycle-info-label">Viewing Cycle</div>
                     <div class="cycle-info-value" id="currentCycleDisplay">-</div>
                 </div>
                 <div class="cycle-info" id="cycleTypeInfo" style="display: none;">
@@ -741,11 +818,96 @@
         let currentSchemaData = null;
         let allStoresData = [];
         let currentView = 'schema';
+        let cycleDefinitions = []; // Store cycle definitions for selected schema
+        let selectedCycle = null; // Currently selected cycle
+        
+        // Auto-refresh settings
+        let autoRefreshEnabled = true;
+        let autoRefreshInterval = 30; // seconds
+        let countdownTimer = null;
+        let refreshTimer = null;
+        let currentCountdown = autoRefreshInterval;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadSchemas();
+            startAutoRefresh();
         });
+
+        // Auto-refresh functions
+        function startAutoRefresh() {
+            if (autoRefreshEnabled) {
+                currentCountdown = autoRefreshInterval;
+                updateCountdownDisplay();
+                
+                // Countdown timer
+                countdownTimer = setInterval(() => {
+                    currentCountdown--;
+                    updateCountdownDisplay();
+                    
+                    if (currentCountdown <= 0) {
+                        currentCountdown = autoRefreshInterval;
+                        refreshCurrentView();
+                    }
+                }, 1000);
+            }
+        }
+
+        function stopAutoRefresh() {
+            if (countdownTimer) {
+                clearInterval(countdownTimer);
+                countdownTimer = null;
+            }
+        }
+
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = document.getElementById('autoRefreshToggle').checked;
+            
+            if (autoRefreshEnabled) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+                document.getElementById('countdown').textContent = '(paused)';
+            }
+        }
+
+        function updateCountdownDisplay() {
+            document.getElementById('countdown').textContent = `(${currentCountdown}s)`;
+        }
+
+        function updateLastUpdated() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            });
+            document.getElementById('lastUpdated').textContent = `Last updated: ${timeStr}`;
+        }
+
+        async function manualRefresh() {
+            const btn = document.getElementById('refreshBtn');
+            btn.classList.add('spinning');
+            
+            await refreshCurrentView();
+            
+            setTimeout(() => btn.classList.remove('spinning'), 500);
+            
+            // Reset countdown
+            currentCountdown = autoRefreshInterval;
+        }
+
+        async function refreshCurrentView() {
+            if (currentView === 'schema') {
+                const schemaId = document.getElementById('schemaSelect').value;
+                if (schemaId) {
+                    await loadCycleData();
+                }
+            } else if (currentView === 'allStores') {
+                await loadAllStores();
+            }
+            updateLastUpdated();
+        }
 
         // Switch between views
         function switchView(view) {
@@ -777,6 +939,7 @@
                 if (data.success) {
                     allStoresData = data.stores;
                     renderAllStores(allStoresData);
+                    updateLastUpdated();
                 } else {
                     showToast('Failed to load stores', 'error');
                 }
@@ -901,6 +1064,7 @@
                     option.textContent = `${schema.schemaName} (${schema.cycleTypeName})`;
                     option.dataset.cycleType = schema.cycleTypeName;
                     option.dataset.cyclesPerYear = schema.cyclesPerYear;
+                    option.dataset.cycleTypeId = schema.cycleTypeId;
                     optgroup.appendChild(option);
                 });
                 
@@ -908,11 +1072,12 @@
             });
         }
 
-        // Load cycle data for selected schema
-        async function loadCycleData() {
+        // Handle schema change - load cycle definitions
+        async function onSchemaChange() {
             const schemaId = document.getElementById('schemaSelect').value;
             
             if (!schemaId) {
+                document.getElementById('cycleSelectGroup').style.display = 'none';
                 document.getElementById('statsGrid').style.display = 'none';
                 document.getElementById('progressSection').style.display = 'none';
                 document.getElementById('tablesGrid').style.display = 'none';
@@ -921,6 +1086,67 @@
                 document.getElementById('cycleTypeInfo').style.display = 'none';
                 return;
             }
+
+            // Get the schema's cycle type
+            const selectedOption = document.getElementById('schemaSelect').selectedOptions[0];
+            const cycleTypeId = selectedOption.dataset.cycleTypeId;
+            
+            // Load cycle definitions for this schema
+            try {
+                const response = await fetch(`/api/cycle-dashboard/cycle-definitions?schemaId=${schemaId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    cycleDefinitions = data.cycles;
+                    populateCycleDropdown(data.currentCycle);
+                    document.getElementById('cycleSelectGroup').style.display = 'block';
+                    
+                    // Auto-select current cycle and load data
+                    loadCycleData();
+                }
+            } catch (error) {
+                console.error('Error loading cycle definitions:', error);
+                showToast('Failed to load cycle options', 'error');
+            }
+        }
+
+        // Populate cycle dropdown
+        function populateCycleDropdown(currentCycle) {
+            const select = document.getElementById('cycleSelect');
+            select.innerHTML = '';
+            
+            cycleDefinitions.forEach(cycle => {
+                const option = document.createElement('option');
+                option.value = cycle.cycleNumber;
+                const isCurrent = cycle.cycleNumber === currentCycle;
+                option.textContent = `${cycle.cycleNumber} (${cycle.displayName})${isCurrent ? ' ← Current' : ''}`;
+                option.selected = isCurrent;
+                if (isCurrent) {
+                    option.style.fontWeight = 'bold';
+                }
+                select.appendChild(option);
+            });
+            
+            selectedCycle = currentCycle;
+        }
+
+        // Load cycle data for selected schema and cycle
+        async function loadCycleData() {
+            const schemaId = document.getElementById('schemaSelect').value;
+            const cycleSelect = document.getElementById('cycleSelect');
+            const selectedCycleValue = cycleSelect.value;
+            
+            if (!schemaId || !selectedCycleValue) {
+                document.getElementById('statsGrid').style.display = 'none';
+                document.getElementById('progressSection').style.display = 'none';
+                document.getElementById('tablesGrid').style.display = 'none';
+                document.getElementById('initialState').style.display = 'block';
+                document.getElementById('cycleInfo').style.display = 'none';
+                document.getElementById('cycleTypeInfo').style.display = 'none';
+                return;
+            }
+            
+            selectedCycle = selectedCycleValue;
 
             try {
                 // Show loading
@@ -931,11 +1157,11 @@
                 document.getElementById('cycleInfo').style.display = 'block';
                 document.getElementById('cycleTypeInfo').style.display = 'block';
 
-                // Fetch data
+                // Fetch data with selected cycle
                 const [progressRes, pendingRes, auditedRes] = await Promise.all([
-                    fetch(`/api/cycle-dashboard/progress?schemaId=${schemaId}`),
-                    fetch(`/api/cycle-dashboard/pending-stores?schemaId=${schemaId}`),
-                    fetch(`/api/cycle-dashboard/audited-stores?schemaId=${schemaId}`)
+                    fetch(`/api/cycle-dashboard/progress?schemaId=${schemaId}&cycle=${encodeURIComponent(selectedCycle)}`),
+                    fetch(`/api/cycle-dashboard/pending-stores?schemaId=${schemaId}&cycle=${encodeURIComponent(selectedCycle)}`),
+                    fetch(`/api/cycle-dashboard/audited-stores?schemaId=${schemaId}&cycle=${encodeURIComponent(selectedCycle)}`)
                 ]);
 
                 const progressData = await progressRes.json();
@@ -948,12 +1174,17 @@
                 }
 
                 if (pendingData.success) {
-                    renderPendingStores(pendingData.stores);
+                    // Get the display name for selected cycle
+                    const cycleDef = cycleDefinitions.find(c => c.cycleNumber === selectedCycle);
+                    const cycleName = cycleDef ? cycleDef.displayName : '';
+                    renderPendingStores(pendingData.stores, selectedCycle, cycleName);
                 }
 
                 if (auditedData.success) {
                     renderAuditedStores(auditedData.stores);
                 }
+
+                updateLastUpdated();
 
             } catch (error) {
                 console.error('Error loading cycle data:', error);
@@ -998,7 +1229,7 @@
         }
 
         // Render pending stores table
-        function renderPendingStores(stores) {
+        function renderPendingStores(stores, currentCycle, currentCycleName) {
             const container = document.getElementById('pendingTableBody');
             
             if (!stores || stores.length === 0) {
@@ -1011,12 +1242,17 @@
                 return;
             }
 
+            const cycleDisplay = currentCycleName 
+                ? `${currentCycle} (${currentCycleName})` 
+                : currentCycle;
+
             container.innerHTML = `
                 <table>
                     <thead>
                         <tr>
                             <th>Store</th>
                             <th>Brand</th>
+                            <th>Pending Cycle</th>
                             <th>Last Audit</th>
                         </tr>
                     </thead>
@@ -1025,7 +1261,8 @@
                             <tr>
                                 <td class="store-name">${escapeHtml(store.storeName)}</td>
                                 <td><span class="brand-badge">${escapeHtml(store.brand || 'N/A')}</span></td>
-                                <td class="audit-date">${store.lastAuditDate ? formatDate(store.lastAuditDate) : 'Never'}</td>
+                                <td><span class="cycle-badge">🔄 ${cycleDisplay}</span></td>
+                                <td class="audit-date">${store.lastAuditDate ? formatDate(store.lastAuditDate) + (store.lastAuditCycle ? ' (' + store.lastAuditCycle + ')' : '') : 'Never'}</td>
                             </tr>
                         `).join('')}
                     </tbody>
