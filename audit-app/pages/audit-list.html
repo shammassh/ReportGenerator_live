@@ -1739,7 +1739,7 @@
                             </div>
                             <div class="info-row">
                                 <span class="info-label">🔄 Cycle</span>
-                                <span class="info-value">${audit.AuditCycle || '-'} / ${audit.AuditYear || '-'}</span>
+                                <span class="info-value">${audit.AuditCycleName ? audit.AuditCycle + ' ' + audit.AuditCycleName + ' ' + audit.AuditYear : (audit.AuditCycle || '-') + ' / ' + (audit.AuditYear || '-')}</span>
                             </div>
                             <div class="info-row">
                                 <span class="info-label">👤 Auditor</span>
