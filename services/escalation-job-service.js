@@ -88,7 +88,9 @@ class EscalationJobService {
         const tokenData = await response.json();
         
         // Update the session with new tokens
-        const newExpiry = new Date(Date.now() + (tokenData.expires_in * 1000));
+        // IMPORTANT: Extend session expiry by 24 hours (not just access token expiry)
+        // This keeps the session alive as long as the refresh token is valid (90 days)
+        const newExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
         await pool.request()
             .input('sessionToken', sql.NVarChar, session.session_token)
             .input('accessToken', sql.NVarChar, tokenData.access_token)
@@ -98,7 +100,8 @@ class EscalationJobService {
                 UPDATE Sessions 
                 SET azure_access_token = @accessToken,
                     azure_refresh_token = @refreshToken,
-                    expires_at = @expiresAt
+                    expires_at = @expiresAt,
+                    last_activity = GETDATE()
                 WHERE session_token = @sessionToken
             `);
         
